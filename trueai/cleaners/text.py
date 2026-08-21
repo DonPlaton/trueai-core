@@ -10,7 +10,7 @@ from typing import Any
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import RemediationError
 from trueai.core.integrity import verify_exact_transform
-from trueai.core.models import Remediation
+from trueai.core.models import Remediation, ScanOptions
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,7 @@ class TextCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
         before = source.read_bytes()
         text, encoder = self._decode(before)
@@ -64,14 +65,13 @@ class TextCleaner:
                         "A planned text finding no longer matches the current artifact"
                     )
                 spans.extend(finding_spans)
-        spans = self._deduplicate_and_validate(spans, text)
+        spans, labels = self._deduplicate_and_validate(spans, text)
         cleaned = text
         for span in sorted(spans, key=lambda item: item.start, reverse=True):
             cleaned = cleaned[: span.start] + cleaned[span.end :]
         expected_after = encoder(cleaned)
         destination.write_bytes(expected_after)
         after = destination.read_bytes()
-        labels = tuple(span.label for span in spans)
         integrity = verify_exact_transform(
             before,
             after,
@@ -154,20 +154,36 @@ class TextCleaner:
         return []
 
     @staticmethod
-    def _deduplicate_and_validate(spans: list[_Span], text: str) -> list[_Span]:
-        unique = sorted(set(spans), key=lambda item: (item.start, item.end))
-        previous_end = -1
+    def _deduplicate_and_validate(
+        spans: list[_Span], text: str
+    ) -> tuple[list[_Span], tuple[str, ...]]:
+        """Return the spans to cut, plus every label the plan actually satisfies.
+
+        Widest-first ordering means an enclosing removal is seen before anything
+        nested inside it, so the nested span is absorbed rather than treated as a
+        conflict. Its label is still reported: the user asked for that removal and
+        it happens, as part of the larger cut.
+        """
+
+        unique = sorted(set(spans), key=lambda item: (item.start, -item.end, item.label))
+        retained: list[_Span] = []
+        labels: list[str] = []
         for span in unique:
             if span.start < 0 or span.end > len(text) or span.start >= span.end:
                 raise RemediationError(f"Invalid planned text span: {span.start}:{span.end}")
-            if span.start < previous_end:
-                raise RemediationError("Overlapping text remediations require manual review")
             if span.expected is not None and text[span.start : span.end] != span.expected:
                 raise RemediationError(
                     "Artifact changed after scanning; planned span no longer matches"
                 )
-            previous_end = span.end
-        return unique
+            labels.append(span.label)
+            if retained and span.start < retained[-1].end:
+                if span.end <= retained[-1].end:
+                    continue
+                raise RemediationError(
+                    "Partially overlapping text remediations require manual review"
+                )
+            retained.append(span)
+        return retained, tuple(labels)
 
     @staticmethod
     def _decode(data: bytes) -> tuple[str, Any]:

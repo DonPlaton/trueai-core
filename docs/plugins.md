@@ -38,6 +38,10 @@ A plugin without a manifest still runs under the default policy, but the host
 records a *synthesized* manifest for it, marked `declared=False`, and treats it as
 requesting read-only artifact access.
 
+Shipping a `PluginRegistration` is what lets a host decide about a plugin without
+building it. A bare factory function's identity is only knowable by calling it, so
+it is constructed before the policy can weigh in.
+
 ## Capabilities
 
 | Capability | Meaning |
@@ -108,12 +112,31 @@ trueai scan ./repo --plugins disabled
   creation, and filesystem writes are replaced with functions that raise when the
   matching capability was not granted.
 
+## When the guards apply
+
+The worker installs its guards before it imports the plugin, so module-level code
+and constructors are covered too — import time is exactly where a hostile plugin
+would act. A plugin that legitimately needs a denied capability while importing
+fails with a message naming that capability.
+
+Every documented way to write a file is covered: `open`, `io.open`, `Path.open`,
+`os.open`, and the `os`, `shutil`, and `Path` mutators. Reads are unaffected.
+
 ## What it does not guarantee
 
 The worker runs as the same operating-system user with the same filesystem access
 as the host. The in-worker guards are Python-level replacements: they stop an
 ordinary plugin, and they do not stop native code, `ctypes`, or a plugin that
 deliberately restores the functions that were replaced.
+
+Host-side discovery still imports a plugin's module, because an entry point is an
+import path and nothing about the plugin is readable without it. Policy decides
+before the detector is constructed and before it runs; it cannot gate module-level
+code. Under `subprocess` isolation the detector is constructed only in the worker.
+
+A plugin whose id collides with one that is already registered is refused and
+reported rather than aborting discovery, so an installed package cannot stop the
+tool from starting.
 
 A real sandbox — seccomp, AppContainer, or container-level isolation — is future
 work. Until it exists, `subprocess` isolation should be read as "contains accidents

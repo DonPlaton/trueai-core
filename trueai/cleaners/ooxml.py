@@ -52,8 +52,15 @@ class OfficeOpenXmlCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
-        """Rewrite the package with approved properties removed, then prove the result."""
+        """Rewrite the package with approved properties removed, then prove the result.
+
+        ``options`` must be the limits the scan ran under. Re-opening the package
+        under different archive boundaries would either refuse a package the scan
+        accepted or inflate one the scan refused, so the caller passes the same
+        configuration rather than the cleaner assuming defaults.
+        """
 
         custom_property_operation = f"{self.remediation_namespace}.remove-custom-property"
         targets: dict[str, set[str]] = {}
@@ -86,7 +93,7 @@ class OfficeOpenXmlCleaner:
         if custom_fields:
             changed_parts.add(CUSTOM_PROPERTIES_PART)
         with (
-            open_validated_opc(source, ScanOptions()) as source_zip,
+            open_validated_opc(source, options or ScanOptions()) as source_zip,
             zipfile.ZipFile(destination, "w") as destination_zip,
         ):
             for info in source_zip.infolist():

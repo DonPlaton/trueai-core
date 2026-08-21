@@ -3,7 +3,9 @@
 A third-party detector is ordinary Python running inside a forensic tool, which
 is exactly the position an attacker would like to be in. The manifest makes the
 plugin state its intentions up front, and the policy lets an operator decide
-which of those intentions are acceptable before any plugin code is loaded.
+which of those intentions are acceptable before the detector is constructed or
+run. Reading the manifest still imports the plugin's module, because an entry
+point is an import path; module-level code is outside what a policy can gate.
 
 Nothing here is a sandbox on its own. The manifest is the declaration, the policy
 is the decision, and :mod:`trueai.plugins.host` is the enforcement point.
@@ -114,7 +116,7 @@ class CapabilityPolicy(FrozenModel):
         *,
         schema_version: str = SCHEMA_VERSION,
     ) -> CapabilityDecision:
-        """Decide whether a plugin may run, before any of its code is trusted."""
+        """Decide whether a plugin may run, before it is constructed or invoked."""
 
         detector_id = manifest.detector_id
         if detector_id in self.blocked_detector_ids:

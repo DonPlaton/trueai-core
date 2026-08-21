@@ -24,6 +24,8 @@ future desktop, CI, IDE, and enterprise products can use.
 8. `plugins` reviews third-party capability manifests, decides what a plugin may do, and optionally
    runs it in a worker process.
 9. `reporters` render terminal, JSON schema `0.1`, and SARIF output without detector coupling.
+   Artifact-controlled text is escaped before it reaches a markup parser, and every surface carries
+   scan diagnostics so an incomplete run cannot be mistaken for a clean one.
 10. `schema` emits the public JSON Schema and classifies differences between two versions of it as
     additive or breaking.
 
@@ -59,15 +61,13 @@ enforced by construction rather than by review.
 
 ## Determinism and scale
 
-A completed scan is byte-identical regardless of how it was executed. Artifacts, detectors,
-findings, and policy decisions are returned in a stable order, and parallel execution merges
-per-artifact results in artifact order rather than completion order. Setting `max_workers` above 1
-requires third-party detectors to be thread-safe, or `PluginIsolation.SUBPROCESS`, which gives each
-plugin its own interpreter.
-
-The one exception is an exhausted budget: when `max_findings` is reached, which artifacts were
-already in flight determines what the truncated report contains. That report is explicitly marked
-incomplete with a blocking diagnostic, so it is never presented as a clean result.
+A scan is byte-identical regardless of how it was executed, including when it is truncated.
+Artifacts, detectors, findings, and policy decisions are returned in a stable order; parallel
+execution inspects several artifacts at once but charges the global finding budget strictly in
+artifact order, through a bounded submission window, so an exhausted budget retains the same
+findings and emits the same diagnostics as a sequential run. Setting `max_workers` above 1 requires
+third-party detectors to be thread-safe, or `PluginIsolation.SUBPROCESS`, which gives each plugin
+its own interpreter.
 
 Artifact discovery is iterative, bounded by `max_files`, and applies `.gitignore` and
 `.trueaiignore` with Git's directory-relative semantics: a nested ignore file applies only beneath

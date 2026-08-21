@@ -12,7 +12,7 @@ from PIL import Image
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import CorruptArtifactError, RemediationError
 from trueai.core.integrity import sha256_bytes
-from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation
+from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -30,6 +30,7 @@ class ImageMetadataCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
         if any(item.remediation_id not in self.supported_remediation_ids for item in remediations):
             raise RemediationError("Image cleaner received an unsupported remediation")
@@ -236,9 +237,14 @@ class ImageMetadataCleaner:
         if not pixel_payload:
             raise CorruptArtifactError("JPEG scan data marker was not found")
         after = bytes(output)
-        after_pixel_offset = after.find(b"\xff\xda")
-        if after_pixel_offset < 0:
-            raise CorruptArtifactError("Cleaned JPEG scan marker was lost")
+        # The scan payload was appended last and copied verbatim, so its
+        # offset is known by construction. Searching for the SOS marker
+        # instead matches the first FF DA anywhere in the output, including
+        # inside a retained EXIF thumbnail, ICC profile, or comment, which
+        # fails the integrity gate on an image whose pixels never changed.
+        after_pixel_offset = len(after) - len(pixel_payload)
+        if not after.startswith(pixel_payload, after_pixel_offset):
+            raise CorruptArtifactError("Cleaned JPEG scan data was not written verbatim")
         return after, changes, pixel_payload, after[after_pixel_offset:]
 
     @staticmethod

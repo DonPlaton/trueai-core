@@ -1,20 +1,32 @@
 """Worker process that runs exactly one third-party detector, once.
 
 Invoked as ``python -m trueai.plugins.worker <request-file> <response-file>``.
-The worker installs the guards implied by its granted capabilities *before* it
-imports the plugin, runs the detector, and writes a JSON response. It never
-writes to stdout on the success path, so a plugin that prints does not corrupt
-the protocol.
+The worker installs the guards implied by its granted capabilities before it
+imports the plugin, runs the detector, and writes a JSON response. Import time is
+when a hostile plugin would act, so guarding only the ``scan`` call would guard
+the wrong moment. A plugin that legitimately needs a denied capability while
+importing fails with a message naming that capability.
+
+The worker never writes to stdout on the success path, so a plugin that prints
+does not corrupt the protocol.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
+
+# Captured before any guard is installed. The filesystem guard replaces every
+# open() spelling, including os.open, so the worker keeps its own references to
+# write the response it owes the host.
+_RAW_OPEN = os.open
+_RAW_WRITE = os.write
+_RAW_CLOSE = os.close
 
 
 def _fail(response_path: Path, detector_id: str, code: str, message: str) -> int:
@@ -49,14 +61,13 @@ def _write(response_path: Path, response: Any) -> None:
             .model_dump_json()
             .encode("utf-8")
         )
-    # Written with the raw descriptor because the filesystem guard replaces open().
-    import os
-
-    descriptor = os.open(str(response_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    # Written through the descriptor functions captured before the guards, because
+    # the filesystem guard replaces every open() the plugin could reach.
+    descriptor = _RAW_OPEN(str(response_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        os.write(descriptor, encoded)
+        _RAW_WRITE(descriptor, encoded)
     finally:
-        os.close(descriptor)
+        _RAW_CLOSE(descriptor)
 
 
 def main(argv: list[str]) -> int:
@@ -80,6 +91,10 @@ def main(argv: list[str]) -> int:
     from trueai.core.models import ScanContext
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.loader import load_entry_point
+
+    # Guards go up before the plugin is imported. Everything the plugin runs,
+    # including module-level code and its constructor, is subject to them.
+    apply_guards(frozenset(request.granted_capabilities))
 
     try:
         detector = load_entry_point(request.entry_point)
@@ -111,11 +126,6 @@ def main(argv: list[str]) -> int:
         options=request.options,
         root=Path(request.root) if request.root else None,
     )
-
-    # Guards are installed after the plugin is imported but before it runs, so a
-    # plugin cannot use import time to escape them and cannot be blocked from
-    # legitimately importing its own dependencies.
-    apply_guards(frozenset(request.granted_capabilities))
 
     try:
         findings = detector.scan(artifact, context)

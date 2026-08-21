@@ -11,7 +11,12 @@ from pathlib import Path
 
 from pathspec import GitIgnoreSpec
 
-from trueai.core.errors import ArtifactNotFoundError, ArtifactTooLargeError, UnsafeArtifactError
+from trueai.core.errors import (
+    ArtifactNotFoundError,
+    ArtifactTooLargeError,
+    CorruptArtifactError,
+    UnsafeArtifactError,
+)
 from trueai.core.models import ArtifactType
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -149,19 +154,27 @@ class Artifact:
         return self.path.read_bytes()
 
     def read_text(self, limit: int) -> str:
-        """Decode a bounded textual artifact without discarding a leading BOM."""
+        """Decode a bounded textual artifact exactly, or refuse to guess.
+
+        Substituting replacement characters would make every offset a detector
+        reports refer to a string the cleaner can never reconstruct, so a span
+        approved for removal would cut the wrong bytes. An artifact that cannot
+        be decoded exactly is reported as corrupt instead, which fails the scan
+        closed and blocks remediation rather than silently mis-editing a file.
+        """
 
         if self.text_content is not None:
             if len(self.text_content.encode("utf-8")) > limit:
                 raise ArtifactTooLargeError(f"{self.display_path} exceeds {limit} bytes")
             return self.text_content
         data = self.read_bytes(limit)
-        if data.startswith((b"\xff\xfe", b"\xfe\xff")):
-            return data.decode("utf-16")
+        encoding = "utf-16" if data.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8"
         try:
-            return data.decode("utf-8")
-        except UnicodeDecodeError:
-            return data.decode("utf-8", errors="replace")
+            return data.decode(encoding)
+        except UnicodeDecodeError as exc:
+            raise CorruptArtifactError(
+                f"{self.display_path} is not valid {encoding}: {exc}"
+            ) from exc
 
     def sha256(self, limit: int) -> str | None:
         """Hash file or stream content within the configured boundary."""

@@ -58,8 +58,20 @@ than silently dropped.
 
 Subprocess isolation contains crashes, hangs, and unbounded output, and re-derives every returned
 finding so a plugin cannot forge an identity, reattribute a finding, or impersonate another
-detector. It is not an operating-system sandbox: the worker runs as the same user with the same
-filesystem access, restrained only by Python-level guards. See [plugins](plugins.md).
+detector. Guards are installed before the plugin module is imported, so import-time and constructor
+code is covered.
+
+It is not an operating-system sandbox: the worker runs as the same user with the same filesystem
+access, restrained only by Python-level guards, and reading a manifest still imports the plugin's
+module in the host. See [plugins](plugins.md).
+
+## Text decoding
+
+A textual artifact is decoded exactly or reported as corrupt. Substituting
+replacement characters would make every offset a detector reports refer to a
+string the cleaner cannot reconstruct, so an approved removal would cut the wrong
+bytes. An undecodable file produces a high-severity diagnostic, exit code `3`, and
+no remediation.
 
 ## Caching
 

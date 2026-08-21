@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from bisect import bisect_right
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -59,6 +60,33 @@ _BIDI_CONTROLS = {
 }
 _PREDICTABLY_REMOVABLE = {0x200B, 0x2060}
 
+#: Every character the classifier can report lies outside printable ASCII: named
+#: classes start at U+00A0, bidi controls and variation selectors are higher
+#: still, and the category checks only fire for Cc outside tab/newline/return, Cf,
+#: or non-ASCII whitespace. Matching the complement lets one C-level pass skip the
+#: bulk of an ordinary file instead of paying a classifier call per character.
+_CANDIDATE_CHARACTERS = re.compile(r"[^\x20-\x7e\t\n\r]")
+
+
+class _LineIndex:
+    """Resolve an offset to a line and column without rescanning the text."""
+
+    __slots__ = ("_starts",)
+
+    def __init__(self, text: str) -> None:
+        starts = [0]
+        position = text.find("\n")
+        while position >= 0:
+            starts.append(position + 1)
+            position = text.find("\n", position + 1)
+        self._starts = starts
+
+    def locate(self, offset: int) -> tuple[int, int]:
+        """Return the one-based line and column containing a character offset."""
+
+        line = bisect_right(self._starts, offset)
+        return line, offset - self._starts[line - 1] + 1
+
 
 @dataclass(frozen=True, slots=True)
 class UnicodeClassification:
@@ -80,11 +108,15 @@ class UnicodeForensicsDetector(BaseDetector):
     def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
         text = artifact.read_text(context.options.max_file_size)
         findings = FindingBuffer(context.options.max_findings, self.id)
-        line = 1
-        column = 1
-        for offset, character in enumerate(text):
+        lines: _LineIndex | None = None
+        for match in _CANDIDATE_CHARACTERS.finditer(text):
+            offset = match.start()
+            character = match.group()
             classification = self._classify(character, offset)
             if classification is not None:
+                if lines is None:
+                    lines = _LineIndex(text)
+                line, column = lines.locate(offset)
                 code_point = ord(character)
                 category = (
                     FindingCategory.INVISIBLE_UNICODE
@@ -129,11 +161,6 @@ class UnicodeForensicsDetector(BaseDetector):
                         tags=("unicode", classification.safety_class.value),
                     )
                 )
-            if character == "\n":
-                line += 1
-                column = 1
-            else:
-                column += 1
         findings.extend(self._whitespace_patterns(artifact, text))
         return findings
 

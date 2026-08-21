@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import threading
-from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from collections import Counter, deque
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,37 +34,37 @@ _CONTAINER_TYPES = frozenset({ArtifactType.DIRECTORY, ArtifactType.GIT_REPOSITOR
 
 
 class _FindingBudget:
-    """Global finding allowance shared by every artifact in one scan.
+    """Global finding allowance, consumed strictly in artifact order.
 
     The budget is global rather than per artifact so that a directory scan cannot
-    quietly grow past its declared limit. Exhausting it marks the report
-    incomplete; it never silently returns a partial result as a clean one.
+    quietly grow past its declared limit. It is charged from a single thread while
+    merging results in order, never from the workers, because a budget consumed in
+    completion order would make a truncated report depend on thread scheduling.
+    Exhausting it marks the report incomplete; it never silently returns a partial
+    result as a clean one.
     """
 
     def __init__(self, limit: int) -> None:
         self._limit = limit
         self._used = 0
         self._exhausted = False
-        self._lock = threading.Lock()
 
     def take(self, requested: int) -> tuple[int, bool]:
         """Reserve up to ``requested`` findings and report whether the limit was hit."""
 
-        with self._lock:
-            remaining = max(self._limit - self._used, 0)
-            granted = min(requested, remaining)
-            self._used += granted
-            hit_limit = requested > granted
-            if hit_limit:
-                self._exhausted = True
-            return granted, hit_limit
+        remaining = max(self._limit - self._used, 0)
+        granted = min(requested, remaining)
+        self._used += granted
+        hit_limit = requested > granted
+        if hit_limit:
+            self._exhausted = True
+        return granted, hit_limit
 
     @property
     def exhausted(self) -> bool:
-        """Return whether any artifact has already hit the global limit."""
+        """Return whether the limit has already been reached."""
 
-        with self._lock:
-            return self._exhausted
+        return self._exhausted
 
 
 @dataclass(slots=True)
@@ -202,6 +201,7 @@ class TrueAIEngine:
             detectors_run.update(outcome.detectors_run)
             if outcome.mutated:
                 mutated_artifacts.append(artifact.display_path)
+        del budget
 
         mutated_set = set(mutated_artifacts)
         for artifact, descriptor in zip(artifacts, descriptors, strict=True):
@@ -333,20 +333,63 @@ class TrueAIEngine:
                 artifacts[index],
                 descriptors[index],
                 context,
-                budget=budget,
                 cache=cache,
                 options_digest=options_digest,
                 detector_ids=detector_ids,
                 single_artifact=single_artifact,
             )
 
+        def charge(index: int, outcome: _ArtifactOutcome) -> None:
+            """Apply the global budget to one artifact, in artifact order."""
+
+            granted, hit_limit = budget.take(len(outcome.findings))
+            if granted < len(outcome.findings):
+                del outcome.findings[granted:]
+            if hit_limit:
+                outcome.diagnostics.append(
+                    self._budget_diagnostic(artifacts[index], context.options)
+                )
+                outcome.cacheable = False
+
         workers = min(context.options.max_workers, len(artifacts))
+        outcomes: list[_ArtifactOutcome] = []
         if workers <= 1:
-            return [inspect(index) for index in range(len(artifacts))]
-        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="trueai-scan") as pool:
-            # map preserves submission order, so the merged report does not depend
-            # on which worker happened to finish first.
-            return list(pool.map(inspect, range(len(artifacts))))
+            for index in range(len(artifacts)):
+                if budget.exhausted:
+                    break
+                outcome = inspect(index)
+                charge(index, outcome)
+                self._store_in_cache(cache, outcome)
+                outcomes.append(outcome)
+        else:
+            # A bounded submission window keeps results arriving in order while
+            # several artifacts are in flight, so the budget is charged in artifact
+            # order and work still stops once it is full.
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="trueai-scan") as pool:
+                pending: deque[Future[_ArtifactOutcome]] = deque()
+                submitted = 0
+                window = workers * 2
+                while submitted < len(artifacts) and len(pending) < window:
+                    pending.append(pool.submit(inspect, submitted))
+                    submitted += 1
+                index = 0
+                while pending:
+                    outcome = pending.popleft().result()
+                    charge(index, outcome)
+                    self._store_in_cache(cache, outcome)
+                    outcomes.append(outcome)
+                    index += 1
+                    if budget.exhausted:
+                        for future in pending:
+                            future.cancel()
+                        break
+                    if submitted < len(artifacts):
+                        pending.append(pool.submit(inspect, submitted))
+                        submitted += 1
+        # Artifacts beyond an exhausted budget contribute nothing; the report is
+        # already marked incomplete by the budget diagnostic.
+        outcomes.extend(_ArtifactOutcome() for _ in range(len(artifacts) - len(outcomes)))
+        return outcomes
 
     def _scan_artifact(
         self,
@@ -354,13 +397,17 @@ class TrueAIEngine:
         descriptor: ArtifactDescriptor,
         context: ScanContext,
         *,
-        budget: _FindingBudget,
         cache: ScanCache | None,
         options_digest: str,
         detector_ids: tuple[str, ...],
         single_artifact: bool,
     ) -> _ArtifactOutcome:
-        """Run every eligible detector against one artifact inside the shared budget."""
+        """Run every eligible detector against one artifact.
+
+        The per-detector buffer caps what any single detector may produce. The
+        global budget is applied afterwards, in artifact order, so this runs
+        without needing to coordinate with the other workers.
+        """
 
         options = context.options
         outcome = _ArtifactOutcome()
@@ -379,21 +426,14 @@ class TrueAIEngine:
             outcome.cacheable = False
             return outcome
 
-        if budget.exhausted:
-            outcome.cacheable = False
-            return outcome
-
         cache_key = self._cache_key(artifact, descriptor, cache, options_digest, detector_ids)
         outcome.cache_key = cache_key
         if cache is not None and cache_key is not None:
             cached = cache.load(cache_key)
             if cached is not None:
-                granted, hit_limit = budget.take(len(cached.findings))
-                outcome.findings.extend(cached.findings[:granted])
+                outcome.findings.extend(cached.findings)
                 outcome.diagnostics.extend(cached.diagnostics)
                 outcome.detectors_run.update(cached.detectors_run)
-                if hit_limit:
-                    outcome.diagnostics.append(self._budget_diagnostic(artifact, options))
                 outcome.cacheable = False
                 return outcome
 
@@ -403,11 +443,9 @@ class TrueAIEngine:
                 continue
             supported = True
             outcome.detectors_run.add(detector.id)
-            hit_limit = False
             try:
                 detector_findings = detector.scan(artifact, context)
-                granted, hit_limit = budget.take(len(detector_findings))
-                outcome.findings.extend(detector_findings[:granted])
+                outcome.findings.extend(detector_findings)
                 if any("scan-incomplete" in finding.tags for finding in detector_findings):
                     outcome.diagnostics.append(
                         ScanDiagnostic(
@@ -446,9 +484,6 @@ class TrueAIEngine:
                         severity=Severity.HIGH,
                     )
                 )
-            if hit_limit:
-                outcome.diagnostics.append(self._budget_diagnostic(artifact, options))
-                break
 
         if not supported and single_artifact and artifact.artifact_type not in _CONTAINER_TYPES:
             outcome.diagnostics.append(
@@ -469,7 +504,6 @@ class TrueAIEngine:
                 outcome.mutated = True
                 outcome.diagnostics.append(self._mutation_diagnostic(artifact))
 
-        self._store_in_cache(cache, outcome)
         return outcome
 
     def _eligible_detectors(self, options: ScanOptions) -> tuple[Detector, ...]:

@@ -144,6 +144,39 @@ class LoudPlugin(BaseDetector):
         ]
 
 
+#: Set when ConstructionRecordingPlugin is instantiated, so a test can assert
+#: that a refused plugin never had its constructor run.
+CONSTRUCTIONS: list[str] = []
+
+
+class ConstructionRecordingPlugin(BaseDetector):
+    """Records the fact that it was constructed."""
+
+    id = "example.constructed.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.STRUCTURAL_SIGNAL})
+
+    def __init__(self) -> None:
+        CONSTRUCTIONS.append(self.id)
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        return []
+
+
+class PathOpenWriterPlugin(BaseDetector):
+    """Attempts to write through Path.open rather than the builtin."""
+
+    id = "example.path-writer.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.SECURITY_ISSUE})
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        assert artifact.path is not None
+        with (artifact.path.parent / "written-via-path-open.txt").open("w") as handle:
+            handle.write("here")
+        return []
+
+
 class NetworkPlugin(BaseDetector):
     """Attempts to open a socket."""
 

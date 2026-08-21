@@ -201,8 +201,9 @@ maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Repository scale
 
-- `--jobs N` inspects several artifacts at once. A completed scan is byte-identical to a sequential
-  one, because results merge in artifact order rather than completion order.
+- `--jobs N` inspects several artifacts at once. The scan is byte-identical to a sequential one,
+  including when the finding budget runs out, because the budget is charged in artifact order
+  rather than in completion order.
 - `--cache` reuses detector output for content that has not changed. The key covers the artifact
   digest, its path, the detector set, the resource limits, and the package and schema versions, so a
   hit is only ever an exact match. Failed and incomplete scans are never cached.
@@ -263,7 +264,11 @@ The roadmap does not promise removal of robust statistical or cryptographic wate
 - Git worktrees, object databases, and alternates outside the selected root are rejected;
   unreachable or dangling commits remain outside the all-refs history scope.
 - Plugin isolation is process-level with Python-level capability guards. It contains accidents and
-  catches dishonest output; it does not safely run hostile native code.
+  catches dishonest output; it does not safely run hostile native code, and reading a plugin's
+  manifest still imports its module.
+- A textual artifact that cannot be decoded exactly is reported as corrupt rather than scanned with
+  replacement characters, because an offset the cleaner cannot reproduce is not a safe basis for
+  removing anything.
 - With `--jobs` above 1, third-party detectors must be thread-safe or run under subprocess
   isolation.
 - Audio, video, HTML reports, learned classifiers, and destructive Git remediation are not

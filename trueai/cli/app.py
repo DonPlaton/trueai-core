@@ -193,7 +193,10 @@ def clean(
 
     try:
         policy = PolicyStore.get(policy_name)
-        report = TrueAIEngine.default().scan(path, policy=policy)
+        # The cleaner re-reads the artifact, so it must use the boundaries the
+        # scan applied rather than a fresh set of defaults.
+        options = ScanOptions()
+        report = TrueAIEngine.default().scan(path, options=options, policy=policy)
         if _has_blocking_diagnostics(report):
             TerminalReporter(console).render(report, verbose=True)
             raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT)
@@ -207,6 +210,7 @@ def clean(
             output_path=output,
             in_place=in_place,
             dry_run=dry_run,
+            options=options,
         )
         terminal.render_result(result)
         if report.summary.violation_count:

@@ -9,7 +9,7 @@ from typing import Any
 
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import OptionalDependencyError, RemediationError
-from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation
+from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
 
 _MAX_PDF_BYTES = 64 * 1024 * 1024
@@ -192,6 +192,7 @@ class PDFCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
         source_bytes = self._read_bounded_file(source)
         if contains_protected_provenance_marker(source_bytes):

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -42,6 +43,17 @@ _SEVERITY_STYLE = {
 }
 
 
+def _safe(value: object) -> str:
+    """Return artifact-derived text that the markup parser will not interpret.
+
+    Rich treats square brackets as markup. A file name, metadata value, or signed
+    manifest field containing one is data, never formatting, so it is escaped
+    before interpolation.
+    """
+
+    return escape(str(value))
+
+
 class TerminalReporter:
     """Render findings without sensational authorship language."""
 
@@ -54,7 +66,7 @@ class TerminalReporter:
         self.console.print(Text("TRUEAI", style="bold bright_cyan"))
         self.console.print(Text("Artifact Forensics", style="dim"))
         self.console.print()
-        self.console.print(f"Scanning: [bold]{report.artifact.path}[/bold]")
+        self.console.print(f"Scanning: [bold]{_safe(report.artifact.path)}[/bold]")
         self.console.print(
             f"{report.summary.finding_count} findings across "
             f"{report.summary.artifact_count} artifact(s)"
@@ -81,7 +93,7 @@ class TerminalReporter:
             for diagnostic in report.diagnostics:
                 self.console.print(
                     f"[{_SEVERITY_STYLE[diagnostic.severity]}]"
-                    f"{diagnostic.severity.value.upper()}[/] {diagnostic.message}"
+                    f"{diagnostic.severity.value.upper()}[/] {_safe(diagnostic.message)}"
                 )
         integrity_style = {
             IntegrityStatus.PASS: "green",
@@ -92,7 +104,7 @@ class TerminalReporter:
         self.console.print("\n[bold]Integrity[/bold]")
         self.console.print(
             f"[{integrity_style}]{report.integrity.status.value.replace('_', ' ').title()}[/] — "
-            f"{report.integrity.explanation}"
+            f"{_safe(report.integrity.explanation)}"
         )
 
     def render_plan(self, plan: RemediationPlan) -> None:
@@ -106,8 +118,8 @@ class TerminalReporter:
         for remediation in plan.remediations:
             table.add_row(
                 remediation.safety.value,
-                remediation.artifact_path,
-                remediation.remediation_id,
+                _safe(remediation.artifact_path),
+                _safe(remediation.remediation_id),
                 str(len(remediation.finding_ids)),
             )
         self.console.print(table)
@@ -123,13 +135,13 @@ class TerminalReporter:
 
         title = "Dry run" if result.dry_run else "Clean result"
         lines = [
-            f"Output: {result.output_path or 'not created'}",
+            f"Output: {_safe(result.output_path or 'not created')}",
             f"Changed fields: {len(result.changed_fields)}",
             f"Integrity: {result.integrity.status.value.upper()}",
-            result.integrity.explanation,
+            _safe(result.integrity.explanation),
         ]
         if result.backup_path:
-            lines.insert(1, f"Backup: {result.backup_path}")
+            lines.insert(1, f"Backup: {_safe(result.backup_path)}")
         self.console.print(Panel("\n".join(lines), title=title, border_style="bright_cyan"))
 
     def render_verification(self, result: ProvenanceVerification) -> None:
@@ -138,22 +150,22 @@ class TerminalReporter:
         style = _VERIFICATION_STYLE[result.status]
         lines = [
             f"[{style}]{result.status.value.replace('_', ' ').upper()}[/]",
-            result.explanation,
+            _safe(result.explanation),
             "",
-            f"Artifact: {result.artifact_path}",
-            f"Verifier: {result.verifier}",
+            f"Artifact: {_safe(result.artifact_path)}",
+            f"Verifier: {_safe(result.verifier)}",
             f"Trust anchors configured: {'yes' if result.trust_anchors_configured else 'no'}",
         ]
         if result.claim_generator:
-            lines.append(f"Claim generator: {result.claim_generator}")
+            lines.append(f"Claim generator: {_safe(result.claim_generator)}")
         if result.title:
-            lines.append(f"Manifest title: {result.title}")
+            lines.append(f"Manifest title: {_safe(result.title)}")
         if result.signer is not None:
             signer = result.signer
             lines.append(
                 "Signer: "
                 + " · ".join(
-                    part
+                    _safe(part)
                     for part in (
                         signer.common_name,
                         signer.issuer,
@@ -165,7 +177,7 @@ class TerminalReporter:
             )
         if result.remote_manifest_url:
             fetched = "fetched" if result.remote_manifests_allowed else "not fetched"
-            lines.append(f"Remote manifest: {result.remote_manifest_url} ({fetched})")
+            lines.append(f"Remote manifest: {_safe(result.remote_manifest_url)} ({fetched})")
         self.console.print(
             Panel("\n".join(lines), title="Provenance verification", border_style="bright_cyan")
         )
@@ -174,7 +186,7 @@ class TerminalReporter:
             table.add_column("Label")
             table.add_column("Data")
             for assertion in result.assertions:
-                table.add_row(assertion.label, assertion.summary)
+                table.add_row(_safe(assertion.label), _safe(assertion.summary))
             self.console.print(table)
         failures = result.failures()
         if failures:
@@ -182,7 +194,7 @@ class TerminalReporter:
             table.add_column("Code")
             table.add_column("Explanation")
             for entry in failures:
-                table.add_row(entry.code, entry.explanation)
+                table.add_row(_safe(entry.code), _safe(entry.explanation))
             self.console.print(table)
         elif result.validation:
             passed = sum(
@@ -194,14 +206,14 @@ class TerminalReporter:
         style = _SEVERITY_STYLE[finding.severity]
         location = ""
         if finding.location and finding.location.line:
-            location = f" · {finding.artifact_path}:{finding.location.line}"
-        provider = f" · {finding.provider}" if finding.provider else ""
+            location = f" · {_safe(finding.artifact_path)}:{finding.location.line}"
+        provider = f" · {_safe(finding.provider)}" if finding.provider else ""
         self.console.print()
         self.console.print(
             f"[{style}]{finding.severity.value.upper()}[/] "
-            f"[bold]{finding.title}[/bold]{provider}{location}"
+            f"[bold]{_safe(finding.title)}[/bold]{provider}{location}"
         )
-        self.console.print(finding.description)
+        self.console.print(_safe(finding.description))
         self.console.print(
             f"[dim]{finding.confidence_type.value.upper()} {finding.confidence:.2f} · "
             f"{finding.category.value} · {finding.id}[/dim]"
@@ -210,4 +222,4 @@ class TerminalReporter:
             self.console.print(
                 f"[dim]{confidence_explanation(finding.confidence, finding.confidence_type)}[/dim]"
             )
-            self.console.print(f"Evidence: {finding.evidence}")
+            self.console.print(f"Evidence: {_safe(finding.evidence)}")

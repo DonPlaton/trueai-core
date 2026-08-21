@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from trueai.core.models import IntegrityReport, Remediation
+from trueai.core.models import IntegrityReport, Remediation, ScanOptions
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,5 +27,10 @@ class Cleaner(Protocol):
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
-        """Write a new artifact and verify its content integrity."""
+        """Write a new artifact and verify its content integrity.
+
+        ``options`` carries the boundaries the scan ran under. A cleaner that
+        re-reads the artifact must apply the same limits the detector did.
+        """

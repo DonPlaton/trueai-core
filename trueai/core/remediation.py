@@ -24,6 +24,7 @@ from trueai.core.models import (
     RemediationPlan,
     RemediationResult,
     RemediationSafety,
+    ScanOptions,
     ScanReport,
     Severity,
 )
@@ -129,8 +130,14 @@ class RemediationService:
         output_path: str | Path | None = None,
         in_place: bool = False,
         dry_run: bool = False,
+        options: ScanOptions | None = None,
     ) -> RemediationResult:
-        """Apply planned changes; originals are preserved unless ``in_place`` is explicit."""
+        """Apply planned changes; originals are preserved unless ``in_place`` is explicit.
+
+        ``options`` should be the same boundaries the scan ran under, so a cleaner
+        that re-reads the artifact applies the limits the detector applied rather
+        than inventing its own.
+        """
 
         source_path = Path(source).resolve(strict=True)
         if not source_path.is_file():
@@ -186,7 +193,7 @@ class RemediationService:
         temporary = Path(temporary_name)
         backup_path: Path | None = None
         try:
-            outcome = cleaner.apply(source_path, temporary, relevant)
+            outcome = cleaner.apply(source_path, temporary, relevant, options)
             if outcome.integrity.status != IntegrityStatus.PASS:
                 raise RemediationError(
                     f"Integrity verification failed: {outcome.integrity.explanation}"

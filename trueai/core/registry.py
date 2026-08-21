@@ -5,7 +5,12 @@ from __future__ import annotations
 from trueai.core.errors import DetectorRegistrationError
 from trueai.core.models import FindingCategory
 from trueai.detectors.base import Detector
-from trueai.plugins.host import DiscoveryResult, PluginHost, PluginIsolation
+from trueai.plugins.host import (
+    DiscoveryResult,
+    PluginHost,
+    PluginIsolation,
+    PluginRejection,
+)
 from trueai.plugins.manifest import CapabilityPolicy
 
 
@@ -62,9 +67,11 @@ class DetectorRegistry:
     ) -> list[str]:
         """Load third-party detectors the host policy allows.
 
-        Discovery never partially applies: a plugin the policy refuses is recorded
-        in :attr:`plugin_discovery` and left unregistered, so the scan reports a
-        reduced detector set rather than pretending it ran everything.
+        Discovery never partially applies. Every plugin is reviewed first and only
+        the accepted set is registered, so a refused plugin, one that does not
+        implement the protocol, or one whose id collides with a detector that is
+        already registered is recorded in :attr:`plugin_discovery` and skipped.
+        None of them can abort discovery and take the scan down with it.
         """
 
         host_arguments: dict[str, object] = {"policy": policy, "isolation": isolation}
@@ -74,13 +81,44 @@ class DetectorRegistry:
             host_arguments["search_path"] = search_path
         host = PluginHost(**host_arguments)  # type: ignore[arg-type]
         result = host.discover()
-        self.plugin_discovery = result
-        loaded: list[str] = []
+
+        accepted: list[Detector] = []
+        rejections = list(result.rejections)
+        claimed: set[str] = set(self._detectors)
         for detector in result.detectors:
+            entry_point = getattr(detector, "entry_point", "")
             if not isinstance(detector, Detector):
-                raise DetectorRegistrationError(
-                    f"Plugin {getattr(detector, 'id', detector)!r} does not implement Detector"
+                rejections.append(
+                    PluginRejection(
+                        detector_id=str(getattr(detector, "id", detector)),
+                        entry_point=str(entry_point),
+                        reason="The plugin does not implement the Detector protocol.",
+                    )
                 )
+                continue
+            if detector.id in claimed:
+                rejections.append(
+                    PluginRejection(
+                        detector_id=detector.id,
+                        entry_point=str(entry_point),
+                        reason=(
+                            "Another registered detector already uses this id. A plugin "
+                            "cannot take over an id that is already claimed."
+                        ),
+                    )
+                )
+                continue
+            claimed.add(detector.id)
+            accepted.append(detector)
+
+        self.plugin_discovery = DiscoveryResult(
+            detectors=tuple(accepted),
+            manifests=result.manifests,
+            decisions=result.decisions,
+            rejections=tuple(rejections),
+        )
+        loaded: list[str] = []
+        for detector in accepted:
             self.register(detector)
             loaded.append(detector.id)
         return loaded

@@ -59,3 +59,40 @@ def manifest_for(target: Any, detector: Any) -> PluginManifest:
             f"provides {detector_id!r}"
         )
     return declared
+
+
+def describe_target(target: Any) -> tuple[PluginManifest, Any | None]:
+    """Return a plugin's manifest and, only if unavoidable, the built detector.
+
+    A registration carries its manifest, and a detector class exposes its id and
+    supported types as class attributes, so in both cases the host can decide
+    whether the plugin may run before constructing it. A bare factory function is
+    the exception: its identity is only knowable by calling it, so it is built
+    first and the caller discards the instance if the policy refuses. Shipping a
+    :class:`PluginRegistration` is what lets an operator keep that from happening.
+    """
+
+    if isinstance(target, PluginRegistration):
+        manifest = target.manifest
+        declared_id = manifest.detector_id
+        if not declared_id:
+            raise DetectorRegistrationError("Plugin registration declares no detector id")
+        return manifest, None
+
+    identity = getattr(target, "id", None)
+    if isinstance(identity, str) and identity:
+        candidate = getattr(target, "manifest", None)
+        manifest = (
+            candidate
+            if isinstance(candidate, PluginManifest)
+            else PluginManifest.synthesize(identity)
+        )
+        if manifest.detector_id != identity:
+            raise DetectorRegistrationError(
+                f"Manifest declares detector {manifest.detector_id!r} but the plugin "
+                f"provides {identity!r}"
+            )
+        return manifest, None
+
+    detector = instantiate(target)
+    return manifest_for(target, detector), detector

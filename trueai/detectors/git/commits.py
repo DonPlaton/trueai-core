@@ -138,7 +138,12 @@ class GitAttributionDetector(BaseDetector):
             else:
                 record = decoded[offset:end]
                 offset = end + 1
-            record = record.strip("\r\n\x00")
+            # %B is followed by a literal NUL field delimiter. Stripping NUL
+            # from the record would erase the empty-message field entirely and
+            # drop the commit, so the delimiter is removed exactly once.
+            if record.endswith("\x00"):
+                record = record[:-1]
+            record = record.strip("\r\n")
             if not record:
                 if end < 0:
                     break

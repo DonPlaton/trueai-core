@@ -274,7 +274,7 @@ The implementation currently satisfies the v0.1 development definition of done:
 
 Latest local verification on Windows 11 with Python 3.14.4:
 
-- `193 passed`;
+- `220 passed`;
 - `2 skipped` because the current Windows account cannot create test symlinks; those cases are
   required to execute on the POSIX CI jobs and fail there if they cannot;
 - Ruff lint passed;

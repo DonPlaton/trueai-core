@@ -12,7 +12,7 @@ from defusedxml.ElementTree import DefusedXMLParser
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import CorruptArtifactError, RemediationError
 from trueai.core.integrity import svg_outer_misc, verify_svg_visible_structure
-from trueai.core.models import Remediation
+from trueai.core.models import Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
 from trueai.detectors.documents.opc import local_name
 
@@ -35,6 +35,7 @@ class SVGCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
         before = source.read_bytes()
         if contains_protected_provenance_marker(before):
@@ -48,6 +49,7 @@ class SVGCleaner:
         if unsupported:
             raise RemediationError(f"SVG cleaner does not support: {sorted(unsupported)}")
         comment_matches: set[str] = set()
+        selected_attributes: set[str] = set()
         for remediation in remediations:
             findings = remediation.payload.get("findings", [])
             if not isinstance(findings, (list, tuple)):
@@ -56,14 +58,21 @@ class SVGCleaner:
                 if not isinstance(finding, dict):
                     continue
                 evidence = finding.get("evidence", {})
-                if isinstance(evidence, dict):
-                    for key in ("match", "comment"):
-                        value = evidence.get(key)
-                        if isinstance(value, str):
-                            normalized = value.strip()
-                            if normalized.startswith("<!--") and normalized.endswith("-->"):
-                                normalized = normalized[4:-3].strip()
-                            comment_matches.add(normalized)
+                if not isinstance(evidence, dict):
+                    continue
+                for key in ("match", "comment"):
+                    value = evidence.get(key)
+                    if isinstance(value, str):
+                        normalized = value.strip()
+                        if normalized.startswith("<!--") and normalized.endswith("-->"):
+                            normalized = normalized[4:-3].strip()
+                        comment_matches.add(normalized)
+                if remediation.remediation_id == "svg.remove-editor-attributes":
+                    attributes = evidence.get("attributes")
+                    if isinstance(attributes, (list, tuple)):
+                        selected_attributes.update(
+                            item for item in attributes if isinstance(item, str)
+                        )
         changed: list[str] = []
         parent_map = {child: parent for parent in root.iter() for child in parent}
         if "svg.remove-metadata-element" in requested:
@@ -85,11 +94,36 @@ class SVGCleaner:
                     parent.remove(element)
                     changed.append(f"metadata element:{tag}")
         if "svg.remove-editor-attributes" in requested:
+            if not selected_attributes:
+                raise RemediationError(
+                    "The editor-attribute plan names no attributes; refusing a blanket removal"
+                )
+            removed_attributes: set[str] = set()
             for element in root.iter():
                 for attribute in list(element.attrib):
-                    if any(marker in attribute.casefold() for marker in _EDITOR_MARKERS):
-                        del element.attrib[attribute]
-                        changed.append(f"editor attribute:{attribute}")
+                    # Only the exact attribute names the detector reported and the
+                    # policy approved. A blanket sweep would also delete
+                    # attributes the detector marked non-removable, and the
+                    # canonical form filters editor attributes out, so the
+                    # integrity gate could not see the difference.
+                    if attribute not in selected_attributes:
+                        continue
+                    if not any(marker in attribute.casefold() for marker in _EDITOR_MARKERS):
+                        continue
+                    if contains_protected_provenance_marker(
+                        f"{attribute} {element.attrib[attribute]}"
+                    ):
+                        raise RemediationError(
+                            "Refusing to remove an SVG editor attribute containing provenance"
+                        )
+                    del element.attrib[attribute]
+                    removed_attributes.add(attribute)
+                    changed.append(f"editor attribute:{attribute}")
+            missing = selected_attributes - removed_attributes
+            if missing:
+                raise RemediationError(
+                    f"SVG editor attributes changed after scan; missing: {sorted(missing)}"
+                )
         if "svg.remove-generator-comment" in requested:
             parent_map = {child: parent for parent in root.iter() for child in parent}
             for element in list(root.iter()):

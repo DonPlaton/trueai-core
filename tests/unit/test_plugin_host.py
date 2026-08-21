@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import sys
 from importlib.metadata import EntryPoint
 from pathlib import Path
 
 import pytest
 
 import trueai.plugins.host as host_module
+from tests.plugin_examples import WellBehavedPlugin
 from trueai import TrueAIEngine
+from trueai.core.artifact import ArtifactDiscovery
 from trueai.core.models import ScanOptions, Severity
 from trueai.core.registry import DetectorRegistry
+from trueai.detectors import create_default_registry
 from trueai.plugins import (
     CapabilityPolicy,
     PluginCapability,
@@ -308,6 +312,163 @@ def test_the_host_does_not_rewrite_a_plugin_finding_it_accepts(
     loud = next(item for item in report.findings if item.detector_id == "example.loud.v1")
     assert loud.severity == Severity.CRITICAL
     assert loud.title == "Critical plugin observation"
+
+
+def test_a_refused_plugin_is_never_constructed(install_plugins) -> None:
+    """A block list that runs the constructor first is not a block list."""
+
+    from tests.plugin_examples import CONSTRUCTIONS
+
+    install_plugins(entry_point("recorded", "ConstructionRecordingPlugin"))
+    CONSTRUCTIONS.clear()
+    policy = CapabilityPolicy(blocked_detector_ids=frozenset({"example.constructed.v1"}))
+
+    result = PluginHost(policy=policy).discover()
+
+    assert not result.detectors
+    assert CONSTRUCTIONS == []
+    assert "block list" in result.rejections[0].reason
+
+
+def test_an_allowed_plugin_is_constructed_once(install_plugins) -> None:
+    from tests.plugin_examples import CONSTRUCTIONS
+
+    install_plugins(entry_point("recorded", "ConstructionRecordingPlugin"))
+    CONSTRUCTIONS.clear()
+
+    result = PluginHost().discover()
+
+    assert len(result.detectors) == 1
+    assert CONSTRUCTIONS == ["example.constructed.v1"]
+
+
+def test_subprocess_isolation_never_constructs_a_plugin_in_the_host(
+    install_plugins,
+) -> None:
+    from tests.plugin_examples import CONSTRUCTIONS
+
+    install_plugins(entry_point("recorded", "ConstructionRecordingPlugin"))
+    CONSTRUCTIONS.clear()
+
+    result = PluginHost(isolation=PluginIsolation.SUBPROCESS).discover()
+
+    assert len(result.detectors) == 1
+    assert CONSTRUCTIONS == [], "the worker owns the detector, not the host"
+
+
+def test_a_duplicate_detector_id_is_refused_without_aborting_discovery(
+    install_plugins, text_artifact: Path
+) -> None:
+    """A third-party package must not be able to stop the tool from starting."""
+
+    install_plugins(
+        entry_point("first", "WellBehavedPlugin"),
+        entry_point("second", "WellBehavedPlugin"),
+    )
+    registry = DetectorRegistry()
+
+    loaded = registry.discover()
+
+    assert loaded == ["example.well-behaved.v1"]
+    assert any(
+        "already uses this id" in rejection.reason
+        for rejection in registry.plugin_discovery.rejections
+    )
+    report = TrueAIEngine(registry).scan(text_artifact)
+    assert report.findings
+
+
+def test_a_plugin_cannot_take_over_a_built_in_detector_id(
+    install_plugins, text_artifact: Path
+) -> None:
+    install_plugins(entry_point("collide", "WellBehavedPlugin"))
+    registry = create_default_registry(discover_plugins=False)
+    registry.register(WellBehavedPlugin())
+
+    loaded = registry.discover()
+
+    assert loaded == []
+    assert any(
+        "already uses this id" in rejection.reason
+        for rejection in registry.plugin_discovery.rejections
+    )
+
+
+def test_import_time_capability_use_is_denied_in_the_worker(
+    text_artifact: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Guards must be installed before the worker executes the plugin module.
+
+    The detector is built directly rather than through discovery, because
+    discovery imports the module in the host to read its manifest. This test is
+    about the worker boundary, which is where the guarantee actually holds.
+    """
+
+    from trueai.core.models import ScanContext
+    from trueai.plugins.host import IsolatedDetector
+    from trueai.plugins.manifest import CapabilityDecision, PluginCapability, PluginManifest
+
+    target = tmp_path / "written-at-import.txt"
+    monkeypatch.setenv("TRUEAI_TEST_IMPORT_TARGET", str(target))
+    manifest = PluginManifest.synthesize("example.import-writer.v1")
+    detector = IsolatedDetector(
+        entry_point="tests.plugin_import_side_effect:ImportTimeWriterPlugin",
+        manifest=manifest,
+        decision=CapabilityDecision(
+            detector_id=manifest.detector_id,
+            allowed=True,
+            reason="test",
+            granted=frozenset({PluginCapability.READ_ARTIFACT}),
+        ),
+        search_path=(REPOSITORY_ROOT,),
+    )
+    artifact = ArtifactDiscovery().identify(text_artifact)
+
+    with pytest.raises(PluginExecutionError) as failure:
+        detector.scan(artifact, ScanContext(options=ScanOptions()))
+
+    assert not target.exists(), "the import-time write must be denied"
+    assert failure.value.code == "plugin_load_failed"
+    assert "write_filesystem" in str(failure.value)
+
+
+def test_reading_a_manifest_still_imports_the_plugin_module(
+    install_plugins, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The documented limit: an entry point is an import path, so discovery imports it.
+
+    Policy runs before the detector is constructed, not before its module is
+    executed. Pinning that here keeps the documentation honest.
+    """
+
+    target = tmp_path / "written-at-import.txt"
+    monkeypatch.setenv("TRUEAI_TEST_IMPORT_TARGET", str(target))
+    monkeypatch.delitem(sys.modules, "tests.plugin_import_side_effect", raising=False)
+    install_plugins(
+        EntryPoint(
+            name="import-writer",
+            value="tests.plugin_import_side_effect:ImportTimeWriterPlugin",
+            group=host_module.ENTRY_POINT_GROUP,
+        )
+    )
+
+    PluginHost(
+        policy=CapabilityPolicy(blocked_detector_ids=frozenset({"example.import-writer.v1"}))
+    ).discover()
+
+    assert target.exists(), "host-side discovery imports the module; the docs say so"
+
+
+def test_path_open_is_guarded_like_the_builtin(install_plugins, text_artifact: Path) -> None:
+    install_plugins(entry_point("path-writer", "PathOpenWriterPlugin"))
+    registry = isolated_registry()
+
+    report = TrueAIEngine(registry).scan(text_artifact)
+
+    failures = [item for item in report.diagnostics if item.code == "plugin_failed"]
+    assert failures
+    assert "write_filesystem" in failures[0].message
+    assert not (text_artifact.parent / "written-via-path-open.txt").exists()
 
 
 def test_the_isolated_host_reports_its_own_limits_in_the_module_docstring() -> None:

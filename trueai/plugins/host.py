@@ -17,6 +17,12 @@ What this is not: an operating-system sandbox. The worker runs with the same use
 and filesystem access as the host, restrained only by the in-worker guards in
 :mod:`trueai.plugins.guards`. Seccomp, AppContainer, or container-level isolation
 remains future work, and this docstring is the honest statement of that limit.
+
+One more limit worth stating plainly: reading a plugin's manifest requires
+importing its module, because an entry point is an import path. Host policy is
+evaluated before the detector is constructed and before it ever runs, but it
+cannot prevent module-level code from executing. Under subprocess isolation the
+detector is constructed only inside the worker.
 """
 
 from __future__ import annotations
@@ -35,7 +41,7 @@ from trueai.core.artifact import Artifact
 from trueai.core.errors import DetectorRegistrationError
 from trueai.core.finding_id import finding_id_is_valid
 from trueai.core.models import ArtifactType, Finding, FindingCategory, ScanContext
-from trueai.plugins.loader import instantiate, manifest_for, resolve_target
+from trueai.plugins.loader import describe_target, instantiate, resolve_target
 from trueai.plugins.manifest import (
     CapabilityDecision,
     CapabilityPolicy,
@@ -317,7 +323,7 @@ class PluginHost:
             entry_points(group=ENTRY_POINT_GROUP), key=lambda item: item.name
         ):
             try:
-                manifest, detector = self._inspect(entry_point)
+                target, manifest, prebuilt = self._inspect(entry_point)
             except Exception as exc:
                 rejections.append(
                     PluginRejection(
@@ -327,6 +333,8 @@ class PluginHost:
                     )
                 )
                 continue
+            # The decision comes before the detector is built, so a blocked or
+            # undeclared plugin does not get to run its constructor.
             decision = self.policy.evaluate(manifest)
             decisions.append(decision)
             if not decision.allowed:
@@ -338,8 +346,8 @@ class PluginHost:
                     )
                 )
                 continue
-            manifests.append(manifest)
             if self.isolation == PluginIsolation.SUBPROCESS:
+                # Nothing is constructed in the host at all; the worker owns it.
                 detectors.append(
                     IsolatedDetector(
                         entry_point=entry_point.value,
@@ -350,7 +358,21 @@ class PluginHost:
                     )
                 )
             else:
+                try:
+                    detector = prebuilt if prebuilt is not None else instantiate(target)
+                except Exception as exc:
+                    rejections.append(
+                        PluginRejection(
+                            detector_id=manifest.detector_id,
+                            entry_point=entry_point.value,
+                            reason=(
+                                f"The plugin could not be constructed: {type(exc).__name__}: {exc}"
+                            ),
+                        )
+                    )
+                    continue
                 detectors.append(detector)
+            manifests.append(manifest)
         return DiscoveryResult(
             detectors=tuple(detectors),
             manifests=tuple(manifests),
@@ -358,14 +380,20 @@ class PluginHost:
             rejections=tuple(rejections),
         )
 
-    def _inspect(self, entry_point: EntryPoint) -> tuple[PluginManifest, object]:
-        """Load a plugin far enough to read its manifest and identity."""
+    def _inspect(self, entry_point: EntryPoint) -> tuple[object, PluginManifest, object | None]:
+        """Read a plugin's manifest with as little of its code as possible.
+
+        Importing the module is unavoidable: an entry point is a Python import
+        path and nothing about the plugin is readable without it. Everything after
+        that is avoidable, so the detector is not constructed here unless the
+        entry point is a bare factory whose identity cannot be read any other way.
+        """
 
         target = resolve_target(entry_point.value)
-        detector = instantiate(target)
-        manifest = manifest_for(target, detector)
-        supported: frozenset[ArtifactType] = getattr(detector, "supported_types", frozenset())
-        categories: frozenset[FindingCategory] = getattr(detector, "categories", frozenset())
+        manifest, prebuilt = describe_target(target)
+        source = prebuilt if prebuilt is not None else target
+        supported: frozenset[ArtifactType] = getattr(source, "supported_types", frozenset())
+        categories: frozenset[FindingCategory] = getattr(source, "categories", frozenset())
         updates: dict[str, object] = {}
         if not manifest.supported_types and supported:
             updates["supported_types"] = frozenset(supported)
@@ -373,4 +401,4 @@ class PluginHost:
             updates["categories"] = frozenset(categories)
         if updates:
             manifest = manifest.model_copy(update=updates)
-        return manifest, detector
+        return target, manifest, prebuilt

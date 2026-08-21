@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from trueai.core.models import Finding, ScanReport, Severity
+from trueai.core.models import Finding, ScanDiagnostic, ScanReport, Severity
 
 _LEVELS = {
     Severity.INFO: "note",
@@ -38,6 +38,10 @@ class SARIFReporter:
                 },
             )
             results.append(self._result(finding))
+        blocking = any(
+            diagnostic.severity in {Severity.HIGH, Severity.CRITICAL}
+            for diagnostic in report.diagnostics
+        )
         payload = {
             "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
             "version": "2.1.0",
@@ -52,11 +56,46 @@ class SARIFReporter:
                         }
                     },
                     "results": results,
-                    "properties": {"trueaiSchemaVersion": report.schema_version},
+                    # An incomplete scan must not read as a clean one. A blocking
+                    # diagnostic marks the invocation unsuccessful, which is how a
+                    # SARIF consumer learns the run cannot be trusted even when
+                    # the results array is empty.
+                    "invocations": [
+                        {
+                            "executionSuccessful": not blocking,
+                            "toolExecutionNotifications": [
+                                self._notification(diagnostic) for diagnostic in report.diagnostics
+                            ],
+                        }
+                    ],
+                    "properties": {
+                        "trueaiSchemaVersion": report.schema_version,
+                        "trueaiIntegrityStatus": report.integrity.status.value,
+                    },
                 }
             ],
         }
         return json.dumps(payload, ensure_ascii=False, indent=indent, sort_keys=True)
+
+    @staticmethod
+    def _notification(diagnostic: ScanDiagnostic) -> dict[str, object]:
+        """Map one scan diagnostic onto a SARIF tool-execution notification."""
+
+        notification: dict[str, object] = {
+            "descriptor": {"id": diagnostic.code},
+            "level": _LEVELS[diagnostic.severity],
+            "message": {"text": diagnostic.message},
+            "properties": {"trueaiSeverity": diagnostic.severity.value},
+        }
+        if diagnostic.artifact_path:
+            notification["locations"] = [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": diagnostic.artifact_path.replace("\\", "/")}
+                    }
+                }
+            ]
+        return notification
 
     @staticmethod
     def _result(finding: Finding) -> dict[str, object]:

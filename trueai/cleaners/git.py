@@ -4,7 +4,7 @@ from pathlib import Path
 
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import RemediationError
-from trueai.core.models import Remediation
+from trueai.core.models import Remediation, ScanOptions
 
 
 class GitCleaner:
@@ -17,6 +17,7 @@ class GitCleaner:
         source: Path,
         destination: Path,
         remediations: tuple[Remediation, ...],
+        options: ScanOptions | None = None,
     ) -> CleanerOutcome:
         del source, destination, remediations
         raise RemediationError(

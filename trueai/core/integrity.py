@@ -229,6 +229,8 @@ def _parse_svg_with_comments(data: bytes) -> Element:
         ) from exc
 
 
+_XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
+
 _SVG_ROOT_START = re.compile(rb"<(?:(?:[A-Za-z_][\w.-]*):)?svg(?:\s|>)", re.IGNORECASE)
 _SVG_ROOT_END = re.compile(rb"</(?:(?:[A-Za-z_][\w.-]*):)?svg\s*>", re.IGNORECASE)
 _XML_OUTER_MISC = re.compile(
@@ -276,7 +278,15 @@ def _xml_tag_end(data: bytes, start: int) -> int | None:
 
 
 def canonical_visible_svg(data: bytes) -> bytes:
-    """Canonicalize visible/active SVG structure while excluding ordinary metadata and comments."""
+    """Canonicalize visible/active SVG structure while excluding ordinary metadata and comments.
+
+    Removing a node also removes its tail: the text between that node's closing
+    tag and the next sibling. Each element therefore records the whole character
+    data it renders directly, its own text plus every child's tail, so deleting a
+    comment that sits mid-sentence no longer takes the rest of the sentence with
+    it unnoticed. Whitespace is compared as SVG renders it, so indentation between
+    structural elements is not mistaken for content.
+    """
 
     root = _parse_svg_with_comments(data)
     rows: list[tuple[str, tuple[tuple[str, str], ...], str]] = []
@@ -292,7 +302,7 @@ def canonical_visible_svg(data: bytes) -> bytes:
                     )
                 )
 
-    def visit(element: Element) -> None:
+    def visit(element: Element, preserve_space: bool) -> None:
         tag_object: object = element.tag
         if tag_object is ElementTree.Comment:
             return
@@ -312,12 +322,42 @@ def canonical_visible_svg(data: bytes) -> bytes:
                 )
             )
         )
-        rows.append((tag, attributes, (element.text or "").strip()))
+        child_preserve = _preserves_space(element, preserve_space)
+        rows.append((tag, attributes, _character_data(element, child_preserve)))
         for child in element:
-            visit(child)
+            visit(child, child_preserve)
 
-    visit(root)
+    visit(root, _preserves_space(root, False))
     return json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def _preserves_space(element: Element, inherited: bool) -> bool:
+    """Return whether an element's character data keeps whitespace verbatim."""
+
+    tag_object: object = element.tag
+    if tag_object in {ElementTree.Comment, ElementTree.ProcessingInstruction}:
+        return inherited
+    declared = element.attrib.get(_XML_SPACE)
+    if declared == "preserve":
+        return True
+    if declared == "default":
+        return False
+    return inherited
+
+
+def _character_data(element: Element, preserve_space: bool) -> str:
+    """Return everything an element renders directly, as SVG would render it.
+
+    That is the element's own text plus the tail of every child, because removing
+    a child also removes the text that followed it. Under the default whitespace
+    handling those runs collapse, so indentation between structural elements is
+    not content, while a sentence interrupted by a comment is.
+    """
+
+    stream = (element.text or "") + "".join(child.tail or "" for child in element)
+    if preserve_space:
+        return stream
+    return " ".join(stream.split())
 
 
 def verify_svg_visible_structure(
