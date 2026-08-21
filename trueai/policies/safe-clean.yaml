@@ -1,0 +1,17 @@
+policy: safe-clean
+default_action: report
+rules:
+  invisible_unicode: review
+  suspicious_unicode: review
+  explicit_ai_attribution: remove
+  generated_comment: remove
+  generator_metadata: remove
+  document_metadata: review
+  personal_metadata: review
+  image_metadata: review
+  git_attribution: review
+  c2pa_provenance: preserve
+  provider_watermark: preserve
+  stylistic_signal: report
+  design_style_signal: report
+

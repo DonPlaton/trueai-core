@@ -1,0 +1,11 @@
+policy: privacy
+default_action: report
+rules:
+  document_metadata: remove
+  personal_metadata: remove
+  image_metadata: remove
+  generator_metadata: remove
+  c2pa_provenance: preserve
+  provider_watermark: preserve
+  git_attribution: review
+

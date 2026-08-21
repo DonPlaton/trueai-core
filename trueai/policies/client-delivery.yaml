@@ -1,0 +1,19 @@
+policy: client-delivery
+default_action: report
+rules:
+  invisible_unicode: review
+  suspicious_unicode: review
+  explicit_ai_attribution: remove
+  generated_comment: remove
+  generator_metadata: remove
+  document_metadata: remove
+  personal_metadata: remove
+  image_metadata: remove
+  git_attribution: review
+  tooling_residue: review
+  c2pa_provenance: preserve
+  provider_watermark: preserve
+  stylistic_signal: report
+  design_style_signal: report
+  security_issue: review
+

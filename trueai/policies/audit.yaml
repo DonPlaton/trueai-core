@@ -1,0 +1,6 @@
+policy: audit
+default_action: report
+rules:
+  c2pa_provenance: preserve
+  provider_watermark: preserve
+

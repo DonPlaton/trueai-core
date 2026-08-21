@@ -1,0 +1,20 @@
+# Normalize line endings in the repository regardless of contributor platform.
+* text=auto eol=lf
+
+# Shell scripts must keep LF even when checked out on Windows, or the Linux CI
+# runners that execute them fail with a bad interpreter.
+*.sh text eol=lf
+
+# The published schema is a contract file. Keep its bytes stable so a diff shows
+# a real schema change and never a line-ending change.
+schema/**/*.json text eol=lf
+
+# Binary and generated content that must not be transformed.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.xlsx binary
+*.whl binary
+*.tar.gz binary

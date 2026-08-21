@@ -1,0 +1,4 @@
+interface:
+  display_name: "TrueAI"
+  short_description: "Local artifact forensics and safe remediation"
+  default_prompt: "Use $trueai to audit this artifact for AI tooling residue and provenance."

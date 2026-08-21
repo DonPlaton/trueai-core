@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.pytest-tmp/
+.ruff_cache/
+.venv/
+build/
+dist/
+*.cleaned.*
+*.trueai.bak
+*.trueai.*.bak
+
+
+# Build verification and audit outputs
+dist-rebuild/
+sbom.cdx.json
+coverage.xml
+.coverage.*
+
+# Local incremental scan cache
+.trueai/
+
+# Local assistant tooling artifact, regenerated outside the build
+graph.json

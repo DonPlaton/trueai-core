@@ -1,0 +1,93 @@
+"""SARIF 2.1.0 adapter for CI and code-scanning consumers."""
+
+from __future__ import annotations
+
+import json
+
+from trueai.core.models import Finding, ScanReport, Severity
+
+_LEVELS = {
+    Severity.INFO: "note",
+    Severity.LOW: "note",
+    Severity.MEDIUM: "warning",
+    Severity.HIGH: "error",
+    Severity.CRITICAL: "error",
+}
+
+
+class SARIFReporter:
+    """Map findings to SARIF while retaining TrueAI evidence semantics in properties."""
+
+    def render(self, report: ScanReport, *, indent: int | None = 2) -> str:
+        """Return a SARIF JSON document."""
+
+        rules: dict[str, dict[str, object]] = {}
+        results: list[dict[str, object]] = []
+        for finding in report.findings:
+            rules.setdefault(
+                finding.detector_id,
+                {
+                    "id": finding.detector_id,
+                    "name": finding.detector_id.replace(".", "_"),
+                    "shortDescription": {"text": finding.title},
+                    "help": {"text": finding.description},
+                    "properties": {
+                        "category": finding.category.value,
+                        "provenanceClass": finding.provenance_class.value,
+                    },
+                },
+            )
+            results.append(self._result(finding))
+        payload = {
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "TrueAI Core",
+                            "version": report.package_version,
+                            "informationUri": "https://github.com/trueai-core/trueai-core",
+                            "rules": list(rules.values()),
+                        }
+                    },
+                    "results": results,
+                    "properties": {"trueaiSchemaVersion": report.schema_version},
+                }
+            ],
+        }
+        return json.dumps(payload, ensure_ascii=False, indent=indent, sort_keys=True)
+
+    @staticmethod
+    def _result(finding: Finding) -> dict[str, object]:
+        physical_location: dict[str, object] = {
+            "artifactLocation": {"uri": finding.artifact_path.replace("\\", "/")}
+        }
+        if finding.location and finding.location.line:
+            physical_location["region"] = {
+                "startLine": finding.location.line,
+                "startColumn": finding.location.column or 1,
+            }
+        result: dict[str, object] = {
+            "ruleId": finding.detector_id,
+            "level": _LEVELS[finding.severity],
+            "message": {"text": f"{finding.title}: {finding.description}"},
+            "fingerprints": {"trueaiFindingId": finding.id},
+            "properties": {
+                "category": finding.category.value,
+                "confidence": finding.confidence,
+                "confidenceType": finding.confidence_type.value,
+                "evidenceType": finding.evidence_type.value,
+                "provider": finding.provider,
+                "provenanceClass": finding.provenance_class.value,
+                "removable": finding.removable,
+                "tags": list(finding.tags),
+                "evidence": finding.evidence,
+            },
+            "locations": [
+                {
+                    "physicalLocation": physical_location,
+                }
+            ],
+        }
+        return result

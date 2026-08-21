@@ -1,0 +1,125 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trueai-core"
+version = "0.1.0.dev0"
+description = "Local-first forensic scanning and predictable sanitization for digital artifacts"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "TrueAI Core contributors" }]
+keywords = ["forensics", "provenance", "metadata", "sanitization", "ai"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Security",
+  "Typing :: Typed",
+]
+dependencies = [
+  "defusedxml>=0.7.1,<1",
+  "pathspec>=0.12.1,<1",
+  "Pillow>=11.1,<13",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+  "rich>=13.9,<15",
+  "typer>=0.15,<1",
+]
+
+[project.optional-dependencies]
+pdf = ["pikepdf>=9.5,<11"]
+# Official C2PA verification. Without it the provenance adapter reports
+# VERIFICATION_UNAVAILABLE instead of inventing a result.
+c2pa = ["c2pa-python>=0.10,<1"]
+dev = [
+  # Generates the throwaway certificate chain that signs synthetic C2PA fixtures.
+  "cryptography>=44,<48",
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+  "types-PyYAML>=6.0.12.20241230",
+]
+
+[project.scripts]
+trueai = "trueai.cli.app:main"
+
+[project.urls]
+Documentation = "https://github.com/trueai-core/trueai-core#readme"
+Issues = "https://github.com/trueai-core/trueai-core/issues"
+Source = "https://github.com/trueai-core/trueai-core"
+
+# The wheel carries only what the runtime needs. Tests, fixtures, and release
+# tooling are development inputs and must not reach an installed environment.
+[tool.hatch.build.targets.wheel]
+packages = ["trueai"]
+core-metadata-version = "2.4"
+include = [
+  "trueai/**/*.py",
+  "trueai/py.typed",
+  "trueai/policies/*.yaml",
+]
+
+# The source distribution must be able to rebuild, re-test, and re-verify the
+# project offline, so it ships the suite, the published schema, and the release
+# scripts that CI runs. scripts/check_manifest.py asserts this contract.
+[tool.hatch.build.targets.sdist]
+core-metadata-version = "2.4"
+include = [
+  "trueai/",
+  "tests/",
+  "docs/",
+  "schema/",
+  "scripts/",
+  "skills/",
+  ".github/",
+  "AGENTS.md",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "PROJECT_STATUS.md",
+  "README.md",
+  "SECURITY.md",
+  "pyproject.toml",
+]
+exclude = [
+  "**/__pycache__",
+  "**/*.py[cod]",
+  ".pytest-tmp/",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+# Shared security helpers live in tests/support.py and are imported as
+# `tests.support` from every suite directory.
+pythonpath = ["."]
+xfail_strict = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["skills/trueai/scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["trueai"]
+exclude = ["skills/trueai/scripts"]
+
+[[tool.mypy.overrides]]
+module = ["PIL.*", "pikepdf.*", "defusedxml.*", "yaml"]
+ignore_missing_imports = true

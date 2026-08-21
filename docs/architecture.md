@@ -1,0 +1,101 @@
+# Architecture
+
+TrueAI Core is an engine library first. The CLI is one consumer of the same stable Python API that
+future desktop, CI, IDE, and enterprise products can use.
+
+## Layers
+
+1. `core.artifact` identifies files by signatures where practical, discovers repositories, applies
+   directory-relative ignore rules, rejects unsafe symlink traversal, and exposes bounded reads.
+2. `core.registry` owns explicit detector registration, enable/disable state, category/provider
+   filtering, and reviewed discovery of the `trueai.detectors` third-party entry-point group.
+3. `core.engine` schedules compatible read-only detectors, enforces a global result budget shared
+   across workers, isolates expected parser failures, and rechecks discovered file hashes and
+   inventory additions after scanning.
+4. `core.cache` stores per-artifact detector output addressed by content, so an unchanged file is
+   not re-inspected on the next scan.
+5. `core.models` defines immutable Pydantic v2 findings, reports, policy decisions, remediation
+   plans/results, provenance verification, and integrity evidence. Report schema versioning is
+   independent of package version.
+6. `core.policy` maps complete detector output to operational actions. It cannot suppress or mutate
+   the evidence and rejects provenance-removal policy rules.
+7. `core.remediation` converts selected findings into a plan. A format cleaner writes a temporary
+   output; the output is published only after an integrity verifier passes.
+8. `plugins` reviews third-party capability manifests, decides what a plugin may do, and optionally
+   runs it in a worker process.
+9. `reporters` render terminal, JSON schema `0.1`, and SARIF output without detector coupling.
+10. `schema` emits the public JSON Schema and classifies differences between two versions of it as
+    additive or breaking.
+
+## Detector contract
+
+```python
+class Detector(Protocol):
+    id: str
+    supported_types: frozenset[ArtifactType]
+    provider: str | None
+    categories: frozenset[FindingCategory]
+    experimental: bool
+
+    def supports(self, artifact: Artifact) -> bool: ...
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]: ...
+```
+
+Detectors receive no mutation API. IDs are versioned because they participate in stable finding
+fingerprints and downstream suppressions. Third-party packages expose a detector, a factory, or a
+`PluginRegistration` through the `trueai.detectors` entry point.
+
+In-process plugins execute as trusted Python. Subprocess isolation contains crashes, hangs, and
+unbounded output, and re-derives every returned finding so a plugin cannot forge one; it is not an
+operating-system sandbox. See [plugins](plugins.md) for the full boundary.
+
+## Format families
+
+Word, PowerPoint, and Excel packages are the same OPC container with different content parts, so
+they share one safety layer, one metadata inspector, and one cleaner. Each family contributes only
+what actually differs: its content-bearing parts, and the invariant that proves cleanup did not
+disturb them. Adding a format therefore requires stating how its integrity is proved, which is
+enforced by construction rather than by review.
+
+## Determinism and scale
+
+A completed scan is byte-identical regardless of how it was executed. Artifacts, detectors,
+findings, and policy decisions are returned in a stable order, and parallel execution merges
+per-artifact results in artifact order rather than completion order. Setting `max_workers` above 1
+requires third-party detectors to be thread-safe, or `PluginIsolation.SUBPROCESS`, which gives each
+plugin its own interpreter.
+
+The one exception is an exhausted budget: when `max_findings` is reached, which artifacts were
+already in flight determines what the truncated report contains. That report is explicitly marked
+incomplete with a blocking diagnostic, so it is never presented as a clean result.
+
+Artifact discovery is iterative, bounded by `max_files`, and applies `.gitignore` and
+`.trueaiignore` with Git's directory-relative semantics: a nested ignore file applies only beneath
+its own directory, a deeper rule overrides a shallower one including through negation, and an
+ignored directory is not descended into. Findings, parser events, archive expansion, Git output,
+and image pixels also have explicit limits. Crossing any completeness boundary produces a blocking
+diagnostic rather than a clean result.
+
+Incremental caching is content-addressed. The key covers the artifact digest, its logical path
+(finding identities are path-derived), the artifact type, the enabled detector set, the resource
+limits, and the package and schema versions, so a cache hit is only ever an exact match. Failed and
+incomplete scans are never cached, and a corrupt entry is a miss rather than an error.
+
+## Commercial extension points
+
+- Reporters are adapters; a premium GUI can consume `ScanReport` directly.
+- Policies do not contain parsing logic; enterprise policy distribution can replace `PolicyStore`.
+- Cleaners consume a reviewed `RemediationPlan`; premium preview/diff UI does not need detector changes.
+- Provenance verification is an adapter over the reference implementation, with an explicit trust
+  store and network boundary supplied by the operator.
+- Provider watermark verification is an adapter boundary with explicit support status.
+- Capability manifests and host policy are the distribution point for enterprise plugin governance.
+- Experimental feature extractors emit measurement vectors before model scores, allowing optional
+  learned classifiers without adding an ML framework to core.
+
+Remediation plans are bound to the scan policy, finding fingerprints, artifact name, and source
+SHA-256. Application rebuilds cleaner payloads from the immutable scan report, writes a temporary
+output, and publishes only after the format-specific integrity invariant passes.
+
+Schema changes are governed by an executable contract rather than a convention. See
+[schema compatibility](schema-compatibility.md).

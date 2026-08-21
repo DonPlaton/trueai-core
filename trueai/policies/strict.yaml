@@ -1,0 +1,16 @@
+policy: strict
+default_action: review
+rules:
+  explicit_ai_attribution: error
+  generated_comment: error
+  generator_metadata: error
+  git_attribution: error
+  document_metadata: error
+  personal_metadata: error
+  image_metadata: error
+  security_issue: error
+  c2pa_provenance: preserve
+  provider_watermark: preserve
+  stylistic_signal: report
+  design_style_signal: report
+
