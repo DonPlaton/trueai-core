@@ -147,6 +147,37 @@ period. Issuers can publish a finite-lifetime, monotonically sequenced signed re
 verification can require a current authenticated list before returning success. See
 [audit certificates](docs/certificates.md).
 
+## Human Contribution Records
+
+A certificate is about bytes. A **Human Contribution Record** is about process: who framed the
+work, who decided, who executed, who validated, who is accountable. It is a separate contract with
+its own `TAIP1-…` identifier, its own schema, and its own verification result, and it is a
+declaration — signing one proves an identified person said it, not that it is true.
+
+Contribution is a vector over eight dimensions, never a percentage. `no_aggregate_score` is a
+standing limitation on every record.
+
+Two orthogonal questions get answered separately:
+
+- **Process Assurance Level** (`PAL-0`…`PAL-4`) — how strong the evidence and governance are,
+  derived from verification rather than from claims. A record asserting the strongest claims with
+  nothing behind them stops at `PAL-1`.
+- **Evaluation profile** — whether the record meets one context's stated review requirements.
+  Five ship: `research`, `software-delivery`, `creative-work`, `education`, `regulated-enterprise`.
+  They are versioned, they show their weights, and they are allowed to disagree with each other.
+
+```console
+$ trueai attestations init attestation.yaml && trueai attestations issue attestation.yaml \
+    --artifact report.md --signing-key alice.key --claimant alice
+$ trueai attestations evaluate report.process.json --profile software-delivery
+$ trueai scan report.md --format sarif --attestation report.process.json
+```
+
+Summaries say "human-originated, AI-executed, human-validated" and stop there. No combination of
+stage claims establishes authorship, and nothing in TrueAI answers "how human is this work". See
+[Human Contribution Records](docs/process-attestation.md),
+[evaluation profiles](docs/evaluation-profiles.md), and [trust](docs/trust.md).
+
 ## Confidence and provenance semantics
 
 | Class | Meaning |

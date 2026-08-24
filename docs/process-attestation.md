@@ -171,8 +171,11 @@ signature. Every human-readable summary must repeat the applicable ones.
 
 ## What is not implemented yet
 
-The backlog items `PROC-04` through `PROC-12` cover the CLI and Python workflows,
-local evidence adapters, deterministic redaction, trust primitives shared with
-certificates, versioned evaluation profiles, presentation rules, adversarial
-tests, standards mapping, and consented design-partner pilots. The schema is not
-called stable until at least two pilots have exposed rubric disagreements.
+Evaluation profiles and the Process Assurance Level live in
+[evaluation profiles](evaluation-profiles.md); the shared signing, identity,
+timestamp, and transparency primitives live in [trust](trust.md).
+
+The backlog items `PROC-10` through `PROC-12` cover adversarial and usability
+tests, mapping the derivation graph to interoperable provenance concepts, and
+consented design-partner pilots. The schema is not called stable until at least
+two pilots have exposed rubric disagreements.

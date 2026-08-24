@@ -5424,6 +5424,11 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "indent",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "attestation_properties",
+                "required": false
               }
             ]
           }
@@ -5471,6 +5476,21 @@
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "name": "plan",
                 "required": true
+              }
+            ]
+          },
+          "render_profile_result": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "attestation",
+                "required": false
               }
             ]
           },

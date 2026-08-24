@@ -308,6 +308,80 @@ class TerminalReporter:
             for limitation in attestation.limitations:
                 self.console.print(f"  [dim]- {_safe(limitation.statement)}[/dim]")
 
+    def render_profile_result(
+        self,
+        result: object,
+        attestation: object = None,
+    ) -> None:
+        """Print one profile's outcome as stages, weights, and unmet requirements.
+
+        The stage summary says "human-originated, AI-executed, human-validated"
+        and stops there. Nothing here renders as an authorship verdict: the
+        profile result is a policy answer about review requirements, the
+        assurance level is about evidence strength, and neither is presented as
+        the other.
+        """
+
+        from trueai.core.attestation import ProcessAttestation
+        from trueai.core.evaluation import ProfileResult, stage_summary
+
+        assert isinstance(result, ProfileResult)
+        table = Table(
+            title=f"Profile {result.profile_id} {result.profile_version}",
+            show_lines=False,
+        )
+        table.add_column("Dimension")
+        table.add_column("Weight", justify="right")
+        table.add_column("Claimed as")
+        table.add_column("Evidence")
+        table.add_column("AI role")
+        table.add_column("Meets profile")
+
+        for outcome in result.outcomes:
+            met = "[green]yes[/green]" if outcome.satisfied else "[red]no[/red]"
+            table.add_row(
+                _safe(outcome.dimension.value.replace("_", " ")),
+                f"{outcome.weight:.2f}",
+                _safe(outcome.level.value) if outcome.level else "[dim]not claimed[/dim]",
+                _safe(outcome.evidence_status.value) if outcome.evidence_status else "[dim]—[/dim]",
+                _safe(outcome.ai_autonomy.value) if outcome.ai_autonomy else "[dim]—[/dim]",
+                met,
+            )
+        self.console.print(table)
+
+        if isinstance(attestation, ProcessAttestation):
+            self.console.print(
+                f"\n[bold]Process summary[/bold] {_safe(stage_summary(attestation))}"
+            )
+            self.console.print(
+                "[dim]Each part names a stage and who carried it. No combination of stage "
+                "claims establishes authorship or originality.[/dim]"
+            )
+
+        assurance = result.assurance
+        self.console.print(
+            f"\n[bold]Process Assurance Level[/bold] {_safe(assurance.level.value)} — "
+            f"{_safe(assurance.meaning)}"
+        )
+        for reason in assurance.reasons:
+            self.console.print(f"  [dim]· {_safe(reason)}[/dim]")
+        if assurance.next_level_requires:
+            self.console.print("[bold]For the next level[/bold]")
+            for requirement in assurance.next_level_requires:
+                self.console.print(f"  [dim]- {_safe(requirement)}[/dim]")
+
+        if result.meets_review_requirements:
+            self.console.print(f"\n[green]{_safe(result.statement)}[/green]")
+        else:
+            self.console.print(f"\n[yellow]{_safe(result.statement)}[/yellow]")
+            for unmet in result.unmet_requirements:
+                self.console.print(f"[red]•[/red] {_safe(unmet)}")
+
+        if isinstance(attestation, ProcessAttestation):
+            self.console.print("\n[bold]Limitations[/bold]")
+            for limitation in attestation.limitations:
+                self.console.print(f"  [dim]- {_safe(limitation.statement)}[/dim]")
+
     def _finding(self, finding: Finding, *, verbose: bool) -> None:
         style = _SEVERITY_STYLE[finding.severity]
         location = ""

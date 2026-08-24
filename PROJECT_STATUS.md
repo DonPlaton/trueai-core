@@ -170,12 +170,19 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   same `TrustProfile`, and carry the same `TimestampToken` as certificates, while keeping the
   `TAIP1-` prefix, the process-attestation schema, the contribution vocabulary, and
   `AttestationVerification` distinct from the certificate contract.
-- [ ] `PROC-08` Implement versioned, domain-specific evaluation profiles that emit a contribution
-  vector and evidence confidence. Core must not emit a universal “human percentage” or silently
-  collapse incomparable dimensions into one score.
-- [ ] `PROC-09` Add terminal, JSON, SARIF-property, HTML, desktop, and CI presentation rules that
-  state “human-originated”, “AI-executed”, “human-validated”, and similar stage claims precisely
-  without converting them into authorship or originality proof.
+- [x] `PROC-08` `trueai/core/evaluation.py` adds Process Assurance Level PAL-0..PAL-4, derived from
+  what verification established rather than from what the record claims, and five versioned
+  profiles (`research`, `software-delivery`, `creative-work`, `education`, `regulated-enterprise`)
+  whose weights and thresholds are fields a reader can disagree with. The answer is
+  `meets_review_requirements`, a policy result about process evidence, and a test asserts two
+  profiles may legitimately disagree about the same record. No aggregate score exists anywhere.
+- [x] `PROC-09` `stage_summary`, `portable_summary`, and `sarif_properties` are the single source
+  for every surface. `trueai attestations evaluate --format terminal|json|summary|sarif-properties`
+  and `trueai attestations profiles` expose them; `trueai scan --attestation` carries the verified
+  facts into a SARIF run's property bag without touching a single finding. Tests assert the word
+  "authored" never appears, no output contains a percentage, and an unmet requirement reads as a
+  rule rather than an accusation. HTML and desktop surfaces are `UI-01`/`UI-02` and must render
+  through these same functions.
 - [ ] `PROC-10` Add adversarial and usability tests for forged evidence, backdated claims, prompt
   spam, actor impersonation, omitted AI roles, conflicting countersignatures, redaction leaks,
   changed artifacts, expired claims, revoked issuers, and unsupported evaluation profiles.

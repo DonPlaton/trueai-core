@@ -12,6 +12,35 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Evaluation profiles and Process Assurance Level**
+
+- `ProcessAssuranceLevel` PAL-0..PAL-4 with `assess_process_assurance`, derived from
+  what verification established rather than from what a record claims about itself.
+  A record asserting the strongest claims in every dimension with nothing behind
+  them stops at PAL-1. `AssuranceAssessment.next_level_requires` says what would
+  raise it, so the result is actionable rather than a grade. Undisclosed machine
+  work blocks PAL-2 and unresolved dissent blocks PAL-3: both are conditions, not
+  deductions from a score.
+- Five versioned evaluation profiles — `research`, `software-delivery`,
+  `creative-work`, `education`, `regulated-enterprise` — whose weights and
+  thresholds are model fields rather than constants, because a profile that will
+  not show its weights is asking to be trusted rather than checked. The answer is
+  `meets_review_requirements`: a policy result about process evidence, never an
+  authorship or originality determination.
+- Profiles may disagree about the same record, and that is the design. Delegated
+  execution a delivery team expects is exactly what an assignment about
+  demonstrated understanding forbids; each result names its profile and version so
+  it can be re-derived. An unmet requirement is worded as a rule, not an
+  accusation.
+- `stage_summary`, `portable_summary`, and `sarif_properties` are the single source
+  for every surface. `trueai attestations evaluate` renders terminal, JSON,
+  portable-summary, and SARIF-property forms; `trueai attestations profiles` prints
+  each profile's weights; `trueai scan --attestation` adds a record's verified facts
+  to a SARIF run's property bag without altering any finding.
+- `docs/evaluation-profiles.md` documents PAL, the profiles, and the presentation
+  rules.
+
+
 **Shared trust primitives**
 
 - `SigningProvider` narrows key custody to one interface. `ExternalSigningProvider`

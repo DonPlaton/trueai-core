@@ -18,8 +18,20 @@ _LEVELS = {
 class SARIFReporter:
     """Map findings to SARIF while retaining TrueAI evidence semantics in properties."""
 
-    def render(self, report: ScanReport, *, indent: int | None = 2) -> str:
-        """Return a SARIF JSON document."""
+    def render(
+        self,
+        report: ScanReport,
+        *,
+        indent: int | None = 2,
+        attestation_properties: dict[str, object] | None = None,
+    ) -> str:
+        """Return a SARIF JSON document.
+
+        ``attestation_properties`` comes from
+        :func:`trueai.core.evaluation.sarif_properties`. It lands in the run's
+        property bag under keys that name what was established, so a dashboard
+        cannot render a process attestation as an authorship badge.
+        """
 
         rules: dict[str, dict[str, object]] = {}
         results: list[dict[str, object]] = []
@@ -71,6 +83,7 @@ class SARIFReporter:
                     "properties": {
                         "trueaiSchemaVersion": report.schema_version,
                         "trueaiIntegrityStatus": report.integrity.status.value,
+                        **(attestation_properties or {}),
                     },
                 }
             ],

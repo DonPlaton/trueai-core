@@ -44,6 +44,20 @@ from trueai.plugins.host import PluginIsolation
 from trueai.reporters import JSONReporter, SARIFReporter, TerminalReporter
 
 
+class AttestationPresentation(StrEnum):
+    """Presentation forms for a process attestation.
+
+    ``sarif-properties`` emits the property bag a CI job merges into a SARIF
+    run, so process facts reach a dashboard as named properties rather than as
+    an invented severity.
+    """
+
+    TERMINAL = "terminal"
+    JSON = "json"
+    SUMMARY = "summary"
+    SARIF_PROPERTIES = "sarif-properties"
+
+
 class ExitCode(IntEnum):
     """Stable process exit codes."""
 
@@ -184,6 +198,18 @@ def scan(
             help="Permit remote C2PA manifest fetching during explicit verification.",
         ),
     ] = False,
+    attestation: Annotated[
+        Path | None,
+        typer.Option(
+            "--attestation",
+            exists=True,
+            dir_okay=False,
+            help=(
+                "Process attestation whose verified facts are added to the SARIF run's "
+                "property bag. Detection results are unaffected."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Scan an artifact without modifying it."""
 
@@ -225,11 +251,18 @@ def scan(
                 trust_anchors=trust_anchors,
                 allow_remote_manifests=allow_remote_manifests,
             )
+        # A record travels alongside the scan; it never changes what was detected.
+        # Its facts land in the SARIF property bag with the verification result
+        # attached, so an unauthenticated record reads as one.
+        attestation_properties = (
+            _attestation_properties(attestation, path) if attestation is not None else None
+        )
         rendered = _render_report(
             report,
             output_format,
             verbose,
             emit=output is None or output_format == OutputFormat.TERMINAL,
+            attestation_properties=attestation_properties,
         )
         if output is not None:
             if rendered is None:
@@ -788,6 +821,113 @@ def attestations_summarize(
     except (AttestationError, OSError) as exc:
         error_console.print(f"[red]{escape(str(exc))}[/red]")
         raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("evaluate")
+def attestations_evaluate(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to evaluate.")
+    ],
+    profile_id: Annotated[
+        str,
+        typer.Option("--profile", help="Evaluation profile to apply."),
+    ] = "software-delivery",
+    artifact: Annotated[
+        Path | None,
+        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+    ] = None,
+    public_key: Annotated[
+        list[str] | None,
+        typer.Option("--public-key", help="actor=path, repeatable."),
+    ] = None,
+    output_format: Annotated[
+        AttestationPresentation,
+        typer.Option("--format", "-f", help="terminal, json, summary, or sarif-properties"),
+    ] = AttestationPresentation.TERMINAL,
+) -> None:
+    """Apply one versioned profile and present the result without upgrading it.
+
+    A profile answers whether a record meets a stated set of review
+    requirements. It does not answer who authored the work, and no output here
+    converts a stage claim into an authorship or originality proof.
+    """
+
+    from trueai.core.attestation import load_attestation, verify_attestation
+    from trueai.core.evaluation import (
+        evaluate_with_profile,
+        get_profile,
+        portable_summary,
+        sarif_properties,
+    )
+
+    try:
+        keys: dict[str, str | Path] = {}
+        for entry in public_key or []:
+            actor_id, separator, key_path = entry.partition("=")
+            if not separator:
+                raise AttestationError(f"--public-key expects actor=path, got {entry!r}")
+            keys[actor_id] = key_path
+        profile = get_profile(profile_id)
+        record = load_attestation(record_path)
+        verification = verify_attestation(
+            record,
+            artifact=artifact,
+            public_keys=keys or None,
+            supported_profiles=frozenset({profile_id}),
+        )
+        result = evaluate_with_profile(record, verification, profile)
+
+        if output_format == AttestationPresentation.JSON:
+            typer.echo(
+                json.dumps(
+                    result.model_dump(mode="json"),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        elif output_format == AttestationPresentation.SARIF_PROPERTIES:
+            typer.echo(
+                json.dumps(
+                    sarif_properties(record, verification),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        elif output_format == AttestationPresentation.SUMMARY:
+            typer.echo(portable_summary(record, verification, profile))
+        else:
+            TerminalReporter(console).render_profile_result(result, record)
+        raise typer.Exit(
+            ExitCode.SUCCESS if result.meets_review_requirements else ExitCode.REVIEW_REQUIRED
+        )
+    except typer.Exit:
+        raise
+    except KeyError as exc:
+        error_console.print(f"[red]{escape(str(exc.args[0]))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("profiles")
+def attestations_profiles() -> None:
+    """List the built-in evaluation profiles and what each one weighs."""
+
+    from trueai.core.evaluation import BUILT_IN_PROFILES
+
+    for profile_id, profile in sorted(BUILT_IN_PROFILES.items()):
+        console.print(f"[bold]{escape(profile_id)}[/bold] {escape(profile.version)}")
+        console.print(f"  {escape(profile.description)}")
+        weights = ", ".join(
+            f"{requirement.dimension.value}={requirement.weight:.2f}"
+            + ("*" if requirement.required else "")
+            for requirement in profile.requirements
+        )
+        console.print(f"  [dim]weights: {escape(weights)}[/dim]")
+        console.print(f"  [dim]minimum assurance: {escape(profile.minimum_assurance.value)}[/dim]")
 
 
 @attestations_app.command("redact")
@@ -1545,12 +1685,29 @@ def _replace_revocation_list(target: Path, payload: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _attestation_properties(record_path: Path, artifact: Path) -> dict[str, object]:
+    """Return the SARIF property bag for a record travelling with a scan.
+
+    The record is verified against the scanned artifact, with no public keys: a
+    scan is not the place to decide whom to trust. Every property says what was
+    established, including that signatures were not checked.
+    """
+
+    from trueai.core.attestation import load_attestation, verify_attestation
+    from trueai.core.evaluation import sarif_properties
+
+    record = load_attestation(record_path)
+    subject = artifact if artifact.is_file() else None
+    return sarif_properties(record, verify_attestation(record, artifact=subject))
+
+
 def _render_report(
     report: object,
     output_format: OutputFormat,
     verbose: bool,
     *,
     emit: bool = True,
+    attestation_properties: dict[str, object] | None = None,
 ) -> str | None:
     from trueai.core.models import ScanReport
 
@@ -1564,7 +1721,7 @@ def _render_report(
                 typer.echo(rendered)
         return rendered
     if output_format == OutputFormat.SARIF:
-        rendered = SARIFReporter().render(report)
+        rendered = SARIFReporter().render(report, attestation_properties=attestation_properties)
         if emit:
             typer.echo(rendered)
         return rendered
