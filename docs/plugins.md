@@ -44,19 +44,89 @@ it is constructed before the policy can weigh in.
 
 ## Capabilities
 
-| Capability | Meaning |
-|---|---|
-| `read_artifact` | Read the artifact under inspection. |
-| `read_workspace` | Read files near the artifact, such as sibling parts of a package. |
-| `write_filesystem` | Write anywhere on the filesystem. |
-| `run_subprocess` | Start other processes. |
-| `network` | Open network connections. |
+| Capability | Meaning | Scope it carries |
+|---|---|---|
+| `read_artifact` | Read the artifact under inspection. | Exactly one file. |
+| `read_workspace` | Read files near the artifact. | One directory subtree. |
+| `write_temporary` | Write scratch output. | A host-owned directory with a byte budget. |
+| `write_filesystem` | Write anywhere on the filesystem. | None. |
+| `run_subprocess` | Start other processes. | An executable allowlist. |
+| `network` | Open outbound connections. | A `(host, port)` allowlist. |
+| `load_native_library` | Load native code. | Named libraries, explicitly unmediated. |
 
 Detection is a read-only activity, so the default host policy grants only
 `read_artifact` and `read_workspace`. A plugin that declares `network` is refused
 by default rather than silently downgraded, and the refusal appears in the scan
 report as a `plugin_rejected` diagnostic so an operator can see that coverage was
 reduced.
+
+## The capability broker
+
+A boolean capability answers "may this plugin write files?" The useful question
+is "may it write *this* file, *here*, for the duration of *this* scan?" A grant
+that cannot express its scope has to be granted at its widest, which is how
+`write_filesystem` ends up meaning "anywhere the user can write".
+
+The broker is the contract that replaces boolean permission with mediated access.
+A plugin declares `bind_broker` and receives one:
+
+```python
+from trueai.detectors.base import BaseDetector
+
+class InvoiceDetector(BaseDetector):
+    id = "acme.invoice-forensics.v1"
+
+    def bind_broker(self, broker):
+        self.broker = broker
+
+    def scan(self, artifact, context):
+        payload = self.broker.read_artifact()          # the granted file, read-only
+        sibling = self.broker.read_workspace("meta.xml")  # inside the grant, or refused
+        if self.broker.granted(PluginCapability.WRITE_TEMPORARY):
+            with self.broker.open_temporary("work.bin") as handle:
+                handle.write(payload[:1024])           # charged against the budget
+        ...
+```
+
+Each grant carries its own scope, and the broker is the single place the scope is
+checked:
+
+- **`ArtifactGrant`** — one path and the digest the host will re-check afterwards.
+  Not a directory, not a glob.
+- **`WorkspaceGrant`** — one root. Paths are resolved before the prefix check, so
+  `../../etc/passwd` and an absolute path are both refused; a per-file size cap
+  keeps one read from becoming a memory-exhaustion primitive.
+- **`TemporaryOutputGrant`** — a directory the host creates and removes around a
+  single invocation, with a byte budget charged across *every* write. A per-file
+  limit is not a limit when a plugin can open more files, and a budget checked at
+  close is a budget an attacker writes past, so a refused write never reaches the
+  file.
+- **`NetworkGrant`** — a `(host, port)` allowlist. There is no "network: yes":
+  a forensic tool that can reach an arbitrary host is an exfiltration path with a
+  scan attached. A grant with no endpoints is a construction error, not an
+  implicit "everything".
+- **`SubprocessGrant`** — named executables, resolved before comparison, run with
+  `shell=False`.
+- **`NativeLibraryGrant`** — named libraries, and it must set
+  `acknowledged_unmediated=True`. The broker cannot mediate native code; this
+  grant makes it declared rather than contained, so an operator who denies it
+  knows every remaining plugin is one the guards can actually govern.
+
+Every refusal raises `CapabilityDeniedError` carrying the capability and the
+scope, and the message names the capability even when the caller's text did not.
+"Outside the grant" leaves an operator guessing which grant to widen.
+
+### What the broker is not
+
+It is a contract, not a jail. A plugin can still call `open()` directly; the
+guards in `trueai/plugins/guards.py` catch the documented spellings, and `PLUG-02`
+adds operating-system confinement underneath. What the broker buys before then is
+real anyway: a grant can be *narrow*, a refusal is attributable, and a plugin
+written against the broker keeps working unchanged when ambient authority is taken
+away, because it never depended on it.
+
+The broker is opt-in. A detector that does not declare `bind_broker` behaves
+exactly as it did before.
 
 ## Host policy
 

@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 from importlib.metadata import EntryPoint, entry_points
@@ -41,6 +43,14 @@ from trueai.core.artifact import Artifact
 from trueai.core.errors import DetectorRegistrationError
 from trueai.core.finding_id import finding_id_is_valid
 from trueai.core.models import ArtifactType, Finding, FindingCategory, ScanContext
+from trueai.plugins.broker import (
+    ArtifactGrant,
+    BrokerGrants,
+    NativeLibraryGrant,
+    NetworkGrant,
+    SubprocessGrant,
+    grants_for,
+)
 from trueai.plugins.loader import enrich_manifest, instantiate, manifest_for, resolve_target
 from trueai.plugins.manifest import (
     CapabilityDecision,
@@ -118,6 +128,9 @@ class IsolatedDetector:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         search_path: tuple[str, ...] = (),
         resource_limits: PluginResourceLimits | None = None,
+        network_grant: NetworkGrant | None = None,
+        subprocess_grant: SubprocessGrant | None = None,
+        native_library_grant: NativeLibraryGrant | None = None,
     ) -> None:
         self.id = manifest.detector_id
         self.entry_point = entry_point
@@ -126,6 +139,12 @@ class IsolatedDetector:
         self.timeout = timeout
         self.search_path = search_path
         self.resource_limits = resource_limits or PluginResourceLimits()
+        # Scoped grants an operator configured. Absent means the capability, even
+        # if the policy allowed the name, has nothing to act on — which is the
+        # correct outcome rather than an excuse to widen it.
+        self.network_grant = network_grant
+        self.subprocess_grant = subprocess_grant
+        self.native_library_grant = native_library_grant
         self.provider: str | None = manifest.vendor
         self.supported_types: frozenset[ArtifactType] = manifest.supported_types
         self.categories: frozenset[FindingCategory] = manifest.categories
@@ -153,24 +172,70 @@ class IsolatedDetector:
         digest = artifact.sha256(context.options.max_file_size)
         if digest is None:
             return []
-        request = WorkerRequest(
-            entry_point=self.entry_point,
-            detector_id=self.id,
-            granted_capabilities=frozenset(self.decision.granted),
-            resource_limits=self.resource_limits,
-            artifact=WorkerArtifact(
-                artifact_type=artifact.artifact_type,
-                path=str(artifact.path),
-                logical_path=artifact.display_path,
-                size=artifact.size,
-                media_type=artifact.media_type,
-                sha256=digest,
-            ),
-            options=context.options,
-            root=str(context.root) if context.root else None,
+        with self._scratch() as scratch:
+            request = WorkerRequest(
+                entry_point=self.entry_point,
+                detector_id=self.id,
+                granted_capabilities=frozenset(self.decision.granted),
+                grants=self._grants(artifact, digest, context, scratch),
+                resource_limits=self.resource_limits,
+                artifact=WorkerArtifact(
+                    artifact_type=artifact.artifact_type,
+                    path=str(artifact.path),
+                    logical_path=artifact.display_path,
+                    size=artifact.size,
+                    media_type=artifact.media_type,
+                    sha256=digest,
+                ),
+                options=context.options,
+                root=str(context.root) if context.root else None,
+            )
+            response = self._run_worker(request)
+            return self._validate(response, artifact, digest, context)
+
+    @contextlib.contextmanager
+    def _scratch(self) -> Iterator[Path | None]:
+        """Own the plugin's scratch directory for exactly one invocation.
+
+        The host creates it and removes it, so a plugin cannot accumulate state
+        between artifacts or leave anything behind after the scan.
+        """
+
+        from trueai.plugins.manifest import PluginCapability
+
+        if PluginCapability.WRITE_TEMPORARY not in self.decision.granted:
+            yield None
+            return
+        directory = Path(tempfile.mkdtemp(prefix="trueai-plugin-scratch-"))
+        try:
+            yield directory
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+
+    def _grants(
+        self,
+        artifact: Artifact,
+        digest: str,
+        context: ScanContext,
+        scratch: Path | None,
+    ) -> BrokerGrants:
+        """Turn the capability decision into scoped grants for this artifact.
+
+        The workspace root is the scan root, not the whole filesystem, and when
+        there is no scan root there is no workspace grant: a single-file scan has
+        no workspace to speak of.
+        """
+
+        assert artifact.path is not None
+        return grants_for(
+            frozenset(self.decision.granted),
+            artifact=ArtifactGrant(path=artifact.path, sha256=digest),
+            workspace_root=context.root,
+            temporary_directory=scratch,
+            network=self.network_grant,
+            subprocess_grant=self.subprocess_grant,
+            native_library=self.native_library_grant,
         )
-        response = self._run_worker(request)
-        return self._validate(response, artifact, digest, context)
 
     # -- worker lifecycle -------------------------------------------------------------
 
@@ -323,12 +388,18 @@ class PluginHost:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         search_path: tuple[str, ...] = (),
         resource_limits: PluginResourceLimits | None = None,
+        network_grant: NetworkGrant | None = None,
+        subprocess_grant: SubprocessGrant | None = None,
+        native_library_grant: NativeLibraryGrant | None = None,
     ) -> None:
         self.policy = policy or CapabilityPolicy()
         self.isolation = isolation
         self.timeout = timeout
         self.search_path = search_path
         self.resource_limits = resource_limits or PluginResourceLimits()
+        self.network_grant = network_grant
+        self.subprocess_grant = subprocess_grant
+        self.native_library_grant = native_library_grant
 
     def discover(self) -> DiscoveryResult:
         """Review every registered plugin and return the ones the policy allows."""
@@ -376,6 +447,9 @@ class PluginHost:
                         timeout=self.timeout,
                         search_path=self.search_path,
                         resource_limits=self.resource_limits,
+                        network_grant=self.network_grant,
+                        subprocess_grant=self.subprocess_grant,
+                        native_library_grant=self.native_library_grant,
                     )
                 )
             else:

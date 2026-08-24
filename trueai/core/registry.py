@@ -5,6 +5,11 @@ from __future__ import annotations
 from trueai.core.errors import DetectorRegistrationError
 from trueai.core.models import FindingCategory
 from trueai.detectors.base import Detector
+from trueai.plugins.broker import (
+    NativeLibraryGrant,
+    NetworkGrant,
+    SubprocessGrant,
+)
 from trueai.plugins.host import (
     DiscoveryResult,
     PluginHost,
@@ -64,6 +69,9 @@ class DetectorRegistry:
         isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
         timeout: float | None = None,
         search_path: tuple[str, ...] = (),
+        network_grant: NetworkGrant | None = None,
+        subprocess_grant: SubprocessGrant | None = None,
+        native_library_grant: NativeLibraryGrant | None = None,
     ) -> list[str]:
         """Load third-party detectors the host policy allows.
 
@@ -74,7 +82,16 @@ class DetectorRegistry:
         None of them can abort discovery and take the scan down with it.
         """
 
-        host_arguments: dict[str, object] = {"policy": policy, "isolation": isolation}
+        host_arguments: dict[str, object] = {
+            "policy": policy,
+            "isolation": isolation,
+            # A capability the policy allows but nobody scoped stays unusable.
+            # Passing None through is how "network: allowed, endpoints: none"
+            # ends up granting nothing instead of granting everything.
+            "network_grant": network_grant,
+            "subprocess_grant": subprocess_grant,
+            "native_library_grant": native_library_grant,
+        }
         if timeout is not None:
             host_arguments["timeout"] = timeout
         if search_path:

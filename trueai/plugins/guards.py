@@ -26,11 +26,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from trueai.plugins.broker import CapabilityDeniedError
 from trueai.plugins.manifest import PluginCapability
 
-
-class CapabilityDeniedError(RuntimeError):
-    """Raised inside a worker when a plugin attempts an ungranted operation."""
+__all__ = ["CapabilityDeniedError", "apply_guards"]
 
 
 _WRITE_MODE_CHARACTERS = frozenset({"w", "a", "x", "+"})
@@ -85,26 +84,74 @@ _WRITE_TARGETS: tuple[tuple[Any, tuple[str, ...]], ...] = (
 )
 
 
-def apply_guards(granted: frozenset[PluginCapability]) -> None:
-    """Install the guards implied by the capabilities a plugin was not granted."""
+def apply_guards(
+    granted: frozenset[PluginCapability],
+    *,
+    writable_root: Path | None = None,
+) -> None:
+    """Install the guards implied by the capabilities a plugin was not granted.
+
+    ``writable_root`` is the broker's scratch directory. A plugin holding
+    `WRITE_TEMPORARY` may write inside it through any spelling of ``open``,
+    because forcing the broker's own file handles through a guard that denies
+    them would make the granted capability unusable. Everywhere else still
+    refuses.
+    """
 
     if PluginCapability.NETWORK not in granted:
         _deny(_NETWORK_TARGETS, PluginCapability.NETWORK)
     if PluginCapability.RUN_SUBPROCESS not in granted:
         _deny(_SUBPROCESS_TARGETS, PluginCapability.RUN_SUBPROCESS)
     if PluginCapability.WRITE_FILESYSTEM not in granted:
-        _deny(_WRITE_TARGETS, PluginCapability.WRITE_FILESYSTEM)
-        _guard_open_functions()
+        root = writable_root if PluginCapability.WRITE_TEMPORARY in granted else None
+        _deny(_WRITE_TARGETS, PluginCapability.WRITE_FILESYSTEM, writable_root=root)
+        _guard_open_functions(root)
 
 
-def _denied(operation: str, capability: PluginCapability) -> Callable[..., Any]:
+def _inside(target: object, root: Path | None) -> bool:
+    """Return whether a mutation target sits inside the writable scratch root."""
+
+    if root is None:
+        return False
+    if not isinstance(target, (str, os.PathLike)):
+        return False
+    try:
+        resolved = Path(os.path.abspath(target)).resolve()
+        resolved.relative_to(Path(os.path.abspath(root)).resolve())
+    except (ValueError, OSError):
+        return False
+    return True
+
+
+def _denied(
+    operation: str,
+    capability: PluginCapability,
+    original: Callable[..., Any] | None = None,
+    writable_root: Path | None = None,
+) -> Callable[..., Any]:
     def guard(*args: object, **kwargs: object) -> Any:
-        del args, kwargs
+        # A scratch grant is a real grant. If every argument that names a path
+        # sits inside it, the call is what the operator allowed.
+        if (
+            original is not None
+            and writable_root is not None
+            and args
+            and all(_inside(item, writable_root) for item in args if _looks_like_path(item))
+            and any(_looks_like_path(item) for item in args)
+        ):
+            return original(*args, **kwargs)
         raise CapabilityDeniedError(
-            f"{operation} requires the {capability.value} capability, which the host did not grant."
+            f"{operation} requires the {capability.value} capability, which the host did not grant.",
+            capability=capability,
         )
 
     return guard
+
+
+def _looks_like_path(value: object) -> bool:
+    """Return whether an argument is the sort of thing that names a file."""
+
+    return isinstance(value, (str, os.PathLike))
 
 
 def _install(module: Any, name: str, replacement: Any) -> None:
@@ -120,15 +167,22 @@ def _install(module: Any, name: str, replacement: Any) -> None:
 def _deny(
     targets: tuple[tuple[Any, tuple[str, ...]], ...],
     capability: PluginCapability,
+    *,
+    writable_root: Path | None = None,
 ) -> None:
     for module, names in targets:
         label = getattr(module, "__name__", type(module).__name__)
         for name in names:
             if hasattr(module, name):
-                _install(module, name, _denied(f"{label}.{name}", capability))
+                original = getattr(module, name)
+                _install(
+                    module,
+                    name,
+                    _denied(f"{label}.{name}", capability, original, writable_root),
+                )
 
 
-def _guard_open_functions() -> None:
+def _guard_open_functions(writable_root: Path | None = None) -> None:
     """Allow reads through every open() spelling and deny writes through all of them.
 
     ``builtins.open``, ``io.open``, and ``Path.open`` are separate references, and
@@ -139,9 +193,12 @@ def _guard_open_functions() -> None:
     capability = PluginCapability.WRITE_FILESYSTEM
 
     def deny(target: object) -> None:
+        if _inside(target, writable_root):
+            return
         raise CapabilityDeniedError(
             f"Opening {target!r} for writing requires the {capability.value} capability, "
-            "which the host did not grant."
+            "which the host did not grant.",
+            capability=capability,
         )
 
     original_builtin_open = builtins.open

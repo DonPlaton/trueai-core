@@ -2074,6 +2074,21 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "search_path",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "network_grant",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "subprocess_grant",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "native_library_grant",
+                "required": false
               }
             ]
           },
@@ -5064,6 +5079,216 @@
       }
     },
     "trueai.plugins": {
+      "ArtifactGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "path": {
+            "required": true
+          },
+          "sha256": {
+            "required": true
+          }
+        }
+      },
+      "BrokerGrants": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "capabilities": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "describe": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "artifact": {
+            "required": false
+          },
+          "native_library": {
+            "required": false
+          },
+          "network": {
+            "required": false
+          },
+          "subprocess_": {
+            "required": false
+          },
+          "temporary_output": {
+            "required": false
+          },
+          "workspace": {
+            "required": false
+          }
+        }
+      },
+      "CapabilityBroker": {
+        "attributes": [
+          "grants",
+          "temporary_bytes_written"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "artifact_digest": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "connect": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "host",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "port",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "timeout",
+                "required": false
+              }
+            ]
+          },
+          "granted": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "capability",
+                "required": true
+              }
+            ]
+          },
+          "iter_workspace": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "pattern",
+                "required": false
+              }
+            ]
+          },
+          "native_library_granted": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": true
+              }
+            ]
+          },
+          "open_artifact": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "open_temporary": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "mode",
+                "required": false
+              }
+            ]
+          },
+          "open_workspace": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "relative",
+                "required": true
+              }
+            ]
+          },
+          "read_artifact": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "max_bytes",
+                "required": false
+              }
+            ]
+          },
+          "read_workspace": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "relative",
+                "required": true
+              }
+            ]
+          },
+          "run": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "argv",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "timeout",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "input_bytes",
+                "required": false
+              }
+            ]
+          },
+          "temporary_path": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": true
+              }
+            ]
+          },
+          "workspace_path": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "relative",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
       "CapabilityDecision": {
         "attributes": [
           "model_config"
@@ -5090,6 +5315,14 @@
             "required": true
           }
         }
+      },
+      "CapabilityDeniedError": {
+        "attributes": [],
+        "bases": [
+          "builtins.RuntimeError"
+        ],
+        "kind": "class",
+        "methods": {}
       },
       "CapabilityPolicy": {
         "attributes": [
@@ -5195,14 +5428,59 @@
           }
         }
       },
+      "NativeLibraryGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "require_the_acknowledgement": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "acknowledged_unmediated": {
+            "required": false
+          },
+          "libraries": {
+            "required": false
+          }
+        }
+      },
+      "NetworkGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "reject_an_empty_allowlist": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "endpoints": {
+            "required": false
+          }
+        }
+      },
       "PluginCapability": {
         "kind": "enum",
         "members": [
+          "load_native_library",
           "network",
           "read_artifact",
           "read_workspace",
           "run_subprocess",
-          "write_filesystem"
+          "write_filesystem",
+          "write_temporary"
         ]
       },
       "PluginExecutionError": {
@@ -5347,6 +5625,105 @@
           "max_memory_bytes": {
             "required": false
           }
+        }
+      },
+      "SubprocessGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "reject_an_empty_allowlist": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "executables": {
+            "required": false
+          }
+        }
+      },
+      "TemporaryOutputGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "directory": {
+            "required": true
+          },
+          "max_total_bytes": {
+            "required": false
+          }
+        }
+      },
+      "WorkspaceGrant": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "max_file_bytes": {
+            "required": false
+          },
+          "root": {
+            "required": true
+          }
+        }
+      },
+      "grants_for": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "capabilities",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "artifact",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "workspace_root",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "temporary_directory",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "network",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "subprocess_grant",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "native_library",
+              "required": false
+            }
+          ]
         }
       }
     },

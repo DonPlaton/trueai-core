@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from trueai.core.models import ArtifactType, ScanOptions
+from trueai.plugins.broker import BrokerGrants
 from trueai.plugins.manifest import PluginCapability
 from trueai.plugins.resources import PluginResourceLimits
 
@@ -41,6 +42,9 @@ class WorkerRequest(BaseModel):
     entry_point: str
     detector_id: str
     granted_capabilities: frozenset[PluginCapability]
+    #: The scoped grants the broker enforces. The capability set above is what
+    #: the guards act on; these are the same decision with its scopes attached.
+    grants: BrokerGrants = BrokerGrants()
     resource_limits: PluginResourceLimits = PluginResourceLimits()
     artifact: WorkerArtifact
     options: ScanOptions

@@ -258,3 +258,143 @@ def broken_factory() -> Any:
     """Raise while the host is still deciding whether to trust this plugin."""
 
     raise ImportError("the plugin package is not installed correctly")
+
+
+# -- broker-aware plugins ------------------------------------------------------------
+
+
+class BrokerReadingPlugin(BaseDetector):
+    """Reads the artifact through the broker rather than through the filesystem.
+
+    A plugin written this way never touches ambient authority, so it keeps
+    working unchanged when the host tightens what ambient authority means.
+    """
+
+    id = "example.broker-reader.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.STRUCTURAL_SIGNAL})
+
+    def __init__(self) -> None:
+        self.broker: Any = None
+
+    def bind_broker(self, broker: Any) -> None:
+        self.broker = broker
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        payload = self.broker.read_artifact()
+        return [
+            self.finding(
+                artifact=artifact,
+                category=FindingCategory.STRUCTURAL_SIGNAL,
+                confidence=1.0,
+                confidence_type=ConfidenceType.DETERMINISTIC,
+                severity=Severity.INFO,
+                evidence_type=EvidenceType.STRUCTURAL,
+                title="Broker read",
+                description="The plugin read the artifact through the capability broker.",
+                evidence={"bytes": len(payload), "digest": self.broker.artifact_digest()},
+                provenance_class=ProvenanceClass.NONE,
+                tags=("plugin", "broker"),
+            )
+        ]
+
+
+class BrokerEscapePlugin(BaseDetector):
+    """Asks the broker for a path outside its workspace grant."""
+
+    id = "example.broker-escape.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.SECURITY_ISSUE})
+
+    def __init__(self) -> None:
+        self.broker: Any = None
+
+    def bind_broker(self, broker: Any) -> None:
+        self.broker = broker
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        self.broker.workspace_path("../../etc/passwd")
+        return []
+
+
+class BrokerScratchPlugin(BaseDetector):
+    """Writes to its scratch directory, which is the only place it may write."""
+
+    id = "example.broker-scratch.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.STRUCTURAL_SIGNAL})
+
+    def __init__(self) -> None:
+        self.broker: Any = None
+
+    def bind_broker(self, broker: Any) -> None:
+        self.broker = broker
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        with self.broker.open_temporary("work.bin") as handle:
+            handle.write(b"scratch")
+        return [
+            self.finding(
+                artifact=artifact,
+                category=FindingCategory.STRUCTURAL_SIGNAL,
+                confidence=1.0,
+                confidence_type=ConfidenceType.DETERMINISTIC,
+                severity=Severity.INFO,
+                evidence_type=EvidenceType.STRUCTURAL,
+                title="Scratch write",
+                description="The plugin used its scratch grant.",
+                evidence={"written": self.broker.temporary_bytes_written},
+                provenance_class=ProvenanceClass.NONE,
+            )
+        ]
+
+
+class BrokerRejectingPlugin(BaseDetector):
+    """Refuses the broker it is handed."""
+
+    id = "example.broker-rejecting.v1"
+    supported_types = TEXT_TYPES
+    categories = frozenset({FindingCategory.STRUCTURAL_SIGNAL})
+
+    def bind_broker(self, broker: Any) -> None:
+        raise RuntimeError("this plugin will not accept a broker")
+
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
+        return []
+
+
+BROKER_READER_REGISTRATION = PluginRegistration(
+    manifest=DECLARED_MANIFEST.model_copy(
+        update={
+            "detector_id": BrokerReadingPlugin.id,
+            "name": "Broker-aware example plugin",
+        }
+    ),
+    factory=BrokerReadingPlugin,
+)
+
+BROKER_SCRATCH_REGISTRATION = PluginRegistration(
+    manifest=DECLARED_MANIFEST.model_copy(
+        update={
+            "detector_id": BrokerScratchPlugin.id,
+            "name": "Scratch-writing example plugin",
+            "capabilities": frozenset(
+                {PluginCapability.READ_ARTIFACT, PluginCapability.WRITE_TEMPORARY}
+            ),
+        }
+    ),
+    factory=BrokerScratchPlugin,
+)
+
+BROKER_ESCAPE_REGISTRATION = PluginRegistration(
+    manifest=DECLARED_MANIFEST.model_copy(
+        update={
+            "detector_id": BrokerEscapePlugin.id,
+            "name": "Escaping example plugin",
+            "capabilities": frozenset(
+                {PluginCapability.READ_ARTIFACT, PluginCapability.READ_WORKSPACE}
+            ),
+        }
+    ),
+    factory=BrokerEscapePlugin,
+)

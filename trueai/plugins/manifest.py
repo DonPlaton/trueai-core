@@ -28,12 +28,19 @@ class PluginCapability(StrEnum):
     READ_ARTIFACT = "read_artifact"
     #: Read files near the artifact, such as sibling parts of a package.
     READ_WORKSPACE = "read_workspace"
-    #: Write anywhere on the filesystem.
+    #: Write into a broker-owned scratch directory, and nowhere else.
+    WRITE_TEMPORARY = "write_temporary"
+    #: Write anywhere on the filesystem. Kept because some plugins genuinely
+    #: cannot be expressed as scratch-only, and denied by default because most
+    #: that ask for it only need `WRITE_TEMPORARY`.
     WRITE_FILESYSTEM = "write_filesystem"
-    #: Start other processes.
+    #: Start other processes, from an allowlist the broker enforces.
     RUN_SUBPROCESS = "run_subprocess"
-    #: Open network connections.
+    #: Open network connections to allowlisted endpoints.
     NETWORK = "network"
+    #: Load native code. The broker cannot mediate what native code does, so this
+    #: capability exists to make it declared rather than to make it contained.
+    LOAD_NATIVE_LIBRARY = "load_native_library"
 
 
 #: What a detector gets when it asks for nothing in particular.

@@ -108,9 +108,18 @@ def main(argv: list[str]) -> int:
             f"{type(exc).__name__}: {exc}",
         )
 
+    from trueai.plugins.broker import CapabilityBroker
+
     # Guards go up before the plugin is imported. Everything the plugin runs,
-    # including module-level code and its constructor, is subject to them.
-    apply_guards(frozenset(request.granted_capabilities))
+    # including module-level code and its constructor, is subject to them. The
+    # scratch directory is passed through so a granted write_temporary stays
+    # usable rather than being denied by the guard that protects everywhere else.
+    scratch = request.grants.temporary_output
+    apply_guards(
+        frozenset(request.granted_capabilities),
+        writable_root=scratch.directory if scratch is not None else None,
+    )
+    broker = CapabilityBroker(request.grants)
 
     try:
         detector = load_entry_point(request.entry_point)
@@ -121,6 +130,22 @@ def main(argv: list[str]) -> int:
             "plugin_load_failed",
             f"{type(exc).__name__}: {exc}",
         )
+
+    # A plugin that wants mediated access declares bind_broker. Nothing is
+    # forced on a plugin that does not: the broker is opt-in until PLUG-02 makes
+    # ambient access impossible, and a detector that never asks for one behaves
+    # exactly as it did before.
+    binder = getattr(detector, "bind_broker", None)
+    if callable(binder):
+        try:
+            binder(broker)
+        except Exception as exc:
+            return _fail(
+                response_path,
+                request.detector_id,
+                "plugin_broker_rejected",
+                f"{type(exc).__name__}: {exc}",
+            )
 
     detector_id = getattr(detector, "id", request.detector_id)
     if detector_id != request.detector_id:

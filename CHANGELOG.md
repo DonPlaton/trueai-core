@@ -12,6 +12,29 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Capability broker for plugins**
+
+- `trueai/plugins/broker.py` replaces boolean plugin permissions with scoped
+  grants. A capability that cannot express its scope has to be granted at its
+  widest, which is how `write_filesystem` came to mean "anywhere the user can
+  write".
+- `ArtifactGrant` is one file plus the digest the host re-checks. `WorkspaceGrant`
+  is one root, with paths resolved before the prefix check so traversal and
+  absolute paths are both refused. `TemporaryOutputGrant` is a host-owned
+  directory with a byte budget charged across every write, and a refused write
+  never reaches the file. `NetworkGrant` and `SubprocessGrant` are allowlists that
+  refuse to be constructed empty, because a grant with no scope must grant nothing
+  rather than everything. `NativeLibraryGrant` must set `acknowledged_unmediated`,
+  since the broker cannot mediate native code and should not imply it can.
+- Two new capabilities: `write_temporary` (scratch output, previously only
+  expressible as `write_filesystem`) and `load_native_library` (declared, not
+  contained).
+- A plugin opts in by declaring `bind_broker`. One that does not behaves exactly
+  as before. `CapabilityDeniedError` carries the capability and the scope, and
+  names the capability in its message even when the caller's text did not.
+- The filesystem guards now permit writes inside a granted scratch directory, so
+  `write_temporary` is usable rather than granted-and-denied.
+
 **Interoperable provenance exports**
 
 - `trueai/core/interop.py` maps a record onto W3C PROV-JSON, in-toto Statements in

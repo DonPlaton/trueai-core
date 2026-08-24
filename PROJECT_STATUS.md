@@ -92,8 +92,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P1 — hostile-plugin confinement and supply chain
 
-- [ ] `PLUG-01` Define one capability-broker contract for read-only artifact handles, temporary
-  output, optional network access, subprocesses, and native libraries.
+- [x] `PLUG-01` `trueai/plugins/broker.py` defines one contract covering all five: a read-only
+  artifact handle bound to the digest the host re-checks, a workspace grant confined to one
+  resolved root, a host-owned scratch directory with a byte budget charged across every write,
+  a `(host, port)` network allowlist, an executable allowlist, and a native-library grant that
+  must acknowledge being unmediated. Every grant carries its scope, so a capability the operator
+  allowed but never scoped grants nothing rather than everything. `write_temporary` and
+  `load_native_library` are new capabilities; the broker is opt-in through `bind_broker`.
 - [ ] `PLUG-02` Enforce the contract with AppContainer or an equivalent restricted token on Windows,
   seccomp plus namespaces on Linux, and an appropriate macOS sandbox/container boundary.
 - [ ] `PLUG-03` Add platform adversarial tests proving that a hostile native plugin cannot read
