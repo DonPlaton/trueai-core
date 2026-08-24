@@ -12,6 +12,28 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Interoperable provenance exports**
+
+- `trueai/core/interop.py` maps a record onto W3C PROV-JSON, in-toto Statements in
+  DSSE envelopes, and C2PA assertion data, with `trueai attestations export
+  --to prov|dsse|c2pa` and `trueai attestations interop`.
+- Standard terms are used where they fit and TrueAI concepts sit under the
+  `trueai:` prefix, so a `prov:`-prefixed term always means what PROV says it
+  means. `wasAttributedTo` carries no strength of its own; level, evidence status,
+  claim type, and AI autonomy travel beside it as TrueAI properties.
+- Every export carries `unmapped_concepts()` — what its target could not express
+  and why. An export that silently drops the evidence status turns "alice declared
+  she originated this" into "alice originated this".
+- DSSE envelopes are signed fresh over the pre-authentication encoding. A record
+  signature covers the record's canonical bytes, which are different bytes, so it
+  is never copied into an envelope.
+- C2PA mapping is conservative: `digitalSourceType` is emitted only where the
+  autonomy level licenses it, purely human work gets no code at all, superseded
+  attempts produce no action, pseudonymous actors are never named, and the field
+  is `creator` rather than `author`. TrueAI produces assertion data and does not
+  sign, embed, or produce C2PA manifests.
+- `docs/interoperability.md` documents the mappings and the gaps.
+
 **Evaluation profiles and Process Assurance Level**
 
 - `ProcessAssuranceLevel` PAL-0..PAL-4 with `assess_process_assurance`, derived from

@@ -189,9 +189,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   now block the evidenced level, and recorded dissent now blocks the reviewed level, because a
   dispute is not resolved by outranking it. Record collections are now bounded at the model
   boundary, since capped strings alone do not bound a record.
-- [ ] `PROC-11` Map the derivation graph to interoperable provenance concepts such as W3C PROV,
-  in-toto/DSSE-style signed statements, and C2PA assertions where semantically compatible; retain
-  TrueAI-specific claims only where existing standards cannot express them faithfully.
+- [x] `PROC-11` `trueai/core/interop.py` exports W3C PROV-JSON, in-toto Statements in DSSE
+  envelopes, and C2PA assertion data, through `trueai attestations export --to prov|dsse|c2pa`.
+  Standard terms are used where they fit; TrueAI concepts sit under the `trueai:` prefix so a
+  `prov:` term always means what PROV says it means. Every export carries `unmapped_concepts()`,
+  because an export that silently drops the evidence status turns "alice declared she originated
+  this" into "alice originated this". DSSE signatures are made fresh over the PAE: record
+  signatures cover different bytes and are never copied in.
 - [ ] `PROC-12` Run consented design-partner pilots in research, software delivery, creative
   services, and education; publish the rubric, disagreements, false interpretations, and revision
   history before presenting contribution profiles as a stable product feature.

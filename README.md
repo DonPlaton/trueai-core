@@ -174,9 +174,13 @@ $ trueai scan report.md --format sarif --attestation report.process.json
 ```
 
 Summaries say "human-originated, AI-executed, human-validated" and stop there. No combination of
-stage claims establishes authorship, and nothing in TrueAI answers "how human is this work". See
+stage claims establishes authorship, and nothing in TrueAI answers "how human is this work".
+
+Records export to W3C PROV, in-toto/DSSE, and C2PA assertion data, each carrying a list of what
+its target vocabulary could not express. See
 [Human Contribution Records](docs/process-attestation.md),
-[evaluation profiles](docs/evaluation-profiles.md), and [trust](docs/trust.md).
+[evaluation profiles](docs/evaluation-profiles.md),
+[interoperability](docs/interoperability.md), and [trust](docs/trust.md).
 
 ## Confidence and provenance semantics
 

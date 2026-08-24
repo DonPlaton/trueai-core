@@ -175,9 +175,10 @@ signature. Every human-readable summary must repeat the applicable ones.
 
 Evaluation profiles and the Process Assurance Level live in
 [evaluation profiles](evaluation-profiles.md); the shared signing, identity,
-timestamp, and transparency primitives live in [trust](trust.md).
+timestamp, and transparency primitives live in [trust](trust.md); the PROV,
+in-toto/DSSE, and C2PA mappings live in
+[interoperability](interoperability.md).
 
-The backlog items `PROC-10` through `PROC-12` cover adversarial and usability
-tests, mapping the derivation graph to interoperable provenance concepts, and
-consented design-partner pilots. The schema is not called stable until at least
-two pilots have exposed rubric disagreements.
+`PROC-12` is the remaining item: consented design-partner pilots in research,
+software delivery, creative services, and education. The schema is not called
+stable until at least two pilots have exposed rubric disagreements.

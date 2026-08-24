@@ -58,6 +58,14 @@ class AttestationPresentation(StrEnum):
     SARIF_PROPERTIES = "sarif-properties"
 
 
+class InteropTarget(StrEnum):
+    """Interoperable provenance vocabularies a record can be exported to."""
+
+    PROV = "prov"
+    DSSE = "dsse"
+    C2PA = "c2pa"
+
+
 class ExitCode(IntEnum):
     """Stable process exit codes."""
 
@@ -928,6 +936,96 @@ def attestations_profiles() -> None:
         )
         console.print(f"  [dim]weights: {escape(weights)}[/dim]")
         console.print(f"  [dim]minimum assurance: {escape(profile.minimum_assurance.value)}[/dim]")
+
+
+@attestations_app.command("export")
+def attestations_export(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to export.")
+    ],
+    target: Annotated[
+        InteropTarget,
+        typer.Option("--to", help="prov (W3C PROV-JSON), dsse (in-toto), or c2pa (assertions)."),
+    ] = InteropTarget.PROV,
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Where to write the export.")
+    ] = None,
+    signing_key: Annotated[
+        Path | None,
+        typer.Option(
+            "--signing-key",
+            exists=True,
+            dir_okay=False,
+            help=(
+                "Sign the DSSE envelope. The record's own signatures cannot be reused: "
+                "they cover different bytes."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Export a record to an interoperable vocabulary, stating what was left behind.
+
+    Each export carries a list of the concepts its target cannot express. A
+    consumer who reads only the mapped half will read the record as stronger than
+    it is, so the unmapped half travels with it.
+    """
+
+    from trueai.core.attestation import load_attestation
+    from trueai.core.interop import (
+        to_c2pa_assertions,
+        to_dsse_envelope,
+        to_prov,
+        unmapped_concepts,
+    )
+    from trueai.core.trust import LocalKeySigningProvider
+
+    try:
+        if signing_key is not None and target != InteropTarget.DSSE:
+            raise AttestationError("--signing-key applies only to --to dsse")
+        record = load_attestation(record_path)
+        payload: object
+        if target == InteropTarget.PROV:
+            payload = to_prov(record)
+        elif target == InteropTarget.DSSE:
+            providers = (LocalKeySigningProvider(signing_key),) if signing_key else ()
+            payload = to_dsse_envelope(record, providers=providers).model_dump(mode="json")
+        else:
+            payload = {
+                "assertions": to_c2pa_assertions(record),
+                "note": (
+                    "TrueAI produces assertion data. It does not sign, embed, or produce "
+                    "C2PA manifests."
+                ),
+            }
+        rendered = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+        if output is not None:
+            output.write_text(rendered + "\n", encoding="utf-8")
+            console.print(f"{target.value} export written to {output}")
+        else:
+            typer.echo(rendered)
+        for item in unmapped_concepts(target.value):
+            error_console.print(f"[dim]not exported: {escape(item.concept)}[/dim]")
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("interop")
+def attestations_interop(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to describe.")
+    ],
+) -> None:
+    """Say what each interoperable export would carry, and what it would drop."""
+
+    from trueai.core.attestation import load_attestation
+    from trueai.core.interop import interop_summary
+
+    try:
+        typer.echo(interop_summary(load_attestation(record_path)))
+    except (AttestationError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
 
 
 @attestations_app.command("redact")
