@@ -102,8 +102,10 @@ Each control below is implemented, not planned.
 | Fabricated or omitted events | Typed claim provenance; `superseded` activities keep rejected attempts representable; missing dimensions stay visibly `not_claimed`. |
 | A changed artifact paired with an old record | `subject_sha256` binding, checked at verification. |
 | A changed claim paired with an old signature | The content identifier covers every claim; signatures cover the canonical record minus signatures. |
-| Backdated notes, replayed receipts | Evidence carries digests, issuer, and collection method; trusted timestamps are `TRUST-01`, still open. |
-| Prompt spam inflating apparent effort | Prompt and edit counts cannot set a level; only claim type and evidence status do. |
+| Backdated notes, replayed receipts | Evidence carries digests, issuer, and collection method; a trusted timestamp is a separate authority's statement over the signed bytes, and a token covering different bytes is reported as not established. |
+| Prompt spam inflating apparent effort | Prompt and edit counts cannot set a level; only claim type and evidence status do. Every string is length-capped and every collection is bounded, so a record cannot become a delivery vehicle for a blob. |
+| Evidence disclosed that does not match its commitment | `disclosed_evidence_consistent` is reported separately, and a failed commitment blocks the evidenced assurance level rather than lowering a score. |
+| Record prose rendered as terminal formatting | Every record-derived string is escaped before it reaches Rich, asserted by tests that inject markup through a limitation statement. |
 | One actor split into many pseudonyms | `Actor.pseudonymous` is explicit, and a pseudonymous actor may not also carry a directory identifier. |
 | Model output presented as a human note | `ActorKind.AI_SYSTEM` and per-stage `ai_autonomy` are required to describe the stage honestly. |
 | An issuer signing its own novelty claim | A `declaration` cannot claim independent assessment; `authenticated_declaration` is the ceiling for a self-signed record. |

@@ -183,9 +183,12 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   "authored" never appears, no output contains a percentage, and an unmet requirement reads as a
   rule rather than an accusation. HTML and desktop surfaces are `UI-01`/`UI-02` and must render
   through these same functions.
-- [ ] `PROC-10` Add adversarial and usability tests for forged evidence, backdated claims, prompt
-  spam, actor impersonation, omitted AI roles, conflicting countersignatures, redaction leaks,
-  changed artifacts, expired claims, revoked issuers, and unsupported evaluation profiles.
+- [x] `PROC-10` `tests/unit/test_attestation_adversarial.py` covers all eleven scenarios plus the
+  usability side: each test names an attack or a misreading and asserts what the system says
+  instead. Two real gaps were closed by it — disclosed bytes that miss their published commitment
+  now block the evidenced level, and recorded dissent now blocks the reviewed level, because a
+  dispute is not resolved by outranking it. Record collections are now bounded at the model
+  boundary, since capped strings alone do not bound a record.
 - [ ] `PROC-11` Map the derivation graph to interoperable provenance concepts such as W3C PROV,
   in-toto/DSSE-style signed statements, and C2PA assertions where semantically compatible; retain
   TrueAI-specific claims only where existing standards cannot express them faithfully.

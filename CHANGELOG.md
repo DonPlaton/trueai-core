@@ -280,7 +280,30 @@ change is called out explicitly and governed by
   difference between two schema versions as additive or breaking, and CI fails on a
   breaking change or a stale snapshot.
 
+**Adversarial and usability coverage for contribution records**
+
+- `tests/unit/test_attestation_adversarial.py` exercises forged evidence, backdated
+  claims, markup injection and oversized input, actor impersonation, omitted AI
+  roles, conflicting countersignatures, redaction leaks, changed artifacts, expired
+  claims, revoked issuers, and unsupported evaluation profiles — each paired with a
+  test that the corresponding honest case still passes, so no check is a blanket
+  refusal.
+- Every collection on a record is now bounded (`claims`, `evidence`, `activities`,
+  `decisions`, `validations`, `actors`, `signatures`, `limitations`,
+  `Evaluation.results`). String fields were already capped, but an unbounded list
+  turns an 8 MB file into tens of thousands of entries every consumer must render.
+  The limits sit far above any real record.
+
 ### Changed
+
+**Process assurance**
+
+- Disclosed evidence that does not match its published commitment now blocks the
+  evidenced level (PAL-2). Offering bytes that fail their commitment falsifies the
+  claim they were offered as, which is a worse position than not having disclosed.
+- Recorded dissent now blocks the reviewed level (PAL-3). A countersignature that
+  records disagreement does not settle anything, and a dispute is not resolved by
+  outranking it.
 
 - `PluginIsolation.SUBPROCESS` replaces fully trusted in-process execution as the
   default for the Python API, registry discovery, and CLI. `in_process` remains an

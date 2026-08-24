@@ -413,7 +413,7 @@ class Evaluation(FrozenModel):
     rubric_version: str = Field(min_length=1, max_length=40)
     assessor_actor_id: str = Field(min_length=1, max_length=120)
     assessed_at: datetime
-    results: tuple[DimensionAssessment, ...] = ()
+    results: tuple[DimensionAssessment, ...] = Field(default=(), max_length=64)
     evidence_confidence: str | None = Field(default=None, max_length=200)
     dissent: str | None = Field(default=None, max_length=2000)
 
@@ -459,16 +459,20 @@ class ProcessAttestation(FrozenModel):
     policy_context: str | None = Field(default=None, max_length=300)
     parent_attestation_id: str | None = Field(default=None, pattern=r"^TAIP1-[A-Z2-7]{32}$")
 
-    actors: tuple[Actor, ...] = Field(min_length=1)
-    artifact_bindings: tuple[ArtifactBinding, ...] = ()
-    activities: tuple[Activity, ...] = ()
-    decisions: tuple[Decision, ...] = ()
-    validations: tuple[ValidationRecord, ...] = ()
-    evidence: tuple[EvidenceReference, ...] = ()
-    claims: tuple[ContributionClaim, ...] = ()
+    # Every collection is bounded. String fields were already capped, but an
+    # unbounded list turns an 8 MB file into tens of thousands of entries that
+    # every consumer downstream has to render. The limits are far above any real
+    # record and exist so a hostile one is refused at the model boundary.
+    actors: tuple[Actor, ...] = Field(min_length=1, max_length=200)
+    artifact_bindings: tuple[ArtifactBinding, ...] = Field(default=(), max_length=5000)
+    activities: tuple[Activity, ...] = Field(default=(), max_length=5000)
+    decisions: tuple[Decision, ...] = Field(default=(), max_length=2000)
+    validations: tuple[ValidationRecord, ...] = Field(default=(), max_length=2000)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=5000)
+    claims: tuple[ContributionClaim, ...] = Field(default=(), max_length=1000)
     evaluation: Evaluation | None = None
-    limitations: tuple[Limitation, ...] = Field(min_length=1)
-    signatures: tuple[AttestationSignature, ...] = ()
+    limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=100)
+    signatures: tuple[AttestationSignature, ...] = Field(default=(), max_length=50)
 
     @model_validator(mode="after")
     def enforce_referential_integrity(self) -> Self:

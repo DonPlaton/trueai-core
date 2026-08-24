@@ -177,7 +177,11 @@ def assess_process_assurance(
         for claim in material
     )
     ai_disclosed = _ai_roles_disclosed(attestation)
-    if evidenced and ai_disclosed and verification.evidence_binding_complete:
+    # Disclosed bytes that do not match their published commitment falsify the
+    # evidence they were offered as. That is a worse position than not having
+    # disclosed at all, so it blocks the evidenced level rather than lowering a score.
+    disclosure_holds = verification.disclosed_evidence_consistent is not False
+    if evidenced and ai_disclosed and verification.evidence_binding_complete and disclosure_holds:
         level = ProcessAssuranceLevel.EVIDENCED
         reasons.append("Material claims are backed by evidence the record actually contains.")
         reasons.append("AI roles are disclosed per stage.")
@@ -191,12 +195,22 @@ def assess_process_assurance(
             missing.append("name the AI systems that participated, or state that none did")
         if not verification.evidence_binding_complete:
             missing.append("include every referenced evidence item in the record")
+        if not disclosure_holds:
+            missing.append(
+                "disclose evidence that matches its published commitment, or withdraw the claim"
+            )
         return AssuranceAssessment(
             level=level, reasons=tuple(reasons), next_level_requires=tuple(missing)
         )
 
     countersigned = verification.reviewer_signature == "valid"
-    reviewed = countersigned and _decisions_and_validation_evidenced(attestation)
+    # A countersignature recording disagreement is not a countersignature that
+    # settles anything. A dispute is not resolved by outranking it.
+    reviewed = (
+        countersigned
+        and _decisions_and_validation_evidenced(attestation)
+        and not verification.unresolved_dissent
+    )
     if reviewed:
         level = ProcessAssuranceLevel.REVIEWED
         reasons.append(
@@ -208,6 +222,8 @@ def assess_process_assurance(
             missing.append("have an identified reviewer countersign the record")
         if not _decisions_and_validation_evidenced(attestation):
             missing.append("record decisions and validation with supporting evidence")
+        if verification.unresolved_dissent:
+            missing.append("resolve the recorded dissent, or record how it was resolved")
         return AssuranceAssessment(
             level=level, reasons=tuple(reasons), next_level_requires=tuple(missing)
         )
@@ -222,7 +238,7 @@ def assess_process_assurance(
         and attestation.expires_at is not None
         and verification.trusted_timestamp is True
     )
-    if independent and governed and verification.disclosed_evidence_consistent is not False:
+    if independent and governed:
         return AssuranceAssessment(
             level=ProcessAssuranceLevel.INDEPENDENTLY_ASSURED,
             reasons=(

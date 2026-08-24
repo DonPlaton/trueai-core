@@ -295,7 +295,7 @@
     },
     "AttestationSignature": {
       "additionalProperties": false,
-      "description": "One signed statement over the record.",
+      "description": "One signed statement over the record.\n\n``signed_at`` is the signer's own claim about when they signed. ``timestamp``\nis a separate authority's statement about when it saw these bytes. They are\ndifferent fields because only the second survives a signer who backdates.",
       "properties": {
         "actor_id": {
           "maxLength": 120,
@@ -313,6 +313,17 @@
           "format": "date-time",
           "title": "Signed At",
           "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimestampToken"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -673,6 +684,7 @@
           "items": {
             "$ref": "#/$defs/DimensionAssessment"
           },
+          "maxItems": 64,
           "title": "Results",
           "type": "array"
         },
@@ -879,6 +891,71 @@
       "title": "SignatureRole",
       "type": "string"
     },
+    "TimestampToken": {
+      "additionalProperties": false,
+      "description": "An authority's statement that a digest existed at a time.\n\nThis is deliberately not the signer's own `signed_at`. A signer can write any\ntime they like; only a separate authority's signature over the digest makes\nthe time evidence rather than a claim.",
+      "properties": {
+        "authority": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Authority",
+          "type": "string"
+        },
+        "digest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Digest Sha256",
+          "type": "string"
+        },
+        "format": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Format",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "default": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CertificateSignature"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timestamped_at": {
+          "format": "date-time",
+          "title": "Timestamped At",
+          "type": "string"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token"
+        }
+      },
+      "required": [
+        "format",
+        "authority",
+        "digest_sha256",
+        "timestamped_at"
+      ],
+      "title": "TimestampToken",
+      "type": "object"
+    },
     "ValidationRecord": {
       "additionalProperties": false,
       "description": "Something that was checked against reality, and what came back.",
@@ -959,6 +1036,7 @@
       "items": {
         "$ref": "#/$defs/Activity"
       },
+      "maxItems": 5000,
       "title": "Activities",
       "type": "array"
     },
@@ -966,6 +1044,7 @@
       "items": {
         "$ref": "#/$defs/Actor"
       },
+      "maxItems": 200,
       "minItems": 1,
       "title": "Actors",
       "type": "array"
@@ -975,6 +1054,7 @@
       "items": {
         "$ref": "#/$defs/ArtifactBinding"
       },
+      "maxItems": 5000,
       "title": "Artifact Bindings",
       "type": "array"
     },
@@ -988,6 +1068,7 @@
       "items": {
         "$ref": "#/$defs/ContributionClaim"
       },
+      "maxItems": 1000,
       "title": "Claims",
       "type": "array"
     },
@@ -1001,6 +1082,7 @@
       "items": {
         "$ref": "#/$defs/Decision"
       },
+      "maxItems": 2000,
       "title": "Decisions",
       "type": "array"
     },
@@ -1020,6 +1102,7 @@
       "items": {
         "$ref": "#/$defs/EvidenceReference"
       },
+      "maxItems": 5000,
       "title": "Evidence",
       "type": "array"
     },
@@ -1040,6 +1123,7 @@
       "items": {
         "$ref": "#/$defs/Limitation"
       },
+      "maxItems": 100,
       "minItems": 1,
       "title": "Limitations",
       "type": "array"
@@ -1112,6 +1196,7 @@
       "items": {
         "$ref": "#/$defs/AttestationSignature"
       },
+      "maxItems": 50,
       "title": "Signatures",
       "type": "array"
     },
@@ -1136,6 +1221,7 @@
       "items": {
         "$ref": "#/$defs/ValidationRecord"
       },
+      "maxItems": 2000,
       "title": "Validations",
       "type": "array"
     }

@@ -37,13 +37,16 @@ outranks a purely human record that nobody corroborated. This is deliberate.
 Assurance measures whether the account can be checked, not whether the account
 flatters the human.
 
-Two conditions are worth naming because they block the level rather than lower a
-score:
+Three conditions are worth naming because they block the level rather than lower
+a score:
 
 - **Undisclosed machine work.** A record describing delegated execution with no
   AI actor listed has left the reader guessing, and cannot reach PAL-2.
 - **Unresolved dissent.** A countersigner who recorded disagreement blocks
   PAL-3. A dispute is not resolved by outranking it.
+- **Falsified disclosure.** Bytes offered under a published commitment that do
+  not hash to it block PAL-2. Offering evidence that fails its own commitment is
+  a worse position than never having disclosed.
 
 ## Evaluation profiles
 
