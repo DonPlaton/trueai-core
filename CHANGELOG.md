@@ -12,6 +12,33 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Shared trust primitives**
+
+- `SigningProvider` narrows key custody to one interface. `ExternalSigningProvider`
+  is the HSM/KMS seam: it receives canonical bytes and returns a signature, so no
+  private key enters a TrueAI process. A provider whose signature its own public
+  key rejects fails at signing time rather than shipping an unusable artifact.
+- `TrustProfile` binds keys to organizations for stated periods, with `key_only`,
+  `profile_bound`, and `root_attested` assurance levels. TrueAI ships no default
+  profile: deciding whom to trust is the operator's decision. Verification exposes
+  `authenticated_declaration` and `organizationally_attributed` separately.
+- `TimestampToken` records a separate authority's statement about when bytes
+  existed, distinct from the signer's own `signed_at`. The offline provider signs
+  with a designated timestamping key; the RFC 3161 provider requires
+  `NetworkPolicy.EXPLICIT_ONLY`, an operator allowlist, and a caller-supplied
+  transport. An RFC 3161 token is carried but reported as not established, because
+  TrueAI does not parse it and an opaque blob is not evidence.
+- `TransparencyLog` gives revocation and policy state append-only ordering with a
+  hash chain. Edited entries, removed entries, older copies, and same-length
+  rewritten histories are each detected. Rollback detection requires the verifier's
+  remembered head, and the API says so rather than pretending a memoryless verifier
+  can detect one.
+- Process attestations reuse all of it while keeping their own prefix, schema,
+  vocabulary, and verification result.
+- `docs/trust.md` documents the primitives and the retention, access, privacy, and
+  export contracts for fleet history.
+
+
 **Attestation workflow, evidence adapters, and redaction**
 
 - `trueai attestations init | validate | issue | sign | verify | summarize |

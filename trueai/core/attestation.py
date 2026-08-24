@@ -55,6 +55,16 @@ from trueai.core.certificates import (
 )
 from trueai.core.errors import AttestationError
 from trueai.core.models import FrozenModel
+from trueai.core.trust import (
+    IdentityAssurance,
+    IdentityResult,
+    SigningProvider,
+    TimestampProvider,
+    TimestampToken,
+    TrustProfile,
+    resolve_identity,
+    verify_timestamp,
+)
 
 ATTESTATION_SCHEMA_VERSION: Literal["0.1"] = "0.1"
 ATTESTATION_ID_PREFIX = "TAIP1-"
@@ -416,12 +426,18 @@ class Limitation(FrozenModel):
 
 
 class AttestationSignature(FrozenModel):
-    """One signed statement over the record."""
+    """One signed statement over the record.
+
+    ``signed_at`` is the signer's own claim about when they signed. ``timestamp``
+    is a separate authority's statement about when it saw these bytes. They are
+    different fields because only the second survives a signer who backdates.
+    """
 
     role: SignatureRole
     actor_id: str = Field(min_length=1, max_length=120)
     signed_at: datetime
     signature: CertificateSignature
+    timestamp: TimestampToken | None = None
 
 
 class ProcessAttestation(FrozenModel):
@@ -554,6 +570,11 @@ class AttestationVerification(FrozenModel):
     unresolved_dissent: bool = False
     limitations_acknowledged: bool = False
     strongest_evidence_status: EvidenceStatus | None = None
+    #: Who the claimant key belongs to, if a trust profile says so at all.
+    claimant_identity: IdentityResult | None = None
+    #: Whether a separate authority attested when these bytes existed.
+    trusted_timestamp: bool | None = None
+    timestamp_explanation: str | None = None
     problems: tuple[str, ...] = ()
 
     @property
@@ -570,6 +591,22 @@ class AttestationVerification(FrozenModel):
             and self.content_id_valid
             and self.claimant_signature == "valid"
             and not self.expired
+        )
+
+    @property
+    def organizationally_attributed(self) -> bool:
+        """Whether a configured trust profile names the organization that signed.
+
+        Separate from :attr:`authenticated_declaration` on purpose. A valid
+        signature from an unknown key and a valid signature from a known
+        organization are different facts, and collapsing them is how "someone
+        signed this" becomes "a company vouched for this".
+        """
+
+        return (
+            self.authenticated_declaration
+            and self.claimant_identity is not None
+            and self.claimant_identity.assurance != IdentityAssurance.KEY_ONLY
         )
 
 
@@ -645,11 +682,23 @@ def sign_attestation(
     *,
     role: SignatureRole,
     actor_id: str,
-    signing_key: str | Path,
+    signing_key: str | Path | None = None,
+    provider: SigningProvider | None = None,
+    timestamp_provider: TimestampProvider | None = None,
     signed_at: datetime | None = None,
 ) -> ProcessAttestation:
-    """Add one signed statement over the record's canonical bytes."""
+    """Add one signed statement over the record's canonical bytes.
 
+    ``provider`` is the seam for hardware-backed custody: pass one and the private
+    key never enters this process. ``signing_key`` remains for the local-file case,
+    which is the weakest custody model and is treated as such.
+
+    A ``timestamp_provider`` adds a separate authority's statement about when the
+    bytes existed, which is what makes the time evidence rather than a claim.
+    """
+
+    if (signing_key is None) == (provider is None):
+        raise AttestationError("Pass exactly one of signing_key or provider")
     if actor_id not in {actor.id for actor in attestation.actors}:
         raise AttestationError(f"Unknown actor for signature: {actor_id}")
     if any(
@@ -657,11 +706,23 @@ def sign_attestation(
         for existing in attestation.signatures
     ):
         raise AttestationError(f"{actor_id} already signed as {role.value}")
+    payload = signed_payload(attestation)
+    detached = (
+        provider.sign(payload)
+        if provider is not None
+        else sign_detached_payload(payload, signing_key)  # type: ignore[arg-type]
+    )
+    token = (
+        timestamp_provider.timestamp(hashlib.sha256(payload).hexdigest())
+        if timestamp_provider is not None
+        else None
+    )
     signature = AttestationSignature(
         role=role,
         actor_id=actor_id,
         signed_at=signed_at or datetime.now(UTC),
-        signature=sign_detached_payload(signed_payload(attestation), signing_key),
+        signature=detached,
+        timestamp=token,
     )
     return attestation.model_copy(update={"signatures": (*attestation.signatures, signature)})
 
@@ -688,9 +749,17 @@ def verify_attestation(
     public_keys: dict[str, str | Path] | None = None,
     supported_profiles: frozenset[str] | None = None,
     disclosed_evidence: dict[str, bytes] | None = None,
+    trust_profile: TrustProfile | None = None,
+    trust_root_public_key: str | Path | None = None,
+    timestamp_authority_key: str | Path | None = None,
     now: datetime | None = None,
 ) -> AttestationVerification:
-    """Check every independent property and report them separately."""
+    """Check every independent property and report them separately.
+
+    ``trust_profile`` is what turns "this key verified" into "this organization
+    signed". Without one, the identity result says ``key_only`` and the caller
+    can see that no organizational claim was established.
+    """
 
     problems: list[str] = []
     content_id_valid = compute_attestation_id(attestation) == attestation.attestation_id
@@ -781,6 +850,30 @@ def verify_attestation(
     if expired:
         problems.append("The record has passed its stated validity window")
 
+    claimant = next(
+        (item for item in attestation.signatures if item.role == SignatureRole.CLAIMANT),
+        None,
+    )
+    identity: IdentityResult | None = None
+    if claimant is not None and statuses[SignatureRole.CLAIMANT] == "valid":
+        identity = resolve_identity(
+            claimant.signature.key_id,
+            profile=trust_profile,
+            root_public_key=trust_root_public_key,
+            moment=now,
+        )
+
+    trusted_timestamp: bool | None = None
+    timestamp_explanation: str | None = None
+    if claimant is not None and claimant.timestamp is not None:
+        trusted_timestamp, timestamp_explanation = verify_timestamp(
+            claimant.timestamp,
+            digest_sha256=hashlib.sha256(payload).hexdigest(),
+            authority_public_key=timestamp_authority_key,
+        )
+        if not trusted_timestamp:
+            problems.append(f"Timestamp not established: {timestamp_explanation}")
+
     return AttestationVerification(
         attestation_id=attestation.attestation_id,
         schema_valid=True,
@@ -797,6 +890,9 @@ def verify_attestation(
         unresolved_dissent=dissent,
         limitations_acknowledged=limitations_acknowledged,
         strongest_evidence_status=_strongest_evidence_status(attestation),
+        claimant_identity=identity,
+        trusted_timestamp=trusted_timestamp,
+        timestamp_explanation=timestamp_explanation,
         problems=tuple(problems),
     )
 

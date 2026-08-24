@@ -120,16 +120,24 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P1 — enterprise trust and certificate infrastructure
 
-- [ ] `TRUST-01` Add RFC 3161 or equivalent trusted timestamps for audit certificates and policy
-  bundles without making normal scanning network-dependent.
-- [ ] `TRUST-02` Bind issuers to organization identity through a documented PKI or enterprise trust
-  profile rather than treating possession of any Ed25519 key as organizational identity.
-- [ ] `TRUST-03` Add an append-only transparency mechanism and sequence/rollback protection for
-  revocation and policy state.
-- [ ] `TRUST-04` Support HSM/KMS-backed signing through a narrow provider interface while keeping
-  private keys outside TrueAI processes.
-- [ ] `TRUST-05` Define retention, access control, privacy, and export contracts for premium fleet
-  history without adding telemetry to the open-source scanner.
+- [x] `TRUST-01` `TimestampProvider` with an offline designated-authority implementation and an
+  RFC 3161 provider that requires `NetworkPolicy.EXPLICIT_ONLY`, an operator allowlist, and a
+  caller-supplied transport. Normal scanning never contacts an authority. An RFC 3161 token is
+  carried but reported as not established, because an opaque blob is not evidence.
+- [x] `TRUST-02` `TrustProfile` binds keys to organizations for stated periods, with three
+  assurance levels. Without a profile the result is `key_only` and says so.
+  `authenticated_declaration` and `organizationally_attributed` are separate properties so a bare
+  signature cannot read as an organizational endorsement.
+- [x] `TRUST-03` `TransparencyLog` is append-only with sequence numbers and a hash chain. Edited
+  entries, removed entries, older copies, and same-length rewritten histories are each detected,
+  and the API requires the verifier's remembered head because a verifier with no memory cannot
+  detect a rollback.
+- [x] `TRUST-04` `SigningProvider` with local-file and external implementations. An external
+  provider receives bytes and returns a signature; no key material enters a TrueAI process, and a
+  provider whose signature its own public key rejects fails at signing rather than at verification.
+- [x] `TRUST-05` Retention, access, privacy, and export contracts documented in `docs/trust.md`.
+  The boundary is enforced in the scanner: it adds no telemetry, so anything a fleet product knows
+  was sent deliberately.
 
 #### P1 — human contribution and process attestation
 
@@ -158,9 +166,10 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   commitments so a guessable statement cannot be confirmed by hashing it. `private_material()`
   enumerates exactly what a public variant must not contain, and the leakage test executes that
   check rather than assuming it.
-- [ ] `PROC-07` Reuse certificate trust primitives for organization identity, trusted timestamps,
-  revocation, HSM/KMS signing, and transparency, while keeping process claims under a distinct
-  schema, identifier prefix, status vocabulary, and verification result.
+- [x] `PROC-07` Attestations sign through the same `SigningProvider`, resolve identity through the
+  same `TrustProfile`, and carry the same `TimestampToken` as certificates, while keeping the
+  `TAIP1-` prefix, the process-attestation schema, the contribution vocabulary, and
+  `AttestationVerification` distinct from the certificate contract.
 - [ ] `PROC-08` Implement versioned, domain-specific evaluation profiles that emit a contribution
   vector and evidence confidence. Core must not emit a universal “human percentage” or silently
   collapse incomparable dimensions into one score.
