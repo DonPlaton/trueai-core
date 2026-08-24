@@ -484,9 +484,18 @@ def test_path_open_is_guarded_like_the_builtin(install_plugins, text_artifact: P
 
 
 def test_the_isolated_host_reports_its_own_limits_in_the_module_docstring() -> None:
-    """The docstring is the honest statement about what isolation does not do."""
+    """The docstring is the honest statement about what isolation does not do.
 
-    assert "not: a filesystem/system-call sandbox" in (host_module.__doc__ or "")
+    It has to move when the answer moves. Syscall filtering used to be listed as
+    future work and now exists, so the remaining gap named here is the filesystem,
+    which no backend confines.
+    """
+
+    docstring = host_module.__doc__ or ""
+
+    assert "What none of them does is confine the filesystem" in docstring
+    assert "mount namespace or AppContainer" in docstring
+    assert "the broker and the python guards remain the filesystem boundary" in docstring.lower()
 
 
 def test_plugin_execution_errors_carry_a_stable_code() -> None:

@@ -156,6 +156,106 @@ trueai scan ./repo --plugins subprocess
 trueai scan ./repo --plugins disabled
 ```
 
+## Operating-system confinement
+
+The broker is a contract and the guards enforce it against ordinary Python.
+Neither stops native code, `ctypes`, or a plugin that restores the functions the
+guards replaced. `trueai/plugins/confinement.py` asks the kernel instead.
+
+```bash
+trueai scan ./repo --plugin-confinement best_effort   # default
+trueai scan ./repo --plugin-confinement required      # refuse to run unconfined
+trueai scan ./repo --plugin-confinement none
+```
+
+| Level | Behaviour |
+|---|---|
+| `none` | No kernel confinement. The guards still apply. |
+| `best_effort` | Default. Apply what the platform offers and record every gap. |
+| `required` | Refuse to run a plugin when confinement cannot be established. |
+
+`required` exists because silently degrading to "we tried" is indistinguishable,
+from the report, from having succeeded. Availability is a property of the
+machine, not of the code: unprivileged user namespaces are disabled on some
+distributions, and a container policy can block `seccomp`. The level is how an
+operator says which outcome they want when that happens.
+
+### Linux — seccomp and namespaces
+
+Applied by the worker to itself, before the plugin is imported, because import
+time is when a hostile plugin acts.
+
+- `PR_SET_NO_NEW_PRIVS`, so nothing the worker starts can gain privileges.
+- `unshare(CLONE_NEWUSER | CLONE_NEWNET)` when `network` is not granted: an empty
+  network namespace is a stronger statement than filtering socket syscalls,
+  because there is no route left to filter against.
+- A seccomp BPF filter that **kills the process** on a denied syscall. Returning
+  `EPERM` would let a plugin retry through another spelling; a dead worker is a
+  diagnostic the host already knows how to report.
+
+The filter is derived from the grants. Without `network`: `socket`, `connect`,
+`bind`, `listen`, `accept`, `sendto`, `recvfrom`. Without `run_subprocess`:
+`execve`, `execveat`. Always: `ptrace`.
+
+**`fork` and `vfork` are deliberately absent.** glibc has routed `os.fork()`
+through `clone` for years, and `clone` is shared with threading — filtering it
+would stop the interpreter rather than the plugin. Denying `fork` by number would
+have looked like a control and been none, so the gap is recorded instead:
+*running a different program is blocked; duplicating this one is not.*
+
+Syscall numbers are pinned for `x86_64` and `aarch64` only. On any other
+architecture the mechanism reports itself unavailable, because a filter built
+from guessed numbers denies the wrong calls.
+
+Filesystem access is not confined: a mount namespace needs privileges a scanner
+should not hold. The broker and the guards remain the filesystem boundary.
+
+### Windows — a restricted token
+
+Windows has no `seccomp`, and a process cannot narrow its own token once it is
+running. The restriction is therefore chosen when the worker is **spawned**, in
+`trueai/plugins/windows_token.py`, through `CreateRestrictedToken` and
+`CreateProcessAsUserW`:
+
+- every privilege the host token holds is dropped (`DISABLE_MAX_PRIVILEGE`);
+- `BUILTIN\Administrators` becomes deny-only, which is stronger than absent —
+  an absent group can be re-added, a deny-only entry cannot.
+
+`subprocess` cannot pass a token, so the process is created through the Win32 API
+directly. That is affordable only because the protocol is already file-based:
+request in, response out, plugin stdout and stderr discarded. No pipes to plumb.
+
+**This is not AppContainer.** There is no filesystem isolation and no network
+isolation; a restricted token does not stop a plugin reading anything the user
+can read. AppContainer would need a profile, a SID, and ACLs on the artifact and
+the scratch directory, and it is not implemented. The report says all of this
+rather than reporting "confined".
+
+### macOS — sandbox_init
+
+A generated SBPL profile: deny by default, then re-allow exactly what a grant
+covers. The scratch directory is the only writable location and it is named
+rather than implied.
+
+Reads are allowed broadly, because a worker that cannot read the interpreter and
+its dependencies cannot start and enumerating them is not something a scanner can
+do reliably. `sandbox_init` has been deprecated by Apple for years while remaining
+the only interface a process has to sandbox itself; that is stated here rather
+than discovered later.
+
+### How this is verified
+
+- **Linux**: `scripts/verify_linux_confinement.py`, run inside a container against
+  a real kernel. A denied syscall must *kill the child* — a parent that survived
+  is not evidence. The script also asserts the documented **gaps**: threads still
+  start, a granted executable still runs, and forking a copy of the worker is
+  still possible. A gap that quietly closed would mean the documentation is now
+  wrong in the other direction.
+- **Windows**: a test compares the privilege count of an ordinary child with a
+  restricted one. An "applied" flag proves nothing; a privilege count does.
+- **macOS**: unverified. There is no macOS machine in this project's CI, and the
+  backend is marked as such rather than presented as tested.
+
 ## Isolation modes
 
 | Mode | Behaviour |
@@ -213,9 +313,13 @@ A plugin whose id collides with one that is already registered is refused and
 reported rather than aborting discovery, so an installed package cannot stop the
 tool from starting.
 
-A filesystem/system-call sandbox such as seccomp, AppContainer, or a separately permissioned
-container remains future work. Process isolation, kernel quotas, and Python guards are defense in
-depth; they are not described as protection against malicious native code.
+System-call filtering is implemented on Linux and covers network and exec; see
+[operating-system confinement](#operating-system-confinement) for what each platform does and does
+not enforce. Filesystem confinement is not implemented anywhere: it needs a mount namespace on
+Linux and AppContainer on Windows, and neither is available to a scanner running as an ordinary
+user without further setup. Process isolation, kernel quotas, seccomp, and the Python guards are
+defense in depth, and on the filesystem specifically they are not described as protection against
+malicious native code.
 
 Both isolation modes are equally subject to the engine's existing checks: artifact
 hashes and directory inventories are re-examined after detectors run, and any

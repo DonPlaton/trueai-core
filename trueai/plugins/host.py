@@ -14,15 +14,15 @@ isolated host addresses each of those directly:
   cannot forge a finding identity, attribute a finding to a different artifact,
   or impersonate another detector.
 
-What this is not: a filesystem/system-call sandbox. The worker runs with the same
-user and filesystem access as the host. The in-worker guards and kernel resource
-quotas do not stop malicious native code from opening files. Seccomp, AppContainer,
-or container-level isolation remains future work.
+Kernel confinement is applied on top by :mod:`trueai.plugins.confinement`: a
+seccomp filter and network namespace on Linux, a restricted token on Windows, an
+SBPL profile on macOS. What none of them does is confine the filesystem — that
+needs a mount namespace or AppContainer, neither of which is available to a
+scanner running as an ordinary user. The worker reads and writes as the host's
+user, and the broker and the Python guards remain the filesystem boundary.
 
-Manifest inspection also happens in a guarded helper process. A refused plugin is
-therefore never imported or constructed in the scanner process. Python-level
-guards, process separation, and resource quotas still do not replace a platform
-sandbox; operators should combine hostile native plugins with platform controls.
+Manifest inspection also happens in a guarded helper process, so a refused plugin
+is never imported or constructed in the scanner process.
 """
 
 from __future__ import annotations
@@ -50,6 +50,11 @@ from trueai.plugins.broker import (
     NetworkGrant,
     SubprocessGrant,
     grants_for,
+)
+from trueai.plugins.confinement import (
+    ConfinementLevel,
+    ConfinementUnavailableError,
+    describe_platform,
 )
 from trueai.plugins.loader import enrich_manifest, instantiate, manifest_for, resolve_target
 from trueai.plugins.manifest import (
@@ -131,6 +136,7 @@ class IsolatedDetector:
         network_grant: NetworkGrant | None = None,
         subprocess_grant: SubprocessGrant | None = None,
         native_library_grant: NativeLibraryGrant | None = None,
+        confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
     ) -> None:
         self.id = manifest.detector_id
         self.entry_point = entry_point
@@ -145,6 +151,7 @@ class IsolatedDetector:
         self.network_grant = network_grant
         self.subprocess_grant = subprocess_grant
         self.native_library_grant = native_library_grant
+        self.confinement = confinement
         self.provider: str | None = manifest.vendor
         self.supported_types: frozenset[ArtifactType] = manifest.supported_types
         self.categories: frozenset[FindingCategory] = manifest.categories
@@ -178,6 +185,7 @@ class IsolatedDetector:
                 detector_id=self.id,
                 granted_capabilities=frozenset(self.decision.granted),
                 grants=self._grants(artifact, digest, context, scratch),
+                confinement=self.confinement,
                 resource_limits=self.resource_limits,
                 artifact=WorkerArtifact(
                     artifact_type=artifact.artifact_type,
@@ -250,29 +258,21 @@ class IsolatedDetector:
                 existing = environment.get("PYTHONPATH", "")
                 entries = [*self.search_path, existing] if existing else list(self.search_path)
                 environment["PYTHONPATH"] = os.pathsep.join(entries)
+            # The worker deliberately runs in the host's own interpreter and
+            # import environment. Trimming its module search path would make a
+            # plugin's dependencies resolve in the host and fail in the worker,
+            # which shows up as a mysterious plugin failure rather than as a
+            # security improvement.
+            argv = [
+                sys.executable,
+                "-m",
+                "trueai.plugins.worker",
+                str(request_path),
+                str(response_path),
+            ]
             try:
-                completed = subprocess.run(
-                    # The worker deliberately runs in the host's own interpreter
-                    # and import environment. Trimming its module search path
-                    # would make a plugin's dependencies resolve in the host and
-                    # fail in the worker, which is a difference that would show
-                    # up as a mysterious plugin failure rather than a security
-                    # improvement.
-                    [
-                        sys.executable,
-                        "-m",
-                        "trueai.plugins.worker",
-                        str(request_path),
-                        str(response_path),
-                    ],
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=self.timeout,
-                    env=environment,
-                    check=False,
-                )
-            except subprocess.TimeoutExpired:
+                returncode = self._spawn(argv, environment)
+            except TimeoutError:
                 return WorkerResponse(
                     detector_id=self.id,
                     ok=False,
@@ -282,13 +282,20 @@ class IsolatedDetector:
                         "terminated."
                     ),
                 )
+            except ConfinementUnavailableError as exc:
+                return WorkerResponse(
+                    detector_id=self.id,
+                    ok=False,
+                    error_code="plugin_confinement_unavailable",
+                    error_message=str(exc),
+                )
             if not response_path.is_file():
                 return WorkerResponse(
                     detector_id=self.id,
                     ok=False,
                     error_code="plugin_crashed",
                     error_message=(
-                        f"The worker exited with code {completed.returncode} without a "
+                        f"The worker exited with code {returncode} without a "
                         "response. Plugin-controlled stdout and stderr were discarded."
                     ),
                 )
@@ -315,6 +322,54 @@ class IsolatedDetector:
                     path.unlink(missing_ok=True)
             with contextlib.suppress(OSError):
                 workspace.rmdir()
+
+    def _spawn(self, argv: list[str], environment: dict[str, str]) -> int:
+        """Start the worker, under a restricted token where the platform offers one.
+
+        Windows confinement has to be chosen here rather than by the worker: a
+        process cannot narrow its own token once it is running. Everywhere else
+        the worker confines itself, and this is an ordinary spawn.
+        """
+
+        platform = describe_platform()
+        if (
+            self.confinement != ConfinementLevel.NONE
+            and platform.platform == "windows"
+            and platform.spawn_time_only
+        ):
+            from trueai.plugins.windows_token import (
+                RestrictedSpawnError,
+                restricted_spawning_available,
+                spawn_restricted,
+            )
+
+            if restricted_spawning_available():
+                try:
+                    return spawn_restricted(argv, environment=environment, timeout=self.timeout)
+                except RestrictedSpawnError as exc:
+                    if self.confinement == ConfinementLevel.REQUIRED:
+                        raise ConfinementUnavailableError(
+                            f"A restricted token could not be used: {exc}"
+                        ) from exc
+            elif self.confinement == ConfinementLevel.REQUIRED:
+                raise ConfinementUnavailableError(
+                    "Restricted-token spawning is unavailable on this machine, and the host "
+                    "requires operating-system confinement."
+                )
+
+        try:
+            completed = subprocess.run(
+                argv,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=self.timeout,
+                env=environment,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError(str(exc)) from exc
+        return completed.returncode
 
     def _validate(
         self,
@@ -391,6 +446,7 @@ class PluginHost:
         network_grant: NetworkGrant | None = None,
         subprocess_grant: SubprocessGrant | None = None,
         native_library_grant: NativeLibraryGrant | None = None,
+        confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
     ) -> None:
         self.policy = policy or CapabilityPolicy()
         self.isolation = isolation
@@ -400,6 +456,7 @@ class PluginHost:
         self.network_grant = network_grant
         self.subprocess_grant = subprocess_grant
         self.native_library_grant = native_library_grant
+        self.confinement = confinement
 
     def discover(self) -> DiscoveryResult:
         """Review every registered plugin and return the ones the policy allows."""
@@ -450,6 +507,7 @@ class PluginHost:
                         network_grant=self.network_grant,
                         subprocess_grant=self.subprocess_grant,
                         native_library_grant=self.native_library_grant,
+                        confinement=self.confinement,
                     )
                 )
             else:

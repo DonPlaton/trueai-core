@@ -109,6 +109,20 @@ def main(argv: list[str]) -> int:
         )
 
     from trueai.plugins.broker import CapabilityBroker
+    from trueai.plugins.confinement import ConfinementUnavailableError, apply_confinement
+
+    # Confinement comes first. Guards replace Python functions; this asks the
+    # kernel, and asking after the plugin is imported would be asking too late.
+    try:
+        confinement = apply_confinement(request.grants, request.confinement)
+    except ConfinementUnavailableError as exc:
+        return _fail(
+            response_path,
+            request.detector_id,
+            "plugin_confinement_unavailable",
+            f"{exc}. The host requires operating-system confinement, so the plugin was "
+            "not imported.",
+        )
 
     # Guards go up before the plugin is imported. Everything the plugin runs,
     # including module-level code and its constructor, is subject to them. The
@@ -190,7 +204,12 @@ def main(argv: list[str]) -> int:
 
     _write(
         response_path,
-        WorkerResponse(detector_id=request.detector_id, ok=True, findings=serialized),
+        WorkerResponse(
+            detector_id=request.detector_id,
+            ok=True,
+            findings=serialized,
+            confinement=confinement,
+        ),
     )
     return 0
 

@@ -12,6 +12,13 @@ from trueai.plugins.broker import (
     WorkspaceGrant,
     grants_for,
 )
+from trueai.plugins.confinement import (
+    ConfinementLevel,
+    ConfinementReport,
+    ConfinementUnavailableError,
+    PlatformConfinement,
+    describe_platform,
+)
 from trueai.plugins.host import (
     DEFAULT_TIMEOUT_SECONDS,
     ENTRY_POINT_GROUP,
@@ -44,10 +51,14 @@ __all__ = [
     "CapabilityDecision",
     "CapabilityDeniedError",
     "CapabilityPolicy",
+    "ConfinementLevel",
+    "ConfinementReport",
+    "ConfinementUnavailableError",
     "DiscoveryResult",
     "IsolatedDetector",
     "NativeLibraryGrant",
     "NetworkGrant",
+    "PlatformConfinement",
     "PluginCapability",
     "PluginExecutionError",
     "PluginHost",
@@ -59,5 +70,6 @@ __all__ = [
     "SubprocessGrant",
     "TemporaryOutputGrant",
     "WorkspaceGrant",
+    "describe_platform",
     "grants_for",
 ]

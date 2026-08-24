@@ -99,8 +99,15 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   must acknowledge being unmediated. Every grant carries its scope, so a capability the operator
   allowed but never scoped grants nothing rather than everything. `write_temporary` and
   `load_native_library` are new capabilities; the broker is opt-in through `bind_broker`.
-- [ ] `PLUG-02` Enforce the contract with AppContainer or an equivalent restricted token on Windows,
-  seccomp plus namespaces on Linux, and an appropriate macOS sandbox/container boundary.
+- [x] `PLUG-02` `trueai/plugins/confinement.py` and `windows_token.py`. Linux: `no_new_privs`,
+  `unshare(CLONE_NEWUSER|CLONE_NEWNET)`, and a seccomp filter that kills on a denied syscall —
+  verified against a real kernel by `scripts/verify_linux_confinement.py`, which also asserts the
+  documented gaps still exist. Windows: a restricted token via `CreateRestrictedToken` plus
+  `CreateProcessAsUserW`, verified by comparing privilege counts; it is *not* AppContainer and the
+  report says so. macOS: a generated deny-by-default SBPL profile, unverified for lack of a macOS
+  machine and marked as such. `ConfinementLevel.REQUIRED` refuses to run a plugin rather than
+  degrading silently, because a degraded run is indistinguishable in a report from a successful
+  one.
 - [ ] `PLUG-03` Add platform adversarial tests proving that a hostile native plugin cannot read
   outside its grant, open the network, spawn children, or survive its deadline.
 - [ ] `PLUG-04` Sign plugin distributions, validate publisher identity and compatibility before

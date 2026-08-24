@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import PluginIsolation
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ def create_default_registry(
     plugin_isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
     capability_policy: CapabilityPolicy | None = None,
     plugin_search_path: tuple[str, ...] = (),
+    plugin_confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
 ) -> DetectorRegistry:
     """Create an isolated registry containing all built-in detectors."""
 
@@ -67,6 +69,7 @@ def create_default_registry(
             policy=capability_policy,
             isolation=plugin_isolation,
             search_path=plugin_search_path,
+            confinement=plugin_confinement,
         )
     return registry
 

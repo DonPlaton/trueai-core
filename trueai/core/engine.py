@@ -27,6 +27,7 @@ from trueai.core.models import (
 from trueai.core.policy import PolicyEngine, PolicyProfile
 from trueai.core.registry import DetectorRegistry
 from trueai.detectors.base import Detector
+from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import PluginIsolation
 from trueai.plugins.manifest import CapabilityPolicy
 
@@ -94,6 +95,7 @@ class TrueAIEngine:
         plugin_isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
         capability_policy: CapabilityPolicy | None = None,
         plugin_search_path: tuple[str, ...] = (),
+        plugin_confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
     ) -> TrueAIEngine:
         """Construct an engine with all stable built-in detectors."""
 
@@ -106,6 +108,7 @@ class TrueAIEngine:
                 plugin_isolation=plugin_isolation,
                 capability_policy=capability_policy,
                 plugin_search_path=plugin_search_path,
+                plugin_confinement=plugin_confinement,
             )
         )
 

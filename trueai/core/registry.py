@@ -10,6 +10,7 @@ from trueai.plugins.broker import (
     NetworkGrant,
     SubprocessGrant,
 )
+from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import (
     DiscoveryResult,
     PluginHost,
@@ -72,6 +73,7 @@ class DetectorRegistry:
         network_grant: NetworkGrant | None = None,
         subprocess_grant: SubprocessGrant | None = None,
         native_library_grant: NativeLibraryGrant | None = None,
+        confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
     ) -> list[str]:
         """Load third-party detectors the host policy allows.
 
@@ -91,6 +93,7 @@ class DetectorRegistry:
             "network_grant": network_grant,
             "subprocess_grant": subprocess_grant,
             "native_library_grant": native_library_grant,
+            "confinement": confinement,
         }
         if timeout is not None:
             host_arguments["timeout"] = timeout

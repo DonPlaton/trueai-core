@@ -40,6 +40,7 @@ from trueai.core.policy_bundle import (
     verify_policy_bundle,
 )
 from trueai.core.remediation import RemediationPlanner, RemediationService
+from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import PluginIsolation
 from trueai.reporters import JSONReporter, SARIFReporter, TerminalReporter
 
@@ -206,6 +207,16 @@ def scan(
             help="Permit remote C2PA manifest fetching during explicit verification.",
         ),
     ] = False,
+    plugin_confinement: Annotated[
+        ConfinementLevel,
+        typer.Option(
+            "--plugin-confinement",
+            help=(
+                "none, best_effort, or required. `required` refuses to run a plugin when "
+                "operating-system confinement cannot be established."
+            ),
+        ),
+    ] = ConfinementLevel.BEST_EFFORT,
     attestation: Annotated[
         Path | None,
         typer.Option(
@@ -240,6 +251,7 @@ def scan(
         report = TrueAIEngine.default(
             include_experimental=experimental,
             plugin_isolation=plugins,
+            plugin_confinement=plugin_confinement,
         ).scan(
             path,
             options=options,

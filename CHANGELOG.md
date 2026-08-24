@@ -12,6 +12,34 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Operating-system confinement for plugin workers**
+
+- `trueai/plugins/confinement.py` asks the kernel to enforce what the broker only
+  contracts for. `--plugin-confinement none|best_effort|required` selects the
+  posture; `required` refuses to run a plugin when confinement cannot be
+  established, because silently degrading to "we tried" is indistinguishable, in a
+  report, from having succeeded.
+- **Linux**: `PR_SET_NO_NEW_PRIVS`, an empty network namespace when `network` is
+  not granted, and a seccomp BPF filter that kills the process on a denied
+  syscall rather than returning an error a plugin can retry around. The denied set
+  is derived from the grants. `fork` and `vfork` are deliberately absent: glibc
+  routes `os.fork()` through `clone`, which threading also uses, so filtering it
+  would break the interpreter — the gap is recorded instead of faked. Syscall
+  numbers are pinned for x86_64 and aarch64 only; other architectures report the
+  mechanism unavailable rather than filtering against guessed numbers.
+- **Windows**: `trueai/plugins/windows_token.py` spawns the worker through
+  `CreateRestrictedToken` and `CreateProcessAsUserW`, dropping every privilege and
+  making `BUILTIN\Administrators` deny-only. It is not AppContainer — no
+  filesystem or network isolation — and the report says so instead of reporting
+  "confined".
+- **macOS**: a generated deny-by-default SBPL profile with writes limited to the
+  scratch grant. Unverified: there is no macOS machine here, and the backend is
+  marked as untested rather than presented otherwise.
+- Every report lists what the mechanism did *not* enforce, and that list is never
+  empty for a real backend.
+- `scripts/verify_linux_confinement.py` verifies the Linux backend against a real
+  kernel in a container, asserting both the controls and the documented gaps.
+
 **Capability broker for plugins**
 
 - `trueai/plugins/broker.py` replaces boolean plugin permissions with scoped

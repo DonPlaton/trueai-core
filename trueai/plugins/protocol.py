@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from trueai.core.models import ArtifactType, ScanOptions
 from trueai.plugins.broker import BrokerGrants
+from trueai.plugins.confinement import ConfinementLevel, ConfinementReport
 from trueai.plugins.manifest import PluginCapability
 from trueai.plugins.resources import PluginResourceLimits
 
@@ -45,6 +46,9 @@ class WorkerRequest(BaseModel):
     #: The scoped grants the broker enforces. The capability set above is what
     #: the guards act on; these are the same decision with its scopes attached.
     grants: BrokerGrants = BrokerGrants()
+    #: How hard the host insists on kernel-level confinement. `required` makes the
+    #: worker refuse to import the plugin when confinement cannot be established.
+    confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT
     resource_limits: PluginResourceLimits = PluginResourceLimits()
     artifact: WorkerArtifact
     options: ScanOptions
@@ -60,6 +64,9 @@ class WorkerResponse(BaseModel):
     detector_id: str
     ok: bool
     findings: list[dict[str, Any]] = Field(default_factory=list)
+    #: What the worker actually established, so the host reports the confinement
+    #: that happened rather than the one it asked for.
+    confinement: ConfinementReport | None = None
     error_code: str | None = None
     error_message: str | None = None
 

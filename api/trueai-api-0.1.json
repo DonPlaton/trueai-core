@@ -1099,6 +1099,11 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "plugin_search_path",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_confinement",
+                "required": false
               }
             ]
           },
@@ -1983,6 +1988,14 @@
           }
         }
       },
+      "ConfinementLevel": {
+        "kind": "enum",
+        "members": [
+          "best_effort",
+          "none",
+          "required"
+        ]
+      },
       "Detector": {
         "attributes": [],
         "bases": [
@@ -2088,6 +2101,11 @@
               {
                 "kind": "KEYWORD_ONLY",
                 "name": "native_library_grant",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "confinement",
                 "required": false
               }
             ]
@@ -2678,6 +2696,11 @@
               {
                 "kind": "KEYWORD_ONLY",
                 "name": "plugin_search_path",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_confinement",
                 "required": false
               }
             ]
@@ -5367,6 +5390,54 @@
           }
         }
       },
+      "ConfinementLevel": {
+        "kind": "enum",
+        "members": [
+          "best_effort",
+          "none",
+          "required"
+        ]
+      },
+      "ConfinementReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "summary": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "applied": {
+            "required": true
+          },
+          "established": {
+            "required": false
+          },
+          "mechanism": {
+            "required": true
+          },
+          "not_enforced": {
+            "required": false
+          },
+          "reason": {
+            "required": false
+          }
+        }
+      },
+      "ConfinementUnavailableError": {
+        "attributes": [],
+        "bases": [
+          "builtins.RuntimeError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
       "DEFAULT_CAPABILITIES": {
         "kind": "value",
         "type": "frozenset"
@@ -5467,6 +5538,33 @@
         },
         "model_fields": {
           "endpoints": {
+            "required": false
+          }
+        }
+      },
+      "PlatformConfinement": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "available": {
+            "required": true
+          },
+          "mechanism": {
+            "required": true
+          },
+          "platform": {
+            "required": true
+          },
+          "reason": {
+            "required": false
+          },
+          "spawn_time_only": {
             "required": false
           }
         }
@@ -5681,6 +5779,13 @@
           "root": {
             "required": true
           }
+        }
+      },
+      "describe_platform": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": []
         }
       },
       "grants_for": {
