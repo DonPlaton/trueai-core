@@ -12,6 +12,37 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Adversarial tests with hostile native plugins**
+
+- Example plugins that reach the operating system through `ctypes` on both POSIX
+  and Windows: a native writer, reader, socket opener, process spawner, and a
+  worker that blocks inside a native sleep where no Python deadline can reach it.
+- `scripts/verify_native_plugins.py` runs them through the whole real path — entry
+  point, manifest review, worker spawn, confinement, guards, deadline — against a
+  real kernel in a container. On Linux a hostile native plugin cannot write outside
+  its grant, cannot open a socket, and cannot start another program; on every
+  platform it cannot outlive its deadline.
+- The script carries **negative controls**: the same plugins with confinement off,
+  where the attack must succeed. Without them a check that passes because the
+  attempt would have failed anyway is indistinguishable from one that passes
+  because confinement worked.
+- Gaps are asserted, not left implicit. Reading outside the grant still succeeds
+  everywhere, and on Windows a restricted token confines nothing native beyond the
+  deadline. `test_windows_does_not_stop_a_native_write_and_says_so` fails the day
+  that changes, so the docs and the behaviour move together.
+
+**Linux write confinement**
+
+- A read-only mount namespace, with the scratch grant and the worker's protocol
+  directory re-opened for writing. Native code cannot write outside the grants
+  either — previously only the Python guards stood in the way, and native code
+  goes around those.
+- Read confinement is still not implemented: it needs `pivot_root` into a
+  per-invocation tree. That is recorded as a gap in every report.
+- Supplementary groups are dropped by the user namespace, so a file readable only
+  through one of them becomes unreadable to the plugin. Stated in the report
+  rather than discovered.
+
 **Operating-system confinement for plugin workers**
 
 - `trueai/plugins/confinement.py` asks the kernel to enforce what the broker only

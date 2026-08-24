@@ -114,7 +114,14 @@ def main(argv: list[str]) -> int:
     # Confinement comes first. Guards replace Python functions; this asks the
     # kernel, and asking after the plugin is imported would be asking too late.
     try:
-        confinement = apply_confinement(request.grants, request.confinement)
+        confinement = apply_confinement(
+            request.grants,
+            request.confinement,
+            # The response file is how the worker answers the host. A confinement
+            # that makes it unwritable produces a crash report instead of a
+            # verdict, which is worse than no confinement.
+            writable_paths=(response_path.parent,),
+        )
     except ConfinementUnavailableError as exc:
         return _fail(
             response_path,

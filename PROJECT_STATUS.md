@@ -108,8 +108,15 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   machine and marked as such. `ConfinementLevel.REQUIRED` refuses to run a plugin rather than
   degrading silently, because a degraded run is indistinguishable in a report from a successful
   one.
-- [ ] `PLUG-03` Add platform adversarial tests proving that a hostile native plugin cannot read
-  outside its grant, open the network, spawn children, or survive its deadline.
+- [x] `PLUG-03` Hostile native plugins that reach the OS through `ctypes` on both POSIX and
+  Windows, run through the whole real path by `scripts/verify_native_plugins.py` and
+  `tests/unit/test_plugin_adversarial.py`. Proven on Linux: cannot write outside its grant (a
+  read-only mount namespace was added for this), cannot open a socket, cannot start another
+  program. Proven everywhere: cannot outlive its deadline, including while blocked inside libc.
+  **Not proven, and asserted as gaps rather than left implicit:** reading outside the grant on any
+  platform, and everything except the deadline on Windows, where a restricted token is not
+  AppContainer. Negative controls run the same plugins with confinement off and require the attack
+  to succeed, so a check cannot pass because the attempt would have failed anyway.
 - [ ] `PLUG-04` Sign plugin distributions, validate publisher identity and compatibility before
   import, and support centrally managed allowlists and revocation.
 - [ ] `PLUG-05` Continuously fuzz the plugin protocol, manifest parser, finding validation, and

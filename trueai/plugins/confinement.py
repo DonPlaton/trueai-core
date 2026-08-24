@@ -33,6 +33,7 @@ import os
 import platform
 import sys
 from enum import StrEnum
+from pathlib import Path
 
 from trueai.core.models import FrozenModel
 from trueai.plugins.broker import BrokerGrants
@@ -139,7 +140,14 @@ _SECCOMP_RET_KILL_PROCESS = 0x80000000
 _SECCOMP_RET_ALLOW = 0x7FFF0000
 
 _CLONE_NEWUSER = 0x10000000
+_CLONE_NEWNS = 0x00020000
 _CLONE_NEWNET = 0x40000000
+
+_MS_RDONLY = 1
+_MS_REMOUNT = 32
+_MS_BIND = 0x1000
+_MS_REC = 0x4000
+_MS_PRIVATE = 1 << 18
 
 # BPF instruction classes and modes, spelled out because the numeric literals
 # alone would make the filter unreviewable.
@@ -223,6 +231,7 @@ def _darwin_sandbox_available() -> bool:
 def apply_confinement(
     grants: BrokerGrants,
     level: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
+    writable_paths: tuple[Path, ...] = (),
 ) -> ConfinementReport:
     """Confine the current process to what the grants allow.
 
@@ -230,6 +239,10 @@ def apply_confinement(
     when a hostile plugin acts. On Windows this is a no-op that says so: the
     restriction there belongs to process creation, and a process cannot re-restrict
     its own token.
+
+    ``writable_paths`` are directories that must stay writable regardless of the
+    grants — in practice the one the worker writes its protocol response into. A
+    worker that cannot answer the host is not confined, it is broken.
     """
 
     if level == ConfinementLevel.NONE:
@@ -256,7 +269,7 @@ def apply_confinement(
         )
 
     if available.platform == "linux":
-        return _apply_linux(grants, level)
+        return _apply_linux(grants, level, writable_paths)
     if available.platform == "darwin":
         return _apply_darwin(grants, level)
     raise ConfinementUnavailableError(f"No self-confinement backend for {available.platform}")
@@ -265,20 +278,23 @@ def apply_confinement(
 # -- Linux ---------------------------------------------------------------------------
 
 
-def _apply_linux(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementReport:
-    """Drop privileges, isolate the network, and filter syscalls.
+def _apply_linux(
+    grants: BrokerGrants,
+    level: ConfinementLevel,
+    writable_paths: tuple[Path, ...] = (),
+) -> ConfinementReport:
+    """Drop privileges, isolate the network and filesystem, and filter syscalls.
 
     Order matters. ``no_new_privs`` must be set before a seccomp filter can be
-    installed unprivileged, and the namespace unshare has to happen before the
-    filter denies the syscalls that would perform it.
+    installed unprivileged; the namespaces have to be unshared before the filter
+    denies the syscalls that would perform it; and the mount work has to happen
+    after the user namespace exists, because that is where the capability to do
+    it comes from.
     """
 
     capabilities = grants.capabilities()
     established: list[str] = []
     not_enforced: list[str] = [
-        "Filesystem access. Confining reads and writes needs a mount namespace, "
-        "which needs privileges a scanner should not hold. The broker and the "
-        "Python guards remain the filesystem boundary.",
         "Memory and CPU. Those are the resource limits, applied separately.",
         "Forking a copy of the worker itself. os.fork() goes through clone, which "
         "threading also uses, so filtering it would break the interpreter. Running "
@@ -286,6 +302,9 @@ def _apply_linux(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementRe
     ]
 
     libc = ctypes.CDLL(None, use_errno=True)
+    # Read before any unshare: afterwards these answer with the overflow uid.
+    real_uid = os.getuid()  # type: ignore[attr-defined,unused-ignore]
+    real_gid = os.getgid()  # type: ignore[attr-defined,unused-ignore]
 
     if libc.prctl(_PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0:
         message = f"prctl(PR_SET_NO_NEW_PRIVS) failed: {os.strerror(ctypes.get_errno())}"
@@ -299,22 +318,31 @@ def _apply_linux(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementRe
         )
     established.append("no_new_privs: a child can never gain privileges through setuid.")
 
+    # One unshare for all three. The user namespace is what makes the other two
+    # possible unprivileged: inside it the process holds CAP_SYS_ADMIN, which is
+    # what mounting requires.
+    flags = _CLONE_NEWUSER | _CLONE_NEWNS
     if PluginCapability.NETWORK not in capabilities:
         # An empty network namespace is a stronger statement than filtering the
         # socket syscalls: there is no route to filter against.
-        if libc.unshare(_CLONE_NEWUSER | _CLONE_NEWNET) == 0:
+        flags |= _CLONE_NEWNET
+    if libc.unshare(flags) == 0:
+        if PluginCapability.NETWORK not in capabilities:
             established.append("network namespace: the process has no network interfaces.")
-        else:
-            detail = os.strerror(ctypes.get_errno())
-            if level == ConfinementLevel.REQUIRED:
-                raise ConfinementUnavailableError(
-                    f"unshare(CLONE_NEWUSER|CLONE_NEWNET) failed: {detail}. Unprivileged user "
-                    "namespaces may be disabled on this system."
-                )
-            not_enforced.append(
-                f"Network namespace isolation: unshare failed ({detail}). The seccomp filter "
-                "below still denies the socket syscalls."
+        _map_identity(real_uid, real_gid, not_enforced)
+        _confine_filesystem(libc, grants, writable_paths, established, not_enforced, level)
+    else:
+        detail = os.strerror(ctypes.get_errno())
+        if level == ConfinementLevel.REQUIRED:
+            raise ConfinementUnavailableError(
+                f"unshare failed: {detail}. Unprivileged user namespaces may be disabled "
+                "on this system."
             )
+        not_enforced.append(
+            f"Namespace isolation: unshare failed ({detail}). The seccomp filter below still "
+            "denies the socket syscalls, and the filesystem is left to the broker and the "
+            "Python guards."
+        )
 
     denied: list[str] = ["ptrace"]
     if PluginCapability.NETWORK not in capabilities:
@@ -340,6 +368,96 @@ def _apply_linux(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementRe
         applied=True,
         established=tuple(established),
         not_enforced=tuple(not_enforced),
+    )
+
+
+def _map_identity(uid: int, gid: int, not_enforced: list[str]) -> None:
+    """Map the real uid and gid to themselves inside the new user namespace.
+
+    Without a mapping the process becomes the overflow uid and loses access to
+    its own files, which would look like confinement and be breakage. Mapping the
+    uid to itself keeps every ownership check answering as it did outside.
+
+    ``uid`` and ``gid`` must be read *before* the unshare. Inside the new
+    namespace and before a mapping exists, ``getuid()`` already answers with the
+    overflow uid, and writing that as the mapping is refused.
+    """
+
+    try:
+        # setgroups must be denied before an unprivileged gid_map is accepted.
+        with open("/proc/self/setgroups", "w") as handle:
+            handle.write("deny")
+        with open("/proc/self/uid_map", "w") as handle:
+            handle.write(f"{uid} {uid} 1")
+        with open("/proc/self/gid_map", "w") as handle:
+            handle.write(f"{gid} {gid} 1")
+    except OSError as exc:
+        not_enforced.append(f"Identity mapping in the user namespace failed ({exc}).")
+        return
+    not_enforced.append(
+        "Supplementary groups are dropped by the user namespace, so a file readable "
+        "only through one of them becomes unreadable to the plugin."
+    )
+
+
+def _confine_filesystem(
+    libc: ctypes.CDLL,
+    grants: BrokerGrants,
+    writable_paths: tuple[Path, ...],
+    established: list[str],
+    not_enforced: list[str],
+    level: ConfinementLevel,
+) -> None:
+    """Make the whole filesystem read-only, then re-open exactly the granted paths.
+
+    This is write confinement, not read confinement. Reads still reach anything
+    the user can read, because a worker that cannot read the interpreter and its
+    dependencies cannot start, and enumerating them is not something a scanner
+    can do reliably. Hiding the filesystem would need ``pivot_root`` into a tree
+    built per invocation, which is future work and is named as such rather than
+    implied.
+    """
+
+    def fail(message: str) -> None:
+        if level == ConfinementLevel.REQUIRED:
+            raise ConfinementUnavailableError(message)
+        not_enforced.append(message)
+
+    # Without this the read-only remount propagates to the parent namespace and
+    # makes the host's own filesystem read-only.
+    if libc.mount(None, b"/", None, _MS_REC | _MS_PRIVATE, None) != 0:
+        fail(f"Mount propagation could not be made private ({os.strerror(ctypes.get_errno())}).")
+        return
+    if libc.mount(None, b"/", None, _MS_REC | _MS_BIND | _MS_REMOUNT | _MS_RDONLY, None) != 0:
+        fail(f"The filesystem could not be made read-only ({os.strerror(ctypes.get_errno())}).")
+        return
+
+    writable = list(writable_paths)
+    if grants.temporary_output is not None:
+        writable.append(grants.temporary_output.directory)
+
+    opened: list[str] = []
+    for path in writable:
+        encoded = str(path).encode("utf-8")
+        # A bind of the directory onto itself creates a mount that can then be
+        # remounted read-write without touching the read-only root beneath it.
+        if libc.mount(encoded, encoded, None, _MS_BIND, None) != 0:
+            fail(f"{path} could not be re-opened for writing ({os.strerror(ctypes.get_errno())}).")
+            continue
+        if libc.mount(None, encoded, None, _MS_BIND | _MS_REMOUNT, None) != 0:
+            fail(f"{path} could not be remounted writable ({os.strerror(ctypes.get_errno())}).")
+            continue
+        opened.append(str(path))
+
+    established.append(
+        "mount namespace: the filesystem is read-only except "
+        + (", ".join(opened) if opened else "nothing")
+        + ". Native code cannot write outside it either."
+    )
+    not_enforced.append(
+        "Reading outside the grants. The root is read-only, not hidden, so a plugin "
+        "can still read anything the user can. Confining reads needs pivot_root into "
+        "a per-invocation tree, which is not implemented."
     )
 
 

@@ -207,8 +207,23 @@ Syscall numbers are pinned for `x86_64` and `aarch64` only. On any other
 architecture the mechanism reports itself unavailable, because a filter built
 from guessed numbers denies the wrong calls.
 
-Filesystem access is not confined: a mount namespace needs privileges a scanner
-should not hold. The broker and the guards remain the filesystem boundary.
+A **mount namespace** makes the whole filesystem read-only, then re-opens exactly
+the granted paths: the scratch directory, and the one the worker writes its
+protocol response into. A worker that cannot answer the host is not confined, it
+is broken. The user namespace is what makes this possible unprivileged — inside
+it the process holds `CAP_SYS_ADMIN`, which is what mounting requires — and the
+real uid and gid are mapped to themselves so every ownership check answers as it
+did outside.
+
+This is **write** confinement, not read confinement. Reads still reach anything
+the user can read, because a worker that cannot read the interpreter and its
+dependencies cannot start. Hiding the filesystem would need `pivot_root` into a
+per-invocation tree, which is not implemented and is named as a gap rather than
+implied away.
+
+Supplementary groups are dropped by the user namespace, so a file readable only
+through one of them becomes unreadable to the plugin. That is a real behaviour
+change and it is in the report.
 
 ### Windows — a restricted token
 
@@ -243,14 +258,57 @@ do reliably. `sandbox_init` has been deprecated by Apple for years while remaini
 the only interface a process has to sandbox itself; that is stated here rather
 than discovered later.
 
+## Adversarial tests: hostile *native* plugins
+
+The Python guards replace functions; native code goes around them. So the
+adversarial tests reach the operating system through `ctypes`, on both POSIX and
+Windows — a "native" plugin that only worked on one would test one platform's
+confinement and quietly skip the other.
+
+`scripts/verify_native_plugins.py` runs them through the **whole real path**:
+entry point, manifest review, worker spawn, confinement, guards, and the host's
+deadline.
+
+| Attempt | Linux | Windows |
+|---|---|---|
+| Write outside the grant | **refused** (read-only mount namespace) | not confined |
+| Write into the scratch grant | allowed | allowed |
+| Open a socket | **process killed** (seccomp) | not confined |
+| Start another program | **process killed** (seccomp) | not confined |
+| Outlive the deadline | **killed by the host** | **killed by the host** |
+| Read outside the grant | not confined | not confined |
+
+Every "not confined" cell is asserted by a test, not left implicit. On Windows
+`test_windows_does_not_stop_a_native_write_and_says_so` fails the day Windows
+filesystem confinement is implemented, which is the point: the claim in the docs
+and the behaviour move together.
+
+The script also carries **negative controls**. Check [7] runs the same native
+writer with `--plugin-confinement none` and requires the write to land; check [8]
+does the same for the socket. Without them, a check that passes because the
+attempt would have failed anyway is indistinguishable from a check that passes
+because confinement worked.
+
+```bash
+docker run --rm --security-opt seccomp=unconfined -v "$PWD:/work" -w /work \
+    python:3.12-slim sh -c "pip install -q pydantic pathspec typer rich pyyaml \
+    && python scripts/verify_native_plugins.py"
+```
+
+`seccomp=unconfined` is needed because Docker's own filter blocks the `unshare`
+this confinement depends on. The machine it protects is a developer's, not a
+container.
+
 ### How this is verified
 
-- **Linux**: `scripts/verify_linux_confinement.py`, run inside a container against
-  a real kernel. A denied syscall must *kill the child* — a parent that survived
-  is not evidence. The script also asserts the documented **gaps**: threads still
-  start, a granted executable still runs, and forking a copy of the worker is
-  still possible. A gap that quietly closed would mean the documentation is now
-  wrong in the other direction.
+- **Linux**: `scripts/verify_linux_confinement.py` for the mechanism and
+  `scripts/verify_native_plugins.py` for the whole path, both run inside a
+  container against a real kernel. A denied syscall must *kill the child* — a
+  parent that survived is not evidence. Both scripts also assert the documented
+  **gaps**: threads still start, a granted executable still runs, forking a copy
+  of the worker is still possible, and reads outside the grant still succeed. A
+  gap that quietly closed would mean the documentation is now wrong in the other
+  direction.
 - **Windows**: a test compares the privilege count of an ordinary child with a
   restricted one. An "applied" flag proves nothing; a privilege count does.
 - **macOS**: unverified. There is no macOS machine in this project's CI, and the
@@ -313,13 +371,13 @@ A plugin whose id collides with one that is already registered is refused and
 reported rather than aborting discovery, so an installed package cannot stop the
 tool from starting.
 
-System-call filtering is implemented on Linux and covers network and exec; see
+System-call filtering and write confinement are implemented on Linux; see
 [operating-system confinement](#operating-system-confinement) for what each platform does and does
-not enforce. Filesystem confinement is not implemented anywhere: it needs a mount namespace on
-Linux and AppContainer on Windows, and neither is available to a scanner running as an ordinary
-user without further setup. Process isolation, kernel quotas, seccomp, and the Python guards are
-defense in depth, and on the filesystem specifically they are not described as protection against
-malicious native code.
+not enforce, and [adversarial tests](#adversarial-tests-hostile-native-plugins) for the evidence.
+**Read** confinement is not implemented anywhere, and on Windows neither reads, writes, sockets,
+nor process creation are confined natively — a restricted token is not AppContainer. Process
+isolation, kernel quotas, seccomp, the mount namespace, and the Python guards are defense in depth;
+where a platform does not enforce something, that is stated rather than covered by the phrase.
 
 Both isolation modes are equally subject to the engine's existing checks: artifact
 hashes and directory inventories are re-examined after detectors run, and any

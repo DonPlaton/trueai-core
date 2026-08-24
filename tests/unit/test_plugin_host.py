@@ -493,9 +493,12 @@ def test_the_isolated_host_reports_its_own_limits_in_the_module_docstring() -> N
 
     docstring = host_module.__doc__ or ""
 
-    assert "What none of them does is confine the filesystem" in docstring
-    assert "mount namespace or AppContainer" in docstring
-    assert "the broker and the python guards remain the filesystem boundary" in docstring.lower()
+    # Compared with the line wrapping collapsed, so a reflow of the docstring is
+    # not mistaken for a change in what it claims.
+    flat = " ".join(docstring.split())
+    assert "What none of them does is confine *reads*" in flat
+    assert "pivot_root" in flat
+    assert "nothing native is confined at all beyond the deadline" in flat
 
 
 def test_plugin_execution_errors_carry_a_stable_code() -> None:
