@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # A fuzzer that only runs on pull requests explores a few thousand cases and
+    # stops. The nightly run is where the long campaigns happen.
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -103,6 +107,52 @@ jobs:
           tests/unit/test_provenance.py
           tests/unit/test_plugin_host.py
           tests/unit/test_repository_scale.py
+
+  plugin-boundary:
+    name: Plugin trust boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --editable ".[dev]"
+      - name: Fuzz the protocol, manifests, findings, and limits
+        # A short campaign on every push, so a regression at the boundary shows up
+        # in the pull request that caused it. The nightly run below goes deeper.
+        run: python scripts/fuzz_plugins.py --iterations 20000
+      - name: Confinement against a real kernel
+        # Runs unsandboxed because the confinement being tested is the one that
+        # protects a developer's machine, and GitHub's runner filter blocks the
+        # unshare it depends on.
+        run: |
+          python scripts/verify_linux_confinement.py
+          python scripts/verify_native_plugins.py
+
+  nightly-fuzz:
+    name: Continuous fuzzing
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [protocol, manifest, distribution, findings, limits, broker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --editable ".[dev]"
+      - name: Fuzz ${{ matrix.target }} for ten minutes
+        # The seed is printed by the harness, so a failure here replays locally
+        # with: python scripts/fuzz_plugins.py --seed <printed> --iterations 200000
+        run: >-
+          python scripts/fuzz_plugins.py
+          --target ${{ matrix.target }} --iterations 0 --seconds 600
 
   provenance:
     name: Authenticated C2PA verification

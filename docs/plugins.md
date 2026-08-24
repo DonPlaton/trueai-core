@@ -404,6 +404,60 @@ container.
 - **macOS**: unverified. There is no macOS machine in this project's CI, and the
   backend is marked as such rather than presented as tested.
 
+## Fuzzing the trust boundary
+
+Four places parse bytes that arrived from code the host does not trust: the
+worker protocol, the manifest and distribution parsers, finding validation, and
+the resource limits handed to the kernel. `scripts/fuzz_plugins.py` fuzzes all
+of them.
+
+```bash
+python scripts/fuzz_plugins.py --iterations 20000        # a short campaign
+python scripts/fuzz_plugins.py --seconds 3600            # continuous
+python scripts/fuzz_plugins.py --target findings         # one boundary
+python scripts/fuzz_plugins.py --seed 12345 --iterations 200000   # replay
+```
+
+**A crash is not the only failure.** A parser that accepts a forged finding
+without crashing is precisely the failure this boundary exists to prevent, so
+each target declares two things: the exceptions it is *allowed* to raise, and the
+invariant that must hold when it does not raise.
+
+| Target | Allowed to refuse | Must hold when it accepts |
+|---|---|---|
+| `protocol` | validation, JSON errors | `protocol_version == "1"`; no unknown field survived `extra="forbid"` |
+| `manifest` | validation errors | every capability is a real enum member; the detector id is non-empty |
+| `distribution` | validation errors | an unsigned distribution never reports `may_load()`; no file path escapes its root |
+| `findings` | `PluginExecutionError` | every accepted finding matches its own evidence, its detector, and its artifact |
+| `limits` | validation errors | memory stays above the floor and CPU inside its range |
+| `broker` | `CapabilityDeniedError` | any path returned resolves inside the workspace grant |
+
+Anything outside those — a `TypeError` from an unguarded attribute access, a
+`RecursionError` from an unbounded structure — is a place where untrusted input
+reached code that assumed it was well formed.
+
+Generation is half random structures and half **mutations of valid documents**.
+Wholly random input mostly exercises "is this JSON"; changing one field of
+something valid is what reaches the checks that run after parsing succeeds.
+
+Every run is seeded and every case carries its own derived seed, so a failure
+found overnight replays with one command instead of re-running everything before
+it.
+
+### Proving the fuzzer can fail
+
+A fuzz harness that has never failed is indistinguishable from one that cannot.
+`tests/unit/test_plugin_fuzz.py` therefore breaks two checks on purpose —
+`finding_id_is_valid` always returning true, and `workspace_path` returning
+whatever it was handed — and requires the fuzzer to report each within a few
+hundred cases. It also pins the specific corpus inputs that must always be
+refused, so the behaviours the campaign samples cannot regress silently between
+runs.
+
+CI runs a 20,000-case campaign on every push and a ten-minute campaign per target
+nightly. A fuzzer that only runs on pull requests explores a few thousand cases
+and stops.
+
 ## Isolation modes
 
 | Mode | Behaviour |

@@ -126,8 +126,14 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   highest sequence the verifier has seen because a memoryless verifier cannot detect a rollback.
   `trueai plugins sign/verify/allowlist`; `DistributionPolicy(require_signed=True)` is the posture
   that makes it a control.
-- [ ] `PLUG-05` Continuously fuzz the plugin protocol, manifest parser, finding validation, and
-  resource-limit failure paths.
+- [x] `PLUG-05` `scripts/fuzz_plugins.py` fuzzes six targets: the worker protocol, manifests,
+  signed distributions, finding validation, resource limits, and broker path resolution. Each
+  declares the exceptions it may raise *and* the invariant that must hold when it does not, because
+  a parser that accepts a forged finding without crashing is the failure this boundary exists to
+  prevent. Half the inputs are mutations of valid documents, which is what reaches the checks after
+  parsing. Runs are seeded and replayable per case. `tests/unit/test_plugin_fuzz.py` breaks two
+  checks on purpose and requires the fuzzer to notice, so "no findings" cannot mean "cannot find".
+  CI runs 20,000 cases per push and ten minutes per target nightly.
 
 #### P1 — artifact coverage and integrity
 

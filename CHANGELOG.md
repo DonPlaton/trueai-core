@@ -12,6 +12,29 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Continuous fuzzing of the plugin trust boundary**
+
+- `scripts/fuzz_plugins.py` fuzzes the worker protocol, the manifest and
+  distribution parsers, finding validation, resource limits, and broker path
+  resolution.
+- Each target declares the exceptions it is allowed to raise **and** the invariant
+  that must hold when it does not. A crash is not the only failure: a parser that
+  accepts a forged finding without crashing is the failure the boundary exists to
+  prevent, so the finding target asserts that everything accepted still matches
+  its own evidence, its detector, and its artifact.
+- Half the generated input is mutations of valid documents rather than random
+  structures, because random input mostly exercises "is this JSON" and never
+  reaches the checks that run after parsing succeeds.
+- Runs are seeded and every case carries a derived seed, so a failure found
+  overnight replays with one command.
+- `tests/unit/test_plugin_fuzz.py` runs a bounded campaign in the ordinary suite,
+  pins the corpus inputs that must always be refused, and deliberately breaks two
+  checks to prove the fuzzer reports them. A harness that has never failed is
+  indistinguishable from one that cannot fail.
+- CI gained a `plugin-boundary` job (a 20,000-case campaign plus the Linux
+  confinement checks on every push) and a nightly `nightly-fuzz` matrix running
+  ten minutes per target.
+
 **Signed plugin distributions**
 
 - `trueai/plugins/distribution.py` signs every file of a plugin together with the
