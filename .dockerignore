@@ -1,0 +1,24 @@
+# Everything the auditor image must NOT see, so a container build starts from the
+# same source an offline sdist rebuild would.
+.git/
+.github/workflows/*.log
+.venv/
+.mypy_cache/
+.pytest_cache/
+.pytest-tmp/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+dist/
+dist-rebuild/
+build/
+*.egg-info/
+sbom.cdx.json
+coverage.xml
+.coverage
+.coverage.*
+.trueai/
+graph.json
+*.cleaned.*
+*.trueai.bak
+*.trueai.*.bak

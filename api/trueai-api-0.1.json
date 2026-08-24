@@ -1,0 +1,5567 @@
+{
+  "api_version": "0.1",
+  "modules": {
+    "trueai": {
+      "Artifact": {
+        "attributes": [
+          "artifact_type",
+          "display_path",
+          "logical_path",
+          "media_type",
+          "path",
+          "size",
+          "text_content"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "from_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": false
+              }
+            ]
+          },
+          "read_bytes": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "read_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "sha256": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactDiscovery": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "discover": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "target",
+                "required": true
+              }
+            ]
+          },
+          "identify": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "AuditCertificate": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "require_utc_offset": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "value",
+                "required": true
+              }
+            ]
+          },
+          "validate_status_claim": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "artifact": {
+            "required": true
+          },
+          "artifact_inventory_sha256": {
+            "required": true
+          },
+          "certificate_id": {
+            "required": true
+          },
+          "certificate_schema_version": {
+            "required": false
+          },
+          "detectors_run": {
+            "required": false
+          },
+          "diagnostic_codes": {
+            "required": false
+          },
+          "experimental_detectors_enabled": {
+            "required": true
+          },
+          "expires_at": {
+            "required": false
+          },
+          "indicator_categories": {
+            "required": true
+          },
+          "indicator_finding_ids": {
+            "required": false
+          },
+          "issued_at": {
+            "required": true
+          },
+          "limitations": {
+            "required": true
+          },
+          "package_version": {
+            "required": false
+          },
+          "policy": {
+            "required": false
+          },
+          "protected_provenance_finding_ids": {
+            "required": false
+          },
+          "report_schema_version": {
+            "required": false
+          },
+          "report_sha256": {
+            "required": true
+          },
+          "scan_complete": {
+            "required": true
+          },
+          "scan_id": {
+            "required": true
+          },
+          "scan_options": {
+            "required": true
+          },
+          "signature": {
+            "required": false
+          },
+          "statement": {
+            "required": true
+          },
+          "status": {
+            "required": true
+          }
+        }
+      },
+      "C2PAVerifier": {
+        "attributes": [
+          "id"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "from_trust_store": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "allow_remote_manifests",
+                "required": false
+              }
+            ]
+          },
+          "supported_media_types": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "verifier_name": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "verify": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "CertificateRevocationList": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "validate_list": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "entries": {
+            "required": false
+          },
+          "expires_at": {
+            "required": true
+          },
+          "issued_at": {
+            "required": true
+          },
+          "issuer_key_id": {
+            "required": true
+          },
+          "revocation_schema_version": {
+            "required": false
+          },
+          "sequence": {
+            "required": true
+          },
+          "signature": {
+            "required": false
+          }
+        }
+      },
+      "CertificateStatus": {
+        "kind": "enum",
+        "members": [
+          "clear",
+          "incomplete",
+          "indicators_detected"
+        ]
+      },
+      "CertificateVerification": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_verified": {
+            "required": true
+          },
+          "certificate_id_valid": {
+            "required": true
+          },
+          "explanations": {
+            "required": true
+          },
+          "revocation_checked": {
+            "required": false
+          },
+          "revocation_list_valid": {
+            "required": false
+          },
+          "revoked": {
+            "required": false
+          },
+          "signature_present": {
+            "required": true
+          },
+          "signature_verified": {
+            "required": true
+          },
+          "temporal_valid": {
+            "required": false
+          },
+          "valid": {
+            "required": true
+          }
+        }
+      },
+      "ConfidenceType": {
+        "kind": "enum",
+        "members": [
+          "deterministic",
+          "heuristic",
+          "probabilistic",
+          "verified"
+        ]
+      },
+      "DeliveryStatus": {
+        "kind": "enum",
+        "members": [
+          "clear",
+          "incomplete",
+          "indicators_remain"
+        ]
+      },
+      "DeliveryVerification": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "diagnostic_codes": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "indicator_finding_ids": {
+            "required": false
+          },
+          "report": {
+            "required": true
+          },
+          "status": {
+            "required": true
+          }
+        }
+      },
+      "DiscoveryOptions": {
+        "attributes": [
+          "follow_symlinks",
+          "max_file_size",
+          "max_files"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "EnterprisePolicyBundle": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "validate_bundle": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "baseline_finding_ids": {
+            "required": false
+          },
+          "bundle_id": {
+            "required": true
+          },
+          "bundle_schema_version": {
+            "required": false
+          },
+          "exceptions": {
+            "required": false
+          },
+          "expires_at": {
+            "required": true
+          },
+          "issued_at": {
+            "required": true
+          },
+          "issuer": {
+            "required": true
+          },
+          "profile": {
+            "required": true
+          },
+          "signature": {
+            "required": false
+          },
+          "suppressions": {
+            "required": false
+          }
+        }
+      },
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "FindingCategory": {
+        "kind": "enum",
+        "members": [
+          "c2pa_provenance",
+          "design_style_signal",
+          "document_metadata",
+          "explicit_ai_attribution",
+          "generated_comment",
+          "generator_metadata",
+          "git_attribution",
+          "hidden_element",
+          "image_metadata",
+          "invisible_unicode",
+          "media_metadata",
+          "personal_metadata",
+          "provider_watermark",
+          "security_issue",
+          "structural_signal",
+          "stylistic_signal",
+          "suspicious_unicode",
+          "tooling_residue"
+        ]
+      },
+      "FindingSelector": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "matches": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "require_constraint": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "artifact_glob": {
+            "required": false
+          },
+          "category": {
+            "required": false
+          },
+          "detector_id": {
+            "required": false
+          },
+          "finding_id": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "tags_all": {
+            "required": false
+          }
+        }
+      },
+      "IntegrityStatus": {
+        "kind": "enum",
+        "members": [
+          "fail",
+          "not_modified",
+          "not_verifiable",
+          "pass"
+        ]
+      },
+      "PolicyBundleControls": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "from_yaml": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "exceptions": {
+            "required": false
+          },
+          "suppressions": {
+            "required": false
+          }
+        }
+      },
+      "PolicyBundleVerification": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "bundle_id_valid": {
+            "required": true
+          },
+          "explanations": {
+            "required": true
+          },
+          "signature_present": {
+            "required": true
+          },
+          "signature_verified": {
+            "required": true
+          },
+          "temporal_valid": {
+            "required": true
+          },
+          "valid": {
+            "required": true
+          }
+        }
+      },
+      "PolicyException": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.policy_bundle.PolicySuppression"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "action": {
+            "required": true
+          },
+          "approved_by": {
+            "required": true
+          },
+          "expires_at": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "reason": {
+            "required": true
+          },
+          "selector": {
+            "required": true
+          }
+        }
+      },
+      "PolicyProfile": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "action_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "from_yaml": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              }
+            ]
+          },
+          "protect_default_action": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "protect_provenance": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "rules",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "default_action": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "rules": {
+            "required": false
+          }
+        }
+      },
+      "PolicyStore": {
+        "attributes": [
+          "BUILTIN_NAMES"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "get": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name_or_path",
+                "required": true
+              }
+            ]
+          },
+          "list": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "PolicySuppression": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "require_offset": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "value",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "approved_by": {
+            "required": true
+          },
+          "expires_at": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "reason": {
+            "required": true
+          },
+          "selector": {
+            "required": true
+          }
+        }
+      },
+      "ProvenanceVerification": {
+        "attributes": [
+          "authenticated",
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "failures": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "active_manifest_label": {
+            "required": false
+          },
+          "artifact_path": {
+            "required": true
+          },
+          "assertions": {
+            "required": false
+          },
+          "claim_generator": {
+            "required": false
+          },
+          "embedded": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "ingredients": {
+            "required": false
+          },
+          "remote_manifest_url": {
+            "required": false
+          },
+          "remote_manifests_allowed": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "signer": {
+            "required": false
+          },
+          "status": {
+            "required": true
+          },
+          "title": {
+            "required": false
+          },
+          "trust_anchors_configured": {
+            "required": false
+          },
+          "validation": {
+            "required": false
+          },
+          "verifier": {
+            "required": true
+          }
+        }
+      },
+      "ProvenanceVerificationStatus": {
+        "kind": "enum",
+        "members": [
+          "invalid",
+          "no_manifest",
+          "trusted",
+          "unsupported_container",
+          "valid",
+          "verifier_unavailable"
+        ]
+      },
+      "RevocationEntry": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "validate_entry": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "certificate_id": {
+            "required": true
+          },
+          "explanation": {
+            "required": false
+          },
+          "reason": {
+            "required": true
+          },
+          "replacement_certificate_id": {
+            "required": false
+          },
+          "revoked_at": {
+            "required": true
+          }
+        }
+      },
+      "RevocationListVerification": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "explanations": {
+            "required": true
+          },
+          "issuer_key_id": {
+            "required": true
+          },
+          "sequence": {
+            "required": true
+          },
+          "signature_verified": {
+            "required": true
+          },
+          "temporal_valid": {
+            "required": true
+          },
+          "valid": {
+            "required": true
+          }
+        }
+      },
+      "RevocationReason": {
+        "kind": "enum",
+        "members": [
+          "artifact_withdrawn",
+          "issued_in_error",
+          "key_compromise",
+          "superseded",
+          "unspecified"
+        ]
+      },
+      "ScanOptions": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "cache_directory": {
+            "required": false
+          },
+          "disabled_detectors": {
+            "required": false
+          },
+          "enabled_detectors": {
+            "required": false
+          },
+          "follow_symlinks": {
+            "required": false
+          },
+          "git_commit_limit": {
+            "required": false
+          },
+          "include_experimental": {
+            "required": false
+          },
+          "max_archive_entries": {
+            "required": false
+          },
+          "max_archive_uncompressed_size": {
+            "required": false
+          },
+          "max_compression_ratio": {
+            "required": false
+          },
+          "max_file_size": {
+            "required": false
+          },
+          "max_files": {
+            "required": false
+          },
+          "max_findings": {
+            "required": false
+          },
+          "max_git_output_bytes": {
+            "required": false
+          },
+          "max_parser_events": {
+            "required": false
+          },
+          "max_workers": {
+            "required": false
+          },
+          "network_policy": {
+            "required": false
+          }
+        }
+      },
+      "ScanReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact": {
+            "required": true
+          },
+          "artifacts": {
+            "required": true
+          },
+          "detectors_run": {
+            "required": false
+          },
+          "diagnostics": {
+            "required": false
+          },
+          "findings": {
+            "required": true
+          },
+          "generated_at": {
+            "required": false
+          },
+          "integrity": {
+            "required": false
+          },
+          "package_version": {
+            "required": false
+          },
+          "policy": {
+            "required": false
+          },
+          "policy_audit": {
+            "required": false
+          },
+          "policy_bundle_id": {
+            "required": false
+          },
+          "policy_decisions": {
+            "required": false
+          },
+          "provenance_verifications": {
+            "required": false
+          },
+          "scan_id": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "summary": {
+            "required": true
+          }
+        }
+      },
+      "Severity": {
+        "kind": "enum",
+        "members": [
+          "critical",
+          "high",
+          "info",
+          "low",
+          "medium"
+        ]
+      },
+      "TrueAIEngine": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "default": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "include_experimental",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "discover_plugins",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_isolation",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "capability_policy",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_search_path",
+                "required": false
+              }
+            ]
+          },
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "target",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "policy",
+                "required": false
+              }
+            ]
+          },
+          "scan_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "name",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "policy",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "__schema_version__": {
+        "kind": "value",
+        "type": "str"
+      },
+      "__version__": {
+        "kind": "value",
+        "type": "str"
+      },
+      "apply_policy_bundle": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "bundle",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "public_key",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "at_time",
+              "required": false
+            }
+          ]
+        }
+      },
+      "attach_provenance_verifications": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "target",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "trust_anchors",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "allow_remote_manifests",
+              "required": false
+            }
+          ]
+        }
+      },
+      "issue_certificate": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "options",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "signing_key",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "issued_at",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "valid_for",
+              "required": false
+            }
+          ]
+        }
+      },
+      "issue_policy_bundle": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "profile",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "issuer",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "signing_key",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "expires_in",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "baseline_finding_ids",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "controls",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "issued_at",
+              "required": false
+            }
+          ]
+        }
+      },
+      "load_policy_bundle": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "path",
+              "required": true
+            }
+          ]
+        }
+      },
+      "revoke_certificate": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "certificate",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "signing_key",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "reason",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "explanation",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "replacement_certificate_id",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "existing",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "revoked_at",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "valid_for",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_certificate": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "certificate",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "public_key",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "artifact",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "revocation_list",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "require_revocation_check",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "at_time",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_clean_delivery": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "target",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "options",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "engine",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_policy_bundle": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "bundle",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "public_key",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "at_time",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_provenance": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "target",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "trust_anchors",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "allow_remote_manifests",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_revocation_list": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "revocation_list",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "public_key",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "at_time",
+              "required": false
+            }
+          ]
+        }
+      }
+    },
+    "trueai.api": {
+      "API_SNAPSHOT_PATH": {
+        "kind": "value",
+        "type": "PurePosixPath"
+      },
+      "API_VERSION": {
+        "kind": "value",
+        "type": "str"
+      },
+      "ApiChange": {
+        "attributes": [
+          "breaking",
+          "detail",
+          "kind",
+          "location"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "PUBLIC_MODULES": {
+        "kind": "value",
+        "type": "tuple"
+      },
+      "breaking_api_changes": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "baseline",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "candidate",
+              "required": true
+            }
+          ]
+        }
+      },
+      "canonical_api_json": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "surface",
+              "required": false
+            }
+          ]
+        }
+      },
+      "compare_api_surfaces": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "baseline",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "candidate",
+              "required": true
+            }
+          ]
+        }
+      },
+      "public_api_surface": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": []
+        }
+      }
+    },
+    "trueai.core.artifact": {
+      "Artifact": {
+        "attributes": [
+          "artifact_type",
+          "display_path",
+          "logical_path",
+          "media_type",
+          "path",
+          "size",
+          "text_content"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "from_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": false
+              }
+            ]
+          },
+          "read_bytes": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "read_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "sha256": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactDiscovery": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "discover": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "target",
+                "required": true
+              }
+            ]
+          },
+          "identify": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactNotFoundError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ArtifactTooLargeError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "CorruptArtifactError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "DiscoveryIssue": {
+        "attributes": [
+          "message",
+          "path"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "DiscoveryOptions": {
+        "attributes": [
+          "follow_symlinks",
+          "max_file_size",
+          "max_files"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "IgnoreRules": {
+        "attributes": [
+          "scopes"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "descend": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "directory",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "prefix",
+                "required": true
+              }
+            ]
+          },
+          "is_ignored": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "relative",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "is_directory",
+                "required": true
+              }
+            ]
+          },
+          "root": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "directory",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "UnsafeArtifactError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      }
+    },
+    "trueai.core.engine": {
+      "Artifact": {
+        "attributes": [
+          "artifact_type",
+          "display_path",
+          "logical_path",
+          "media_type",
+          "path",
+          "size",
+          "text_content"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "from_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": false
+              }
+            ]
+          },
+          "read_bytes": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "read_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "sha256": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactDescriptor": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_type": {
+            "required": true
+          },
+          "media_type": {
+            "required": false
+          },
+          "path": {
+            "required": true
+          },
+          "sha256": {
+            "required": false
+          },
+          "size": {
+            "required": false
+          }
+        }
+      },
+      "ArtifactDiscovery": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "discover": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "target",
+                "required": true
+              }
+            ]
+          },
+          "identify": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactTooLargeError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "CachedArtifactResult": {
+        "attributes": [
+          "detectors_run",
+          "diagnostics",
+          "findings"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "CapabilityPolicy": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "evaluate": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "manifest",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "schema_version",
+                "required": false
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "allowed_detector_ids": {
+            "required": false
+          },
+          "blocked_detector_ids": {
+            "required": false
+          },
+          "granted": {
+            "required": false
+          },
+          "require_manifest": {
+            "required": false
+          },
+          "require_schema_compatibility": {
+            "required": false
+          }
+        }
+      },
+      "Detector": {
+        "attributes": [],
+        "bases": [
+          "typing.Protocol"
+        ],
+        "kind": "class",
+        "methods": {
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "context",
+                "required": true
+              }
+            ]
+          },
+          "supports": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "DetectorRegistry": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "detectors": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "provider",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "category",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "include_disabled",
+                "required": false
+              }
+            ]
+          },
+          "disable": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          },
+          "discover": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "policy",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "isolation",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "timeout",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "search_path",
+                "required": false
+              }
+            ]
+          },
+          "enable": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          },
+          "get": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          },
+          "is_enabled": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          },
+          "register": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "enabled",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "replace",
+                "required": false
+              }
+            ]
+          },
+          "unregister": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "DiscoveryOptions": {
+        "attributes": [
+          "follow_symlinks",
+          "max_file_size",
+          "max_files"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "IntegrityReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "after_sha256": {
+            "required": false
+          },
+          "before_sha256": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "intentionally_removed": {
+            "required": false
+          },
+          "logical_after_sha256": {
+            "required": false
+          },
+          "logical_before_sha256": {
+            "required": false
+          },
+          "status": {
+            "required": true
+          }
+        }
+      },
+      "IntegrityStatus": {
+        "kind": "enum",
+        "members": [
+          "fail",
+          "not_modified",
+          "not_verifiable",
+          "pass"
+        ]
+      },
+      "PluginIsolation": {
+        "kind": "enum",
+        "members": [
+          "disabled",
+          "in_process",
+          "subprocess"
+        ]
+      },
+      "PolicyDecision": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "action": {
+            "required": true
+          },
+          "finding_id": {
+            "required": true
+          },
+          "rationale": {
+            "required": true
+          }
+        }
+      },
+      "PolicyEngine": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "evaluate": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "findings",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "policy",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "PolicyProfile": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "action_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "from_yaml": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              }
+            ]
+          },
+          "protect_default_action": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "protect_provenance": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "rules",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "default_action": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "rules": {
+            "required": false
+          }
+        }
+      },
+      "ScanCache": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "clear": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "key": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "content_sha256",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "logical_path",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "artifact_type",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "detector_ids",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options_digest",
+                "required": true
+              }
+            ]
+          },
+          "load": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "key",
+                "required": true
+              }
+            ]
+          },
+          "store": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "key",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ScanContext": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "options": {
+            "required": true
+          },
+          "root": {
+            "required": false
+          }
+        }
+      },
+      "ScanDiagnostic": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": false
+          },
+          "code": {
+            "required": true
+          },
+          "message": {
+            "required": true
+          },
+          "severity": {
+            "required": false
+          }
+        }
+      },
+      "ScanOptions": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "cache_directory": {
+            "required": false
+          },
+          "disabled_detectors": {
+            "required": false
+          },
+          "enabled_detectors": {
+            "required": false
+          },
+          "follow_symlinks": {
+            "required": false
+          },
+          "git_commit_limit": {
+            "required": false
+          },
+          "include_experimental": {
+            "required": false
+          },
+          "max_archive_entries": {
+            "required": false
+          },
+          "max_archive_uncompressed_size": {
+            "required": false
+          },
+          "max_compression_ratio": {
+            "required": false
+          },
+          "max_file_size": {
+            "required": false
+          },
+          "max_files": {
+            "required": false
+          },
+          "max_findings": {
+            "required": false
+          },
+          "max_git_output_bytes": {
+            "required": false
+          },
+          "max_parser_events": {
+            "required": false
+          },
+          "max_workers": {
+            "required": false
+          },
+          "network_policy": {
+            "required": false
+          }
+        }
+      },
+      "ScanReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact": {
+            "required": true
+          },
+          "artifacts": {
+            "required": true
+          },
+          "detectors_run": {
+            "required": false
+          },
+          "diagnostics": {
+            "required": false
+          },
+          "findings": {
+            "required": true
+          },
+          "generated_at": {
+            "required": false
+          },
+          "integrity": {
+            "required": false
+          },
+          "package_version": {
+            "required": false
+          },
+          "policy": {
+            "required": false
+          },
+          "policy_audit": {
+            "required": false
+          },
+          "policy_bundle_id": {
+            "required": false
+          },
+          "policy_decisions": {
+            "required": false
+          },
+          "provenance_verifications": {
+            "required": false
+          },
+          "scan_id": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "summary": {
+            "required": true
+          }
+        }
+      },
+      "ScanSummary": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_count": {
+            "required": true
+          },
+          "by_category": {
+            "required": false
+          },
+          "by_confidence_type": {
+            "required": false
+          },
+          "by_severity": {
+            "required": false
+          },
+          "finding_count": {
+            "required": true
+          },
+          "review_count": {
+            "required": false
+          },
+          "violation_count": {
+            "required": false
+          }
+        }
+      },
+      "Severity": {
+        "kind": "enum",
+        "members": [
+          "critical",
+          "high",
+          "info",
+          "low",
+          "medium"
+        ]
+      },
+      "TrueAIEngine": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "default": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "include_experimental",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "discover_plugins",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_isolation",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "capability_policy",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "plugin_search_path",
+                "required": false
+              }
+            ]
+          },
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "target",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "policy",
+                "required": false
+              }
+            ]
+          },
+          "scan_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "name",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "policy",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "TrueAIError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "builtins.Exception"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "options_fingerprint": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "options",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    "trueai.core.errors": {
+      "ArtifactNotFoundError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ArtifactTooLargeError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "AttestationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "CorruptArtifactError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "DetectorRegistrationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "OptionalDependencyError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "PolicyValidationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ProvenanceConfigurationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "RemediationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "ScanLimitExceededError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "TrueAIError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "builtins.Exception"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "UnsafeArtifactError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "UnsupportedArtifactError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      }
+    },
+    "trueai.core.models": {
+      "ArtifactDescriptor": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_type": {
+            "required": true
+          },
+          "media_type": {
+            "required": false
+          },
+          "path": {
+            "required": true
+          },
+          "sha256": {
+            "required": false
+          },
+          "size": {
+            "required": false
+          }
+        }
+      },
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "ConfidenceType": {
+        "kind": "enum",
+        "members": [
+          "deterministic",
+          "heuristic",
+          "probabilistic",
+          "verified"
+        ]
+      },
+      "EvidenceType": {
+        "kind": "enum",
+        "members": [
+          "git",
+          "metadata",
+          "provenance",
+          "security",
+          "statistical",
+          "structural",
+          "text"
+        ]
+      },
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "FindingCategory": {
+        "kind": "enum",
+        "members": [
+          "c2pa_provenance",
+          "design_style_signal",
+          "document_metadata",
+          "explicit_ai_attribution",
+          "generated_comment",
+          "generator_metadata",
+          "git_attribution",
+          "hidden_element",
+          "image_metadata",
+          "invisible_unicode",
+          "media_metadata",
+          "personal_metadata",
+          "provider_watermark",
+          "security_issue",
+          "structural_signal",
+          "stylistic_signal",
+          "suspicious_unicode",
+          "tooling_residue"
+        ]
+      },
+      "FindingLocation": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "byte_offset": {
+            "required": false
+          },
+          "column": {
+            "required": false
+          },
+          "end_offset": {
+            "required": false
+          },
+          "json_pointer": {
+            "required": false
+          },
+          "line": {
+            "required": false
+          },
+          "offset": {
+            "required": false
+          },
+          "package_part": {
+            "required": false
+          }
+        }
+      },
+      "FrozenModel": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "pydantic.main.BaseModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "freeze_nested_containers": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {}
+      },
+      "IntegrityReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "after_sha256": {
+            "required": false
+          },
+          "before_sha256": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "intentionally_removed": {
+            "required": false
+          },
+          "logical_after_sha256": {
+            "required": false
+          },
+          "logical_before_sha256": {
+            "required": false
+          },
+          "status": {
+            "required": true
+          }
+        }
+      },
+      "IntegrityStatus": {
+        "kind": "enum",
+        "members": [
+          "fail",
+          "not_modified",
+          "not_verifiable",
+          "pass"
+        ]
+      },
+      "NetworkPolicy": {
+        "kind": "enum",
+        "members": [
+          "explicit_only",
+          "offline"
+        ]
+      },
+      "PolicyAction": {
+        "kind": "enum",
+        "members": [
+          "error",
+          "ignore",
+          "preserve",
+          "remove",
+          "report",
+          "review"
+        ]
+      },
+      "PolicyAuditEntry": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "action": {
+            "required": true
+          },
+          "approved_by": {
+            "required": false
+          },
+          "expires_at": {
+            "required": false
+          },
+          "finding_id": {
+            "required": true
+          },
+          "reason": {
+            "required": true
+          },
+          "rule_id": {
+            "required": false
+          },
+          "source": {
+            "required": true
+          }
+        }
+      },
+      "PolicyDecision": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "action": {
+            "required": true
+          },
+          "finding_id": {
+            "required": true
+          },
+          "rationale": {
+            "required": true
+          }
+        }
+      },
+      "ProvenanceAssertion": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "label": {
+            "required": true
+          },
+          "summary": {
+            "required": true
+          }
+        }
+      },
+      "ProvenanceClass": {
+        "kind": "enum",
+        "members": [
+          "attribution",
+          "authenticated_provenance",
+          "heuristic",
+          "metadata",
+          "none",
+          "provenance_metadata",
+          "provider_watermark"
+        ]
+      },
+      "ProvenanceSigner": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "algorithm": {
+            "required": false
+          },
+          "certificate_serial_number": {
+            "required": false
+          },
+          "common_name": {
+            "required": false
+          },
+          "issuer": {
+            "required": false
+          },
+          "signed_at": {
+            "required": false
+          }
+        }
+      },
+      "ProvenanceValidationEntry": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "code": {
+            "required": true
+          },
+          "explanation": {
+            "required": true
+          },
+          "outcome": {
+            "required": true
+          },
+          "target": {
+            "required": false
+          }
+        }
+      },
+      "ProvenanceVerification": {
+        "attributes": [
+          "authenticated",
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "failures": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "active_manifest_label": {
+            "required": false
+          },
+          "artifact_path": {
+            "required": true
+          },
+          "assertions": {
+            "required": false
+          },
+          "claim_generator": {
+            "required": false
+          },
+          "embedded": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "ingredients": {
+            "required": false
+          },
+          "remote_manifest_url": {
+            "required": false
+          },
+          "remote_manifests_allowed": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "signer": {
+            "required": false
+          },
+          "status": {
+            "required": true
+          },
+          "title": {
+            "required": false
+          },
+          "trust_anchors_configured": {
+            "required": false
+          },
+          "validation": {
+            "required": false
+          },
+          "verifier": {
+            "required": true
+          }
+        }
+      },
+      "ProvenanceVerificationStatus": {
+        "kind": "enum",
+        "members": [
+          "invalid",
+          "no_manifest",
+          "trusted",
+          "unsupported_container",
+          "valid",
+          "verifier_unavailable"
+        ]
+      },
+      "Remediation": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "finding_ids": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "payload": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": true
+          },
+          "safety": {
+            "required": true
+          }
+        }
+      },
+      "RemediationPlan": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "blocked_findings": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "preserved_findings": {
+            "required": false
+          },
+          "remediations": {
+            "required": true
+          },
+          "review_findings": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          }
+        }
+      },
+      "RemediationResult": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "applied_remediation_ids": {
+            "required": false
+          },
+          "artifact_path": {
+            "required": true
+          },
+          "backup_path": {
+            "required": false
+          },
+          "changed_fields": {
+            "required": false
+          },
+          "dry_run": {
+            "required": false
+          },
+          "integrity": {
+            "required": true
+          },
+          "output_path": {
+            "required": true
+          }
+        }
+      },
+      "RemediationSafety": {
+        "kind": "enum",
+        "members": [
+          "destructive",
+          "predictable_content",
+          "provenance_protected",
+          "safe_metadata"
+        ]
+      },
+      "ScanContext": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "options": {
+            "required": true
+          },
+          "root": {
+            "required": false
+          }
+        }
+      },
+      "ScanDiagnostic": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": false
+          },
+          "code": {
+            "required": true
+          },
+          "message": {
+            "required": true
+          },
+          "severity": {
+            "required": false
+          }
+        }
+      },
+      "ScanOptions": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "cache_directory": {
+            "required": false
+          },
+          "disabled_detectors": {
+            "required": false
+          },
+          "enabled_detectors": {
+            "required": false
+          },
+          "follow_symlinks": {
+            "required": false
+          },
+          "git_commit_limit": {
+            "required": false
+          },
+          "include_experimental": {
+            "required": false
+          },
+          "max_archive_entries": {
+            "required": false
+          },
+          "max_archive_uncompressed_size": {
+            "required": false
+          },
+          "max_compression_ratio": {
+            "required": false
+          },
+          "max_file_size": {
+            "required": false
+          },
+          "max_files": {
+            "required": false
+          },
+          "max_findings": {
+            "required": false
+          },
+          "max_git_output_bytes": {
+            "required": false
+          },
+          "max_parser_events": {
+            "required": false
+          },
+          "max_workers": {
+            "required": false
+          },
+          "network_policy": {
+            "required": false
+          }
+        }
+      },
+      "ScanReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact": {
+            "required": true
+          },
+          "artifacts": {
+            "required": true
+          },
+          "detectors_run": {
+            "required": false
+          },
+          "diagnostics": {
+            "required": false
+          },
+          "findings": {
+            "required": true
+          },
+          "generated_at": {
+            "required": false
+          },
+          "integrity": {
+            "required": false
+          },
+          "package_version": {
+            "required": false
+          },
+          "policy": {
+            "required": false
+          },
+          "policy_audit": {
+            "required": false
+          },
+          "policy_bundle_id": {
+            "required": false
+          },
+          "policy_decisions": {
+            "required": false
+          },
+          "provenance_verifications": {
+            "required": false
+          },
+          "scan_id": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "summary": {
+            "required": true
+          }
+        }
+      },
+      "ScanSummary": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_count": {
+            "required": true
+          },
+          "by_category": {
+            "required": false
+          },
+          "by_confidence_type": {
+            "required": false
+          },
+          "by_severity": {
+            "required": false
+          },
+          "finding_count": {
+            "required": true
+          },
+          "review_count": {
+            "required": false
+          },
+          "violation_count": {
+            "required": false
+          }
+        }
+      },
+      "Severity": {
+        "kind": "enum",
+        "members": [
+          "critical",
+          "high",
+          "info",
+          "low",
+          "medium"
+        ]
+      },
+      "UnicodeSafetyClass": {
+        "kind": "enum",
+        "members": [
+          "control",
+          "invisible",
+          "language_dependent",
+          "safe",
+          "suspicious",
+          "typographic"
+        ]
+      },
+      "ValidationOutcome": {
+        "kind": "enum",
+        "members": [
+          "failure",
+          "informational",
+          "success"
+        ]
+      },
+      "WatermarkSupportStatus": {
+        "kind": "enum",
+        "members": [
+          "not_supported",
+          "supported",
+          "verification_unavailable"
+        ]
+      },
+      "WatermarkVerificationResult": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "explanation": {
+            "required": true
+          },
+          "findings": {
+            "required": false
+          },
+          "provider": {
+            "required": true
+          },
+          "status": {
+            "required": true
+          },
+          "verified": {
+            "required": false
+          }
+        }
+      },
+      "deep_freeze": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "value",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    "trueai.core.policy": {
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "FindingCategory": {
+        "kind": "enum",
+        "members": [
+          "c2pa_provenance",
+          "design_style_signal",
+          "document_metadata",
+          "explicit_ai_attribution",
+          "generated_comment",
+          "generator_metadata",
+          "git_attribution",
+          "hidden_element",
+          "image_metadata",
+          "invisible_unicode",
+          "media_metadata",
+          "personal_metadata",
+          "provider_watermark",
+          "security_issue",
+          "structural_signal",
+          "stylistic_signal",
+          "suspicious_unicode",
+          "tooling_residue"
+        ]
+      },
+      "FrozenModel": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "pydantic.main.BaseModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "freeze_nested_containers": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {}
+      },
+      "PolicyAction": {
+        "kind": "enum",
+        "members": [
+          "error",
+          "ignore",
+          "preserve",
+          "remove",
+          "report",
+          "review"
+        ]
+      },
+      "PolicyDecision": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "action": {
+            "required": true
+          },
+          "finding_id": {
+            "required": true
+          },
+          "rationale": {
+            "required": true
+          }
+        }
+      },
+      "PolicyEngine": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "evaluate": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "findings",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "policy",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "PolicyEvaluation": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "decisions": {
+            "required": true
+          },
+          "review_count": {
+            "required": true
+          },
+          "violation_count": {
+            "required": true
+          }
+        }
+      },
+      "PolicyProfile": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "action_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "from_yaml": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              }
+            ]
+          },
+          "protect_default_action": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "protect_provenance": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "rules",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "default_action": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "rules": {
+            "required": false
+          }
+        }
+      },
+      "PolicyStore": {
+        "attributes": [
+          "BUILTIN_NAMES"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "get": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name_or_path",
+                "required": true
+              }
+            ]
+          },
+          "list": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "PolicyValidationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      }
+    },
+    "trueai.core.remediation": {
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "FindingCategory": {
+        "kind": "enum",
+        "members": [
+          "c2pa_provenance",
+          "design_style_signal",
+          "document_metadata",
+          "explicit_ai_attribution",
+          "generated_comment",
+          "generator_metadata",
+          "git_attribution",
+          "hidden_element",
+          "image_metadata",
+          "invisible_unicode",
+          "media_metadata",
+          "personal_metadata",
+          "provider_watermark",
+          "security_issue",
+          "structural_signal",
+          "stylistic_signal",
+          "suspicious_unicode",
+          "tooling_residue"
+        ]
+      },
+      "IntegrityReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "after_sha256": {
+            "required": false
+          },
+          "before_sha256": {
+            "required": false
+          },
+          "explanation": {
+            "required": true
+          },
+          "intentionally_removed": {
+            "required": false
+          },
+          "logical_after_sha256": {
+            "required": false
+          },
+          "logical_before_sha256": {
+            "required": false
+          },
+          "status": {
+            "required": true
+          }
+        }
+      },
+      "IntegrityStatus": {
+        "kind": "enum",
+        "members": [
+          "fail",
+          "not_modified",
+          "not_verifiable",
+          "pass"
+        ]
+      },
+      "PolicyAction": {
+        "kind": "enum",
+        "members": [
+          "error",
+          "ignore",
+          "preserve",
+          "remove",
+          "report",
+          "review"
+        ]
+      },
+      "PolicyProfile": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "action_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "from_yaml": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              }
+            ]
+          },
+          "protect_default_action": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "protect_provenance": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "rules",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "default_action": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "rules": {
+            "required": false
+          }
+        }
+      },
+      "ProvenanceClass": {
+        "kind": "enum",
+        "members": [
+          "attribution",
+          "authenticated_provenance",
+          "heuristic",
+          "metadata",
+          "none",
+          "provenance_metadata",
+          "provider_watermark"
+        ]
+      },
+      "Remediation": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "finding_ids": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "payload": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": true
+          },
+          "safety": {
+            "required": true
+          }
+        }
+      },
+      "RemediationError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "RemediationPlan": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "blocked_findings": {
+            "required": false
+          },
+          "policy": {
+            "required": true
+          },
+          "preserved_findings": {
+            "required": false
+          },
+          "remediations": {
+            "required": true
+          },
+          "review_findings": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          }
+        }
+      },
+      "RemediationPlanner": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "plan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "policy",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "RemediationResult": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "applied_remediation_ids": {
+            "required": false
+          },
+          "artifact_path": {
+            "required": true
+          },
+          "backup_path": {
+            "required": false
+          },
+          "changed_fields": {
+            "required": false
+          },
+          "dry_run": {
+            "required": false
+          },
+          "integrity": {
+            "required": true
+          },
+          "output_path": {
+            "required": true
+          }
+        }
+      },
+      "RemediationSafety": {
+        "kind": "enum",
+        "members": [
+          "destructive",
+          "predictable_content",
+          "provenance_protected",
+          "safe_metadata"
+        ]
+      },
+      "RemediationService": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "apply": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "source",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "plan",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "output_path",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "in_place",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "dry_run",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "options",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "ScanOptions": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "cache_directory": {
+            "required": false
+          },
+          "disabled_detectors": {
+            "required": false
+          },
+          "enabled_detectors": {
+            "required": false
+          },
+          "follow_symlinks": {
+            "required": false
+          },
+          "git_commit_limit": {
+            "required": false
+          },
+          "include_experimental": {
+            "required": false
+          },
+          "max_archive_entries": {
+            "required": false
+          },
+          "max_archive_uncompressed_size": {
+            "required": false
+          },
+          "max_compression_ratio": {
+            "required": false
+          },
+          "max_file_size": {
+            "required": false
+          },
+          "max_files": {
+            "required": false
+          },
+          "max_findings": {
+            "required": false
+          },
+          "max_git_output_bytes": {
+            "required": false
+          },
+          "max_parser_events": {
+            "required": false
+          },
+          "max_workers": {
+            "required": false
+          },
+          "network_policy": {
+            "required": false
+          }
+        }
+      },
+      "ScanReport": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact": {
+            "required": true
+          },
+          "artifacts": {
+            "required": true
+          },
+          "detectors_run": {
+            "required": false
+          },
+          "diagnostics": {
+            "required": false
+          },
+          "findings": {
+            "required": true
+          },
+          "generated_at": {
+            "required": false
+          },
+          "integrity": {
+            "required": false
+          },
+          "package_version": {
+            "required": false
+          },
+          "policy": {
+            "required": false
+          },
+          "policy_audit": {
+            "required": false
+          },
+          "policy_bundle_id": {
+            "required": false
+          },
+          "policy_decisions": {
+            "required": false
+          },
+          "provenance_verifications": {
+            "required": false
+          },
+          "scan_id": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "summary": {
+            "required": true
+          }
+        }
+      },
+      "Severity": {
+        "kind": "enum",
+        "members": [
+          "critical",
+          "high",
+          "info",
+          "low",
+          "medium"
+        ]
+      },
+      "cleaner_for": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "artifact_type",
+              "required": true
+            }
+          ]
+        }
+      },
+      "finding_id_is_valid": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "finding",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    "trueai.detectors.base": {
+      "Artifact": {
+        "attributes": [
+          "artifact_type",
+          "display_path",
+          "logical_path",
+          "media_type",
+          "path",
+          "size",
+          "text_content"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "from_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "text",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "name",
+                "required": false
+              }
+            ]
+          },
+          "read_bytes": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "read_text": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          },
+          "sha256": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "limit",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ArtifactType": {
+        "kind": "enum",
+        "members": [
+          "audio",
+          "binary",
+          "css",
+          "directory",
+          "docx",
+          "git_repository",
+          "html",
+          "jpeg",
+          "markdown",
+          "pdf",
+          "png",
+          "pptx",
+          "source_code",
+          "svg",
+          "text",
+          "unknown",
+          "video",
+          "xlsx"
+        ]
+      },
+      "BaseDetector": {
+        "attributes": [
+          "categories",
+          "experimental",
+          "id",
+          "provider",
+          "supported_types"
+        ],
+        "bases": [
+          "abc.ABC"
+        ],
+        "kind": "class",
+        "methods": {
+          "finding": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "artifact",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "category",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "confidence",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "confidence_type",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "severity",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "evidence_type",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "title",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "description",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "evidence",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "location",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "provider",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "removable",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "remediation_id",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "provenance_class",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "tags",
+                "required": false
+              }
+            ]
+          },
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "context",
+                "required": true
+              }
+            ]
+          },
+          "supports": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "ConfidenceType": {
+        "kind": "enum",
+        "members": [
+          "deterministic",
+          "heuristic",
+          "probabilistic",
+          "verified"
+        ]
+      },
+      "Detector": {
+        "attributes": [],
+        "bases": [
+          "typing.Protocol"
+        ],
+        "kind": "class",
+        "methods": {
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "context",
+                "required": true
+              }
+            ]
+          },
+          "supports": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "EvidenceType": {
+        "kind": "enum",
+        "members": [
+          "git",
+          "metadata",
+          "provenance",
+          "security",
+          "statistical",
+          "structural",
+          "text"
+        ]
+      },
+      "Finding": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "artifact_path": {
+            "required": true
+          },
+          "category": {
+            "required": true
+          },
+          "confidence": {
+            "required": true
+          },
+          "confidence_type": {
+            "required": true
+          },
+          "description": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "evidence": {
+            "required": false
+          },
+          "evidence_type": {
+            "required": true
+          },
+          "id": {
+            "required": true
+          },
+          "location": {
+            "required": false
+          },
+          "provenance_class": {
+            "required": false
+          },
+          "provider": {
+            "required": false
+          },
+          "remediation_id": {
+            "required": false
+          },
+          "removable": {
+            "required": false
+          },
+          "severity": {
+            "required": true
+          },
+          "tags": {
+            "required": false
+          },
+          "title": {
+            "required": true
+          }
+        }
+      },
+      "FindingBuffer": {
+        "attributes": [],
+        "bases": [
+          "builtins.list"
+        ],
+        "kind": "class",
+        "methods": {
+          "append": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "finding",
+                "required": true
+              }
+            ]
+          },
+          "extend": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "findings",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "FindingCategory": {
+        "kind": "enum",
+        "members": [
+          "c2pa_provenance",
+          "design_style_signal",
+          "document_metadata",
+          "explicit_ai_attribution",
+          "generated_comment",
+          "generator_metadata",
+          "git_attribution",
+          "hidden_element",
+          "image_metadata",
+          "invisible_unicode",
+          "media_metadata",
+          "personal_metadata",
+          "provider_watermark",
+          "security_issue",
+          "structural_signal",
+          "stylistic_signal",
+          "suspicious_unicode",
+          "tooling_residue"
+        ]
+      },
+      "FindingLocation": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "byte_offset": {
+            "required": false
+          },
+          "column": {
+            "required": false
+          },
+          "end_offset": {
+            "required": false
+          },
+          "json_pointer": {
+            "required": false
+          },
+          "line": {
+            "required": false
+          },
+          "offset": {
+            "required": false
+          },
+          "package_part": {
+            "required": false
+          }
+        }
+      },
+      "ProvenanceClass": {
+        "kind": "enum",
+        "members": [
+          "attribution",
+          "authenticated_provenance",
+          "heuristic",
+          "metadata",
+          "none",
+          "provenance_metadata",
+          "provider_watermark"
+        ]
+      },
+      "ScanContext": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "options": {
+            "required": true
+          },
+          "root": {
+            "required": false
+          }
+        }
+      },
+      "ScanLimitExceededError": {
+        "attributes": [
+          "code"
+        ],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "Severity": {
+        "kind": "enum",
+        "members": [
+          "critical",
+          "high",
+          "info",
+          "low",
+          "medium"
+        ]
+      },
+      "build_finding_id": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "artifact_path",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "category",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "detector_id",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "evidence",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "location",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "provider",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    "trueai.plugins": {
+      "CapabilityDecision": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "allowed": {
+            "required": true
+          },
+          "denied": {
+            "required": false
+          },
+          "detector_id": {
+            "required": true
+          },
+          "granted": {
+            "required": false
+          },
+          "reason": {
+            "required": true
+          }
+        }
+      },
+      "CapabilityPolicy": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "evaluate": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "manifest",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "schema_version",
+                "required": false
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "allowed_detector_ids": {
+            "required": false
+          },
+          "blocked_detector_ids": {
+            "required": false
+          },
+          "granted": {
+            "required": false
+          },
+          "require_manifest": {
+            "required": false
+          },
+          "require_schema_compatibility": {
+            "required": false
+          }
+        }
+      },
+      "DEFAULT_CAPABILITIES": {
+        "kind": "value",
+        "type": "frozenset"
+      },
+      "DEFAULT_GRANTED_CAPABILITIES": {
+        "kind": "value",
+        "type": "frozenset"
+      },
+      "DEFAULT_TIMEOUT_SECONDS": {
+        "kind": "value",
+        "type": "float"
+      },
+      "DiscoveryResult": {
+        "attributes": [
+          "decisions",
+          "detectors",
+          "manifests",
+          "rejections"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "ENTRY_POINT_GROUP": {
+        "kind": "value",
+        "type": "str"
+      },
+      "IsolatedDetector": {
+        "attributes": [
+          "experimental"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "scan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "context",
+                "required": true
+              }
+            ]
+          },
+          "supports": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "artifact",
+                "required": true
+              }
+            ]
+          }
+        }
+      },
+      "PluginCapability": {
+        "kind": "enum",
+        "members": [
+          "network",
+          "read_artifact",
+          "read_workspace",
+          "run_subprocess",
+          "write_filesystem"
+        ]
+      },
+      "PluginExecutionError": {
+        "attributes": [],
+        "bases": [
+          "trueai.core.errors.DetectorRegistrationError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
+      "PluginHost": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "discover": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "PluginIsolation": {
+        "kind": "enum",
+        "members": [
+          "disabled",
+          "in_process",
+          "subprocess"
+        ]
+      },
+      "PluginManifest": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "is_schema_compatible": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "schema_version",
+                "required": false
+              }
+            ]
+          },
+          "synthesize": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "detector_id",
+                "required": true
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "capabilities": {
+            "required": false
+          },
+          "categories": {
+            "required": false
+          },
+          "compatible_schema_versions": {
+            "required": false
+          },
+          "declared": {
+            "required": false
+          },
+          "description": {
+            "required": false
+          },
+          "detector_id": {
+            "required": true
+          },
+          "minimum_core_version": {
+            "required": false
+          },
+          "name": {
+            "required": true
+          },
+          "supported_types": {
+            "required": false
+          },
+          "vendor": {
+            "required": false
+          },
+          "version": {
+            "required": true
+          }
+        }
+      },
+      "PluginRegistration": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "build": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "factory": {
+            "required": true
+          },
+          "manifest": {
+            "required": true
+          }
+        }
+      },
+      "PluginRejection": {
+        "attributes": [
+          "detector_id",
+          "entry_point",
+          "reason"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "PluginResourceLimits": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "pydantic.main.BaseModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "max_cpu_seconds": {
+            "required": false
+          },
+          "max_memory_bytes": {
+            "required": false
+          }
+        }
+      }
+    },
+    "trueai.reporters": {
+      "JSONReporter": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "load": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              }
+            ]
+          },
+          "render": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "indent",
+                "required": false
+              }
+            ]
+          },
+          "schema": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "write": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "indent",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "SARIFReporter": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "render": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "indent",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "TerminalReporter": {
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "render": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "verbose",
+                "required": false
+              }
+            ]
+          },
+          "render_plan": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "plan",
+                "required": true
+              }
+            ]
+          },
+          "render_result": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              }
+            ]
+          },
+          "render_verification": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    "trueai.schema": {
+      "SCHEMA_SNAPSHOT_FILENAME": {
+        "kind": "value",
+        "type": "str"
+      },
+      "SCHEMA_SNAPSHOT_PATH": {
+        "kind": "value",
+        "type": "PurePosixPath"
+      },
+      "SCHEMA_VERSION": {
+        "kind": "value",
+        "type": "str"
+      },
+      "SchemaChange": {
+        "attributes": [
+          "breaking",
+          "detail",
+          "kind",
+          "location"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
+      "breaking_changes": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "baseline",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "candidate",
+              "required": true
+            }
+          ]
+        }
+      },
+      "canonical_schema_json": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "schema",
+              "required": false
+            }
+          ]
+        }
+      },
+      "compare_report_schemas": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "baseline",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "candidate",
+              "required": true
+            }
+          ]
+        }
+      },
+      "report_schema": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": []
+        }
+      }
+    }
+  }
+}

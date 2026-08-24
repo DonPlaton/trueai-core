@@ -64,6 +64,10 @@ This section is the operational source of truth for the active development cycle
 - No implementation block is currently incomplete. The next block starts with the remaining
   priorities below.
 
+The three unchecked `P0` items are all `external`: they need hosted GitHub Actions runners, a
+configured PyPI trusted publisher, and release signing from hosted CI. Nothing in the repository
+can complete them, and a local run must not be presented as having done so.
+
 ### Known remaining backlog
 
 This is the source of truth for all known unfinished work as of the status date. An unchecked item
@@ -78,10 +82,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   then exercise the release workflow against TestPyPI.
 - [ ] `REL-03` (`external`) Sign wheel, sdist, provenance statement, and SBOM in hosted CI; verify
   signatures from a clean machine before cutting `v0.1.0-rc1`.
-- [ ] `REL-04` Publish a reproducible auditor environment: pinned `uv.lock`, minimal container
-  image, recorded build inputs, and documented bit-for-bit reproduction procedure.
-- [ ] `REL-05` Freeze the broader Python API surface, document deprecation rules, and classify any
-  post-`0.1` model/schema change as additive or breaking before the release candidate.
+- [x] `REL-04` Reproducible auditor environment: hash-locked `uv.lock`, a container pinned by base
+  image digest, `build-inputs.json` recording source/lock/base/tooling and artifact digests, and a
+  verified bit-for-bit reproduction procedure. Two `--no-cache` container builds produce identical
+  artifacts; a cross-platform host build differs only in ZIP `create_system` and deflate framing,
+  which `scripts/compare_builds.py --content` reports as framing rather than as success.
+- [x] `REL-05` Frozen Python API surface in `api/published/`, with additive/breaking classification,
+  a stale-snapshot gate, and documented deprecation rules in `docs/api-compatibility.md`.
 
 #### P1 — hostile-plugin confinement and supply chain
 

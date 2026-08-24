@@ -12,6 +12,36 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Reproducible auditor environment**
+
+- `uv.lock` pins every dependency by hash, and CI fails when it drifts from
+  `pyproject.toml`.
+- A `Dockerfile` pinned to its base image by digest builds the wheel and sdist
+  with normalised file modes, so the artifacts do not depend on which operating
+  system ran `docker build`. Two independent `--no-cache` builds produce
+  byte-identical artifacts, checked by `scripts/verify_reproducible_build.py`.
+- `scripts/record_build_inputs.py` writes `build-inputs.json` next to the
+  artifacts: source commit, build clock, interpreter, tool versions, lock digest,
+  base image, and the SHA-256 of everything produced.
+- `scripts/compare_builds.py` gained `--content`, which distinguishes a real
+  difference in shipped files from ZIP framing that varies between platforms. It
+  never reports a content difference as success.
+- The source distribution now carries the lock and the container definition, so it
+  can rebuild and re-verify itself.
+- `docs/reproducible-builds.md` documents the procedure and states precisely where
+  byte-for-byte reproduction holds and where it does not.
+
+**Frozen Python API contract**
+
+- `trueai/api.py` enumerates the public modules, describes every exported name,
+  and classifies differences between two surfaces as additive or breaking.
+- `api/published/trueai-api-0.1.json` is the frozen contract;
+  `api/trueai-api-0.1.json` is the snapshot of what the code exposes. A stale
+  snapshot fails CI, so no public-surface change merges unreviewed.
+- `docs/api-compatibility.md` states what may change inside version `0.1` and the
+  announce/warn/wait/remove deprecation rule.
+
+
 **Clean-delivery verification and audit certificates**
 
 - `trueai clean` now rescans the bytes it actually publishes and reports `clear`,

@@ -82,11 +82,14 @@ include = [
   "AGENTS.md",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
+  "Dockerfile",
   "LICENSE",
   "PROJECT_STATUS.md",
   "README.md",
   "SECURITY.md",
+  ".dockerignore",
   "pyproject.toml",
+  "uv.lock",
 ]
 exclude = [
   "**/__pycache__",

@@ -43,6 +43,11 @@ SDIST_REQUIRED = (
     "CHANGELOG.md",
     "tests/conftest.py",
     "docs/architecture.md",
+    "docs/reproducible-builds.md",
+    # An auditor must be able to rebuild from the sdist alone, which needs the
+    # dependency lock and the container definition that pins the environment.
+    "uv.lock",
+    "Dockerfile",
     "docs/certificates.md",
     "schema/trueai-certificate-0.1.schema.json",
     "schema/trueai-policy-bundle-0.1.schema.json",

@@ -25,3 +25,6 @@ coverage.xml
 
 # Local assistant tooling artifact, regenerated outside the build
 graph.json
+
+dist-verify/
+.cmp/
