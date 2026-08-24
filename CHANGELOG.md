@@ -12,6 +12,33 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Human Contribution Records (process attestations)**
+
+- `trueai/core/attestation.py` records who originated, framed, decided, executed,
+  validated, integrated, and took responsibility for the work behind an artifact,
+  with a content-derived `TAIP1-…` identifier bound to the exact subject bytes.
+- Contribution is a vector over eight independent dimensions, never a percentage.
+  The module contains no aggregate-score function, and a test asserts none exists.
+- AI autonomy is a per-stage property, so a record can say execution was delegated
+  to a model while origination, framing, validation, and accountability stayed
+  human.
+- Claim type (`machine_fact`, `declaration`, `assessment`) travels with every
+  claim. A `machine_fact` without recomputable evidence and a `declaration`
+  claiming independent assessment of itself are both refused at construction.
+- Evidence is referenced by digest, never copied. Private evidence may not carry a
+  locator, committed evidence carries a commitment that later disclosure is checked
+  against, and omitted evidence must state why.
+- Verification returns independent results — schema, content ID, artifact binding,
+  each signature role, expiry, profile support, disclosure consistency, dissent,
+  limitations — instead of one badge. The only derived property is named
+  `authenticated_declaration`, which is the honest ceiling for a self-signed record.
+- Four standing limitations are mandatory and a record missing any of them is
+  invalid.
+- `schema/trueai-process-attestation-0.1.schema.json` is a separate published
+  contract from the audit certificate, and `docs/process-attestation.md` documents
+  the taxonomy and the threat model with the control for each threat.
+
+
 **Reproducible auditor environment**
 
 - `uv.lock` pins every dependency by hash, and CI fails when it drifts from

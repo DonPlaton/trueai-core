@@ -27,3 +27,16 @@ contracts:
   `trueai policies bundle-schema`.
 
 All snapshots must match the implementation. They do not change the scan-report schema version.
+
+## Other published contracts
+
+| File | Contract |
+|---|---|
+| `trueai-certificate-0.1.schema.json` | Content-bound scan audit certificates (`TAI1-…`). |
+| `trueai-revocation-list-0.1.schema.json` | Signed offline certificate revocation lists. |
+| `trueai-policy-bundle-0.1.schema.json` | Signed enterprise policy bundles. |
+| `trueai-process-attestation-0.1.schema.json` | Human Contribution Records (`TAIP1-…`). |
+
+The process attestation is deliberately a separate contract from the audit
+certificate: one records what a scanner observed in bytes, the other records who
+did what in a process. See [`docs/process-attestation.md`](../docs/process-attestation.md).

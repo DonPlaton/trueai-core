@@ -133,14 +133,18 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P1 — human contribution and process attestation
 
-- [ ] `PROC-01` Freeze the claim taxonomy and threat model for Human Contribution Records: keep
-  machine-verifiable facts, signed declarations, and evaluator judgements as separate claim types.
-- [ ] `PROC-02` Publish an independent `trueai-process-attestation-0.1` JSON Schema for actors,
-  artifact bindings, derivation events, AI-tool roles, human decisions, validation evidence,
-  contribution dimensions, disclosure levels, limitations, and signatures.
-- [ ] `PROC-03` Implement immutable Pydantic models, canonical serialization, content-derived
-  `TAIP1-…` identifiers, artifact/inventory binding, expiry, signatures, and verification without
-  changing the existing `TAI1-…` audit-certificate contract.
+- [x] `PROC-01` Claim taxonomy and threat model frozen in `docs/process-attestation.md`.
+  `ClaimType` keeps `machine_fact`, `declaration`, and `assessment` apart, and the model refuses
+  the two conflations that matter: a `machine_fact` without recomputable evidence, and a
+  `declaration` claiming independent assessment of itself.
+- [x] `PROC-02` `schema/trueai-process-attestation-0.1.schema.json` covers actors, artifact
+  bindings, derivation events, per-stage AI autonomy, decisions, validation, contribution
+  dimensions, disclosure levels, limitations, and signatures. CI diffs it against the emitted
+  schema, and a test asserts it is a different contract from the audit certificate.
+- [x] `PROC-03` Immutable models in `trueai/core/attestation.py` with canonical serialization,
+  content-derived `TAIP1-…` identifiers, subject binding, expiry, multi-role signatures that do not
+  invalidate each other, and verification returning independent results. The `TAI1-…` contract is
+  unchanged; the trust primitives are reused, the schema and prefix are not.
 - [ ] `PROC-04` Add headless CLI and Python workflows to create, validate, sign, verify, summarize,
   redact, and countersign process attestations; never infer undeclared creative claims from scanner
   findings or prompt counts.

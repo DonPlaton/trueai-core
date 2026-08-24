@@ -1,0 +1,1153 @@
+{
+  "$defs": {
+    "Activity": {
+      "additionalProperties": false,
+      "description": "One derivation event: an actor acted on inputs and produced outputs.",
+      "properties": {
+        "action": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Action",
+          "type": "string"
+        },
+        "actor_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Actor Ids",
+          "type": "array"
+        },
+        "ai_autonomy": {
+          "$ref": "#/$defs/AiAutonomy",
+          "default": "none"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input_binding_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Input Binding Ids",
+          "type": "array"
+        },
+        "output_binding_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Output Binding Ids",
+          "type": "array"
+        },
+        "review_decision": {
+          "$ref": "#/$defs/ReviewDecision",
+          "default": "not_reviewed"
+        },
+        "reviewer_actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer Actor Id"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "superseded": {
+          "default": false,
+          "title": "Superseded",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "action",
+        "actor_ids"
+      ],
+      "title": "Activity",
+      "type": "object"
+    },
+    "Actor": {
+      "additionalProperties": false,
+      "description": "A participant: a person, an organization, a model, or an automation.",
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "identifier": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Identifier"
+        },
+        "kind": {
+          "$ref": "#/$defs/ActorKind"
+        },
+        "pseudonymous": {
+          "default": false,
+          "title": "Pseudonymous",
+          "type": "boolean"
+        },
+        "public_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Public Key"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "ActorKind": {
+      "description": "What kind of participant a record names.",
+      "enum": [
+        "person",
+        "organization",
+        "ai_system",
+        "automation"
+      ],
+      "title": "ActorKind",
+      "type": "string"
+    },
+    "AiAutonomy": {
+      "description": "How much of a stage a machine carried out, as a per-stage property.",
+      "enum": [
+        "none",
+        "assistive",
+        "proposal",
+        "delegated_execution",
+        "autonomous_with_review"
+      ],
+      "title": "AiAutonomy",
+      "type": "string"
+    },
+    "ArtifactBinding": {
+      "additionalProperties": false,
+      "description": "One artifact the record is bound to, by exact digest.",
+      "properties": {
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "relationship": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relationship"
+        },
+        "role": {
+          "$ref": "#/$defs/BindingRole"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "name",
+        "sha256"
+      ],
+      "title": "ArtifactBinding",
+      "type": "object"
+    },
+    "AttestationSignature": {
+      "additionalProperties": false,
+      "description": "One signed statement over the record.",
+      "properties": {
+        "actor_id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/SignatureRole"
+        },
+        "signature": {
+          "$ref": "#/$defs/CertificateSignature"
+        },
+        "signed_at": {
+          "format": "date-time",
+          "title": "Signed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "actor_id",
+        "signed_at",
+        "signature"
+      ],
+      "title": "AttestationSignature",
+      "type": "object"
+    },
+    "BindingRole": {
+      "description": "Where an artifact sits in the derivation.",
+      "enum": [
+        "input",
+        "intermediate",
+        "output",
+        "reference"
+      ],
+      "title": "BindingRole",
+      "type": "string"
+    },
+    "CertificateSignature": {
+      "additionalProperties": false,
+      "description": "Optional issuer signature over the canonical certificate claims.",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "default": "ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 200,
+          "minLength": 40,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key_id",
+        "value"
+      ],
+      "title": "CertificateSignature",
+      "type": "object"
+    },
+    "ClaimType": {
+      "description": "What kind of statement a claim is.\n\nKeeping these apart is what stops a valid signature over a subjective\nnovelty claim from reading as an established fact.",
+      "enum": [
+        "machine_fact",
+        "declaration",
+        "assessment"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "ContributionClaim": {
+      "additionalProperties": false,
+      "description": "One actor's contribution to one dimension, with its own support level.",
+      "properties": {
+        "actor_id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "ai_autonomy": {
+          "$ref": "#/$defs/AiAutonomy",
+          "default": "none"
+        },
+        "claim_type": {
+          "$ref": "#/$defs/ClaimType"
+        },
+        "dimension": {
+          "$ref": "#/$defs/ContributionDimension"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "evidence_status": {
+          "$ref": "#/$defs/EvidenceStatus"
+        },
+        "explanation": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/ContributionLevel"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scope"
+        }
+      },
+      "required": [
+        "dimension",
+        "actor_id",
+        "claim_type",
+        "level",
+        "evidence_status",
+        "explanation"
+      ],
+      "title": "ContributionClaim",
+      "type": "object"
+    },
+    "ContributionDimension": {
+      "description": "Independent aspects of contributing to a result.\n\nThey are deliberately not comparable to each other. Averaging them would\nreintroduce the aggregate score this model exists to avoid.",
+      "enum": [
+        "origination",
+        "framing",
+        "decision_control",
+        "execution",
+        "validation",
+        "integration",
+        "accountability",
+        "evidence_quality"
+      ],
+      "title": "ContributionDimension",
+      "type": "string"
+    },
+    "ContributionLevel": {
+      "description": "Descriptive strength of one actor's contribution to one dimension.",
+      "enum": [
+        "not_claimed",
+        "supporting",
+        "substantial",
+        "primary",
+        "originating_or_controlling"
+      ],
+      "title": "ContributionLevel",
+      "type": "string"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "description": "A consequential choice, with what it was chosen over.",
+      "properties": {
+        "alternatives": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "approving_actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approving Actor Id"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "question": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        },
+        "rationale_commitment": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale Commitment"
+        },
+        "selected": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Selected",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "question",
+        "selected"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "DimensionAssessment": {
+      "additionalProperties": false,
+      "description": "An assessor's per-dimension result under a named rubric.",
+      "properties": {
+        "confidence": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Confidence",
+          "type": "string"
+        },
+        "dimension": {
+          "$ref": "#/$defs/ContributionDimension"
+        },
+        "dissent": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dissent"
+        },
+        "level": {
+          "$ref": "#/$defs/ContributionLevel"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        }
+      },
+      "required": [
+        "dimension",
+        "level",
+        "confidence"
+      ],
+      "title": "DimensionAssessment",
+      "type": "object"
+    },
+    "DisclosureStatus": {
+      "description": "Whether the referenced material travels with the record.",
+      "enum": [
+        "public",
+        "private",
+        "committed",
+        "omitted"
+      ],
+      "title": "DisclosureStatus",
+      "type": "string"
+    },
+    "Evaluation": {
+      "additionalProperties": false,
+      "description": "An optional judgement produced under a versioned, domain-specific profile.",
+      "properties": {
+        "assessed_at": {
+          "format": "date-time",
+          "title": "Assessed At",
+          "type": "string"
+        },
+        "assessor_actor_id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Assessor Actor Id",
+          "type": "string"
+        },
+        "dissent": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dissent"
+        },
+        "evidence_confidence": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Confidence"
+        },
+        "profile": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Profile",
+          "type": "string"
+        },
+        "results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DimensionAssessment"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "rubric_version": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Rubric Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "rubric_version",
+        "assessor_actor_id",
+        "assessed_at"
+      ],
+      "title": "Evaluation",
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "description": "Typed local evidence a record may reference by hash.",
+      "enum": [
+        "git_commit",
+        "reviewed_diff",
+        "test_run",
+        "build_receipt",
+        "research_note",
+        "source_citation",
+        "approval",
+        "external_receipt",
+        "tool_identity",
+        "scan_report",
+        "audit_certificate",
+        "other"
+      ],
+      "title": "EvidenceKind",
+      "type": "string"
+    },
+    "EvidenceReference": {
+      "additionalProperties": false,
+      "description": "A pointer to supporting material, recorded by hash rather than by copy.\n\nRaw prompts, proprietary sources, credentials, and personal data stay local by\ndefault. What travels is the digest and, when the holder chooses, a\ncommitment that lets them reveal the material later and prove it is the same.",
+      "properties": {
+        "collection_method": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Collection Method"
+        },
+        "commitment": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commitment"
+        },
+        "description": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/DisclosureStatus",
+          "default": "private"
+        },
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "issuer": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issuer"
+        },
+        "kind": {
+          "$ref": "#/$defs/EvidenceKind"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "omission_reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Omission Reason"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "description"
+      ],
+      "title": "EvidenceReference",
+      "type": "object"
+    },
+    "EvidenceStatus": {
+      "description": "How well a claim is corroborated, independent of how strong the claim is.",
+      "enum": [
+        "self_declared",
+        "artifact_correlated",
+        "countersigned",
+        "independently_assessed",
+        "cryptographically_verified"
+      ],
+      "title": "EvidenceStatus",
+      "type": "string"
+    },
+    "Limitation": {
+      "additionalProperties": false,
+      "description": "Something the record does not establish, in both machine and human form.",
+      "properties": {
+        "code": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "statement"
+      ],
+      "title": "Limitation",
+      "type": "object"
+    },
+    "ReviewDecision": {
+      "description": "What happened to an activity's output when someone looked at it.",
+      "enum": [
+        "not_reviewed",
+        "accepted",
+        "accepted_with_changes",
+        "rejected"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    },
+    "SignatureRole": {
+      "description": "Which statement a signature attests to.",
+      "enum": [
+        "claimant",
+        "reviewer",
+        "organization",
+        "assessor"
+      ],
+      "title": "SignatureRole",
+      "type": "string"
+    },
+    "ValidationRecord": {
+      "additionalProperties": false,
+      "description": "Something that was checked against reality, and what came back.",
+      "properties": {
+        "description": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "outcome": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Outcome",
+          "type": "string"
+        },
+        "outcome_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome Sha256"
+        },
+        "performed_by_actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Performed By Actor Id"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "description",
+        "outcome"
+      ],
+      "title": "ValidationRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A signed, content-bound record of how an artifact came to exist.",
+  "properties": {
+    "activities": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Activity"
+      },
+      "title": "Activities",
+      "type": "array"
+    },
+    "actors": {
+      "items": {
+        "$ref": "#/$defs/Actor"
+      },
+      "minItems": 1,
+      "title": "Actors",
+      "type": "array"
+    },
+    "artifact_bindings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactBinding"
+      },
+      "title": "Artifact Bindings",
+      "type": "array"
+    },
+    "attestation_id": {
+      "pattern": "^TAIP1-[A-Z2-7]{32}$",
+      "title": "Attestation Id",
+      "type": "string"
+    },
+    "claims": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ContributionClaim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "decisions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Decision"
+      },
+      "title": "Decisions",
+      "type": "array"
+    },
+    "evaluation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Evaluation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EvidenceReference"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "limitations": {
+      "items": {
+        "$ref": "#/$defs/Limitation"
+      },
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "parent_attestation_id": {
+      "anyOf": [
+        {
+          "pattern": "^TAIP1-[A-Z2-7]{32}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Attestation Id"
+    },
+    "policy_context": {
+      "anyOf": [
+        {
+          "maxLength": 300,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policy Context"
+    },
+    "producer": {
+      "default": "0.1.0-dev",
+      "title": "Producer",
+      "type": "string"
+    },
+    "project_purpose": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Purpose"
+    },
+    "project_title": {
+      "anyOf": [
+        {
+          "maxLength": 300,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Title"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "signatures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AttestationSignature"
+      },
+      "title": "Signatures",
+      "type": "array"
+    },
+    "subject_is_inventory": {
+      "default": false,
+      "title": "Subject Is Inventory",
+      "type": "boolean"
+    },
+    "subject_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Subject Name",
+      "type": "string"
+    },
+    "subject_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Subject Sha256",
+      "type": "string"
+    },
+    "validations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ValidationRecord"
+      },
+      "title": "Validations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "attestation_id",
+    "created_at",
+    "subject_sha256",
+    "subject_name",
+    "actors",
+    "limitations"
+  ],
+  "title": "ProcessAttestation",
+  "type": "object"
+}

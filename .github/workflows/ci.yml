@@ -155,6 +155,12 @@ jobs:
           diff -u schema/trueai-policy-bundle-0.1.schema.json /tmp/trueai-policy-bundle-schema.json
       - name: Verify signed policy bundle semantics
         run: python -m pytest tests/unit/test_policy_bundles.py -q
+      - name: Confirm the process-attestation schema snapshot matches
+        run: |
+          python -c "from trueai.core.attestation import attestation_schema_json;             import sys; sys.stdout.write(attestation_schema_json())"             > /tmp/trueai-process-attestation-schema.json
+          diff -u schema/trueai-process-attestation-0.1.schema.json             /tmp/trueai-process-attestation-schema.json
+      - name: Verify process-attestation semantics
+        run: python -m pytest tests/unit/test_attestation.py -q
       - name: Enforce the frozen Python API contract
         run: python -m pytest tests/unit/test_api_compatibility.py -q
       - name: Confirm the committed snapshot matches the emitted API surface

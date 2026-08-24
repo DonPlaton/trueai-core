@@ -32,6 +32,17 @@ Anything not listed is internal and may change in any release. That is only a fa
 rule because the list is written down rather than inferred from what happens to be
 importable.
 
+### Deliberately not yet frozen
+
+`trueai.core.attestation` implements Human Contribution Records and is **not** in
+the frozen surface. Its own documentation states that the schema is not called
+stable until consented design-partner pilots have exposed rubric disagreements
+(`PROC-12`). Freezing a claim model before anyone has argued with it would commit
+to vocabulary that field use is expected to change.
+
+It is public and usable; it is not yet contract-bound. When the pilots close, it
+joins `PUBLIC_MODULES` and the snapshot in the same change.
+
 ## Where the contract lives
 
 | Artifact | Role |
