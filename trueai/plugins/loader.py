@@ -6,6 +6,7 @@ import importlib
 from typing import Any
 
 from trueai.core.errors import DetectorRegistrationError
+from trueai.core.models import ArtifactType, FindingCategory
 from trueai.plugins.manifest import PluginManifest, PluginRegistration
 
 
@@ -96,3 +97,16 @@ def describe_target(target: Any) -> tuple[PluginManifest, Any | None]:
 
     detector = instantiate(target)
     return manifest_for(target, detector), detector
+
+
+def enrich_manifest(manifest: PluginManifest, source: Any) -> PluginManifest:
+    """Fill declared detector types/categories without changing capabilities."""
+
+    supported: frozenset[ArtifactType] = getattr(source, "supported_types", frozenset())
+    categories: frozenset[FindingCategory] = getattr(source, "categories", frozenset())
+    updates: dict[str, object] = {}
+    if not manifest.supported_types and supported:
+        updates["supported_types"] = supported
+    if not manifest.categories and categories:
+        updates["categories"] = categories
+    return manifest.model_copy(update=updates) if updates else manifest

@@ -25,6 +25,10 @@
 - `design.svg-forensics.v1`: metadata, editor residue, hidden/off-canvas structure, scripts/data URIs,
   duplicate paths, and potentially unused IDs.
 - `design.raster-metadata.v1`: Pillow-exposed PNG/JPEG text, XMP/comment, and EXIF metadata.
+- `media.container-metadata.v1`: bounded WAV RIFF INFO/BEXT, MP3 ID3v1/v2, FLAC Vorbis comments,
+  ISO BMFF/QuickTime keyed metadata, and WebM/Matroska EBML application/tag fields. It never
+  decodes media streams. Exact WAV/MP3/FLAC fields are removable through a separate cleaner;
+  ISO BMFF/QuickTime and EBML findings remain inspection-only.
 - `provenance.c2pa-marker.v1`: marker discovery only, explicitly unverified and preserved. Scanning
   never verifies a signature; see [provenance](provenance.md).
 

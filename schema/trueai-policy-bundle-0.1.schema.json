@@ -1,0 +1,344 @@
+{
+  "$defs": {
+    "CertificateSignature": {
+      "additionalProperties": false,
+      "description": "Optional issuer signature over the canonical certificate claims.",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "default": "ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 200,
+          "minLength": 40,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key_id",
+        "value"
+      ],
+      "title": "CertificateSignature",
+      "type": "object"
+    },
+    "FindingCategory": {
+      "description": "Stable taxonomy used by findings and policy rules.",
+      "enum": [
+        "invisible_unicode",
+        "suspicious_unicode",
+        "explicit_ai_attribution",
+        "generator_metadata",
+        "git_attribution",
+        "tooling_residue",
+        "document_metadata",
+        "personal_metadata",
+        "image_metadata",
+        "media_metadata",
+        "c2pa_provenance",
+        "provider_watermark",
+        "stylistic_signal",
+        "design_style_signal",
+        "hidden_element",
+        "generated_comment",
+        "structural_signal",
+        "security_issue"
+      ],
+      "title": "FindingCategory",
+      "type": "string"
+    },
+    "FindingSelector": {
+      "additionalProperties": false,
+      "description": "Deterministic selector for policy controls; every populated field must match.",
+      "properties": {
+        "artifact_glob": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Glob"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FindingCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "detector_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Id"
+        },
+        "finding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finding Id"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "tags_all": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags All",
+          "type": "array"
+        }
+      },
+      "title": "FindingSelector",
+      "type": "object"
+    },
+    "PolicyAction": {
+      "description": "Actions a policy can assign to a finding.",
+      "enum": [
+        "ignore",
+        "report",
+        "review",
+        "remove",
+        "preserve",
+        "error"
+      ],
+      "title": "PolicyAction",
+      "type": "string"
+    },
+    "PolicyException": {
+      "additionalProperties": false,
+      "description": "Finite, approved action override for matching findings.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/PolicyAction"
+        },
+        "approved_by": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Approved By",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,119}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1000,
+          "minLength": 3,
+          "title": "Reason",
+          "type": "string"
+        },
+        "selector": {
+          "$ref": "#/$defs/FindingSelector"
+        }
+      },
+      "required": [
+        "id",
+        "selector",
+        "reason",
+        "approved_by",
+        "expires_at",
+        "action"
+      ],
+      "title": "PolicyException",
+      "type": "object"
+    },
+    "PolicyProfile": {
+      "additionalProperties": false,
+      "description": "A named mapping from finding categories to operational actions.",
+      "properties": {
+        "default_action": {
+          "$ref": "#/$defs/PolicyAction",
+          "default": "report"
+        },
+        "policy": {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "title": "Policy",
+          "type": "string"
+        },
+        "rules": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PolicyAction"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/FindingCategory"
+          },
+          "title": "Rules",
+          "type": "object"
+        }
+      },
+      "required": [
+        "policy"
+      ],
+      "title": "PolicyProfile",
+      "type": "object"
+    },
+    "PolicySuppression": {
+      "additionalProperties": false,
+      "description": "Finite, approved suppression that retains the underlying finding.",
+      "properties": {
+        "approved_by": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Approved By",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,119}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1000,
+          "minLength": 3,
+          "title": "Reason",
+          "type": "string"
+        },
+        "selector": {
+          "$ref": "#/$defs/FindingSelector"
+        }
+      },
+      "required": [
+        "id",
+        "selector",
+        "reason",
+        "approved_by",
+        "expires_at"
+      ],
+      "title": "PolicySuppression",
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.trueai.dev/policy-bundle/0.1/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed policy profile and its signed operational controls.",
+  "properties": {
+    "baseline_finding_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Baseline Finding Ids",
+      "type": "array"
+    },
+    "bundle_id": {
+      "pattern": "^TPB1-[A-Z2-7]{32}$",
+      "title": "Bundle Id",
+      "type": "string"
+    },
+    "bundle_schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Bundle Schema Version",
+      "type": "string"
+    },
+    "exceptions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PolicyException"
+      },
+      "title": "Exceptions",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "issuer": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Issuer",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/PolicyProfile"
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CertificateSignature"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "suppressions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PolicySuppression"
+      },
+      "title": "Suppressions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "bundle_id",
+    "issuer",
+    "issued_at",
+    "expires_at",
+    "profile"
+  ],
+  "title": "EnterprisePolicyBundle",
+  "type": "object"
+}

@@ -9,6 +9,7 @@ rules:
   document_metadata: remove
   personal_metadata: remove
   image_metadata: remove
+  media_metadata: review
   git_attribution: review
   tooling_residue: review
   c2pa_provenance: preserve
@@ -16,4 +17,3 @@ rules:
   stylistic_signal: report
   design_style_signal: report
   security_issue: review
-

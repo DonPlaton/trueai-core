@@ -95,6 +95,32 @@ class TerminalReporter:
                     f"[{_SEVERITY_STYLE[diagnostic.severity]}]"
                     f"{diagnostic.severity.value.upper()}[/] {_safe(diagnostic.message)}"
                 )
+        if report.provenance_verifications:
+            verification = Table(
+                title="Authenticated provenance verification",
+                show_lines=False,
+            )
+            verification.add_column("Artifact")
+            verification.add_column("Status")
+            verification.add_column("Signer")
+            verification.add_column("Explanation")
+            for result in report.provenance_verifications:
+                signer = (
+                    result.signer.common_name
+                    if result.signer is not None and result.signer.common_name
+                    else "-"
+                )
+                verification.add_row(
+                    _safe(result.artifact_path),
+                    Text(
+                        result.status.value.upper(),
+                        style=_VERIFICATION_STYLE[result.status],
+                    ),
+                    _safe(signer),
+                    _safe(result.explanation),
+                )
+            self.console.print()
+            self.console.print(verification)
         integrity_style = {
             IntegrityStatus.PASS: "green",
             IntegrityStatus.FAIL: "red",

@@ -99,6 +99,7 @@ jobs:
           tests/unit/test_docx_detector.py
           tests/unit/test_office_detectors.py
           tests/unit/test_pdf_detector.py
+          tests/unit/test_media_detector.py
           tests/unit/test_provenance.py
           tests/unit/test_plugin_host.py
           tests/unit/test_repository_scale.py
@@ -140,6 +141,20 @@ jobs:
         run: python -m pytest tests/unit/test_schema_compatibility.py -q
       - name: Confirm the committed snapshot matches the emitted schema
         run: python scripts/check_schema_snapshot.py
+      - name: Confirm the certificate schema snapshot matches
+        run: |
+          python -m trueai certificates schema > /tmp/trueai-certificate-schema.json
+          diff -u schema/trueai-certificate-0.1.schema.json /tmp/trueai-certificate-schema.json
+      - name: Confirm the revocation-list schema snapshot matches
+        run: |
+          python -m trueai certificates revocation-schema > /tmp/trueai-revocation-schema.json
+          diff -u schema/trueai-revocation-list-0.1.schema.json /tmp/trueai-revocation-schema.json
+      - name: Confirm the enterprise policy-bundle schema snapshot matches
+        run: |
+          python -m trueai policies bundle-schema > /tmp/trueai-policy-bundle-schema.json
+          diff -u schema/trueai-policy-bundle-0.1.schema.json /tmp/trueai-policy-bundle-schema.json
+      - name: Verify signed policy bundle semantics
+        run: python -m pytest tests/unit/test_policy_bundles.py -q
 
   package:
     name: Build, verify, and install distributions
@@ -170,7 +185,7 @@ jobs:
       - name: Install the wheel into a clean environment
         run: |
           python -m venv /tmp/clean-env
-          /tmp/clean-env/bin/python -m pip install "$(ls dist/*.whl)[pdf]"
+          /tmp/clean-env/bin/python -m pip install "$(ls dist/*.whl)[pdf,c2pa,attestation]"
           /tmp/clean-env/bin/python -m pip check
       - name: Smoke-test the installed console script
         run: |
@@ -195,14 +210,17 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install the package and audit tooling
         run: |
-          python -m pip install ".[pdf]"
+          python -m pip install --upgrade pip
+          python -m pip install ".[pdf,c2pa,attestation]"
           python -m pip install pip-audit cyclonedx-bom pip-licenses
       - name: Audit dependencies for known vulnerabilities
-        run: python -m pip_audit --strict --progress-spinner off
+        run: |
+          python -m pip freeze --all | grep -ivE '^trueai-core([=@ ]|$)' > audit-requirements.txt
+          python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
       - name: Enforce the dependency license allowlist
         run: python scripts/check_licenses.py
       - name: Generate a CycloneDX SBOM
-        run: cyclonedx-py environment --output-format JSON --outfile sbom.cdx.json
+        run: cyclonedx-py environment --output-format JSON --output-file sbom.cdx.json
       - name: Upload the SBOM
         uses: actions/upload-artifact@v4
         with:

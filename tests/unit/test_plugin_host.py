@@ -7,6 +7,7 @@ from importlib.metadata import EntryPoint
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 import trueai.plugins.host as host_module
 from tests.plugin_examples import WellBehavedPlugin
@@ -22,6 +23,7 @@ from trueai.plugins import (
     PluginHost,
     PluginIsolation,
     PluginManifest,
+    PluginResourceLimits,
 )
 
 REPOSITORY_ROOT = str(Path(__file__).resolve().parents[2])
@@ -72,6 +74,17 @@ def test_default_policy_denies_network_subprocess_and_writes() -> None:
         PluginCapability.WRITE_FILESYSTEM,
     ):
         assert capability not in policy.granted
+
+
+def test_plugin_resource_limits_are_bounded_and_immutable() -> None:
+    limits = PluginResourceLimits()
+
+    assert limits.max_memory_bytes == 512 * 1024 * 1024
+    assert limits.max_cpu_seconds == 30
+    with pytest.raises(ValueError):
+        PluginResourceLimits(max_memory_bytes=1024, max_cpu_seconds=0)
+    with pytest.raises(ValidationError):
+        limits.max_cpu_seconds = 60
 
 
 def test_a_plugin_asking_for_an_ungranted_capability_is_refused() -> None:
@@ -134,7 +147,7 @@ def test_allow_and_block_lists_are_honoured() -> None:
 def test_discovery_reads_a_declared_manifest(install_plugins) -> None:
     install_plugins(entry_point("declared", "DECLARED_REGISTRATION"))
 
-    result = PluginHost().discover()
+    result = PluginHost(isolation=PluginIsolation.IN_PROCESS).discover()
 
     assert [manifest.detector_id for manifest in result.manifests] == ["example.well-behaved.v1"]
     assert result.manifests[0].declared is True
@@ -145,7 +158,7 @@ def test_discovery_reads_a_declared_manifest(install_plugins) -> None:
 def test_discovery_synthesizes_a_manifest_for_a_bare_detector(install_plugins) -> None:
     install_plugins(entry_point("bare", "WellBehavedPlugin"))
 
-    result = PluginHost().discover()
+    result = PluginHost(isolation=PluginIsolation.IN_PROCESS).discover()
 
     assert result.manifests[0].declared is False
     # The host still learns what the detector supports, from the detector itself.
@@ -336,7 +349,7 @@ def test_an_allowed_plugin_is_constructed_once(install_plugins) -> None:
     install_plugins(entry_point("recorded", "ConstructionRecordingPlugin"))
     CONSTRUCTIONS.clear()
 
-    result = PluginHost().discover()
+    result = PluginHost(isolation=PluginIsolation.IN_PROCESS).discover()
 
     assert len(result.detectors) == 1
     assert CONSTRUCTIONS == ["example.constructed.v1"]
@@ -432,14 +445,10 @@ def test_import_time_capability_use_is_denied_in_the_worker(
     assert "write_filesystem" in str(failure.value)
 
 
-def test_reading_a_manifest_still_imports_the_plugin_module(
+def test_manifest_inspection_does_not_import_the_plugin_in_the_host(
     install_plugins, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The documented limit: an entry point is an import path, so discovery imports it.
-
-    Policy runs before the detector is constructed, not before its module is
-    executed. Pinning that here keeps the documentation honest.
-    """
+    """Import-time code is guarded in a helper and never executes in the host."""
 
     target = tmp_path / "written-at-import.txt"
     monkeypatch.setenv("TRUEAI_TEST_IMPORT_TARGET", str(target))
@@ -452,11 +461,14 @@ def test_reading_a_manifest_still_imports_the_plugin_module(
         )
     )
 
-    PluginHost(
+    result = PluginHost(
         policy=CapabilityPolicy(blocked_detector_ids=frozenset({"example.import-writer.v1"}))
     ).discover()
 
-    assert target.exists(), "host-side discovery imports the module; the docs say so"
+    assert not target.exists()
+    assert "tests.plugin_import_side_effect" not in sys.modules
+    assert result.rejections
+    assert "CapabilityDenied" in result.rejections[0].reason
 
 
 def test_path_open_is_guarded_like_the_builtin(install_plugins, text_artifact: Path) -> None:
@@ -474,7 +486,7 @@ def test_path_open_is_guarded_like_the_builtin(install_plugins, text_artifact: P
 def test_the_isolated_host_reports_its_own_limits_in_the_module_docstring() -> None:
     """The docstring is the honest statement about what isolation does not do."""
 
-    assert "not: an operating-system sandbox" in (host_module.__doc__ or "")
+    assert "not: a filesystem/system-call sandbox" in (host_module.__doc__ or "")
 
 
 def test_plugin_execution_errors_carry_a_stable_code() -> None:

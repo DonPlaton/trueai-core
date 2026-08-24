@@ -71,6 +71,8 @@
         "pdf",
         "png",
         "jpeg",
+        "audio",
+        "video",
         "git_repository",
         "directory",
         "binary",
@@ -240,6 +242,7 @@
         "document_metadata",
         "personal_metadata",
         "image_metadata",
+        "media_metadata",
         "c2pa_provenance",
         "provider_watermark",
         "stylistic_signal",
@@ -449,6 +452,78 @@
       "title": "PolicyAction",
       "type": "string"
     },
+    "PolicyAuditEntry": {
+      "additionalProperties": false,
+      "description": "Auditable enterprise override applied without hiding the finding.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/PolicyAction"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "finding_id": {
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "source": {
+          "enum": [
+            "baseline",
+            "suppression",
+            "exception",
+            "protected"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "source",
+        "action",
+        "reason"
+      ],
+      "title": "PolicyAuditEntry",
+      "type": "object"
+    },
     "PolicyDecision": {
       "additionalProperties": false,
       "description": "Policy action assigned to a finding.",
@@ -473,6 +548,26 @@
       "title": "PolicyDecision",
       "type": "object"
     },
+    "ProvenanceAssertion": {
+      "additionalProperties": false,
+      "description": "One claim carried inside a manifest.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "summary"
+      ],
+      "title": "ProvenanceAssertion",
+      "type": "object"
+    },
     "ProvenanceClass": {
       "description": "Relationship of a finding to provenance.",
       "enum": [
@@ -485,6 +580,263 @@
         "heuristic"
       ],
       "title": "ProvenanceClass",
+      "type": "string"
+    },
+    "ProvenanceSigner": {
+      "additionalProperties": false,
+      "description": "Identity the signing certificate asserts, as reported by the verifier.",
+      "properties": {
+        "algorithm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Algorithm"
+        },
+        "certificate_serial_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Certificate Serial Number"
+        },
+        "common_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Common Name"
+        },
+        "issuer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issuer"
+        },
+        "signed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Signed At"
+        }
+      },
+      "title": "ProvenanceSigner",
+      "type": "object"
+    },
+    "ProvenanceValidationEntry": {
+      "additionalProperties": false,
+      "description": "One check the verifier performed and its outcome.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ValidationOutcome"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        }
+      },
+      "required": [
+        "code",
+        "outcome",
+        "explanation"
+      ],
+      "title": "ProvenanceValidationEntry",
+      "type": "object"
+    },
+    "ProvenanceVerification": {
+      "additionalProperties": false,
+      "description": "Result of authenticated verification for one artifact.\n\nA trusted result is the only one that establishes provenance. ``VALID`` means\nthe signature and content hashes check out but the signer is not in the trust\nstore in use, which is a materially weaker statement and is reported as such.",
+      "properties": {
+        "active_manifest_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Manifest Label"
+        },
+        "artifact_path": {
+          "title": "Artifact Path",
+          "type": "string"
+        },
+        "assertions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProvenanceAssertion"
+          },
+          "title": "Assertions",
+          "type": "array"
+        },
+        "claim_generator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Generator"
+        },
+        "embedded": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Embedded"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "ingredients": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Ingredients",
+          "type": "array"
+        },
+        "remote_manifest_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remote Manifest Url"
+        },
+        "remote_manifests_allowed": {
+          "default": false,
+          "title": "Remote Manifests Allowed",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "default": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProvenanceSigner"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/ProvenanceVerificationStatus"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "trust_anchors_configured": {
+          "default": false,
+          "title": "Trust Anchors Configured",
+          "type": "boolean"
+        },
+        "validation": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProvenanceValidationEntry"
+          },
+          "title": "Validation",
+          "type": "array"
+        },
+        "verifier": {
+          "title": "Verifier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_path",
+        "status",
+        "verifier",
+        "explanation"
+      ],
+      "title": "ProvenanceVerification",
+      "type": "object"
+    },
+    "ProvenanceVerificationStatus": {
+      "description": "Outcome of authenticated C2PA verification, distinct from marker discovery.",
+      "enum": [
+        "trusted",
+        "valid",
+        "invalid",
+        "no_manifest",
+        "unsupported_container",
+        "verifier_unavailable"
+      ],
+      "title": "ProvenanceVerificationStatus",
       "type": "string"
     },
     "ScanDiagnostic": {
@@ -589,6 +941,16 @@
       ],
       "title": "Severity",
       "type": "string"
+    },
+    "ValidationOutcome": {
+      "description": "Category a verifier assigned to one validation entry.",
+      "enum": [
+        "success",
+        "informational",
+        "failure"
+      ],
+      "title": "ValidationOutcome",
+      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -652,12 +1014,40 @@
       "default": null,
       "title": "Policy"
     },
+    "policy_audit": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PolicyAuditEntry"
+      },
+      "title": "Policy Audit",
+      "type": "array"
+    },
+    "policy_bundle_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policy Bundle Id"
+    },
     "policy_decisions": {
       "default": [],
       "items": {
         "$ref": "#/$defs/PolicyDecision"
       },
       "title": "Policy Decisions",
+      "type": "array"
+    },
+    "provenance_verifications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProvenanceVerification"
+      },
+      "title": "Provenance Verifications",
       "type": "array"
     },
     "scan_id": {

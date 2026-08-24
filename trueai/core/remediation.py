@@ -47,6 +47,9 @@ class RemediationPlanner:
     def plan(self, report: ScanReport, policy: PolicyProfile) -> RemediationPlan:
         """Create remediations without applying them."""
 
+        recorded_actions = {
+            decision.finding_id: decision.action for decision in report.policy_decisions
+        }
         protected_artifacts = {
             finding.artifact_path
             for finding in report.findings
@@ -58,7 +61,7 @@ class RemediationPlanner:
         preserved: list[str] = []
         blocked: list[str] = []
         for finding in report.findings:
-            action = policy.action_for(finding)
+            action = recorded_actions.get(finding.id, policy.action_for(finding))
             if action == PolicyAction.PRESERVE:
                 preserved.append(finding.id)
                 continue
@@ -111,7 +114,7 @@ class RemediationPlanner:
 
     @staticmethod
     def _safety(remediation_id: str) -> RemediationSafety:
-        if remediation_id.startswith(("docx.", "pptx.", "xlsx.", "pdf.", "image.")):
+        if remediation_id.startswith(("docx.", "pptx.", "xlsx.", "pdf.", "image.", "media.")):
             return RemediationSafety.SAFE_METADATA
         if remediation_id.startswith("git."):
             return RemediationSafety.DESTRUCTIVE

@@ -90,18 +90,22 @@ trueai scan ./repo --plugins disabled
 
 | Mode | Behaviour |
 |---|---|
-| `in_process` | Plugins load into the scanner process. Fast, and fully trusting. The default, for compatibility. |
-| `subprocess` | Each plugin runs in a separate interpreter with capability guards and a deadline. |
+| `in_process` | Plugins load into the scanner process. Fast, fully trusting, and available only by explicit selection. |
+| `subprocess` | Default. Manifest inspection and each detector run use separate interpreters with capability guards and a deadline. |
 | `disabled` | Third-party detectors are not loaded at all. |
 
 ## What subprocess isolation actually guarantees
 
-- **Crashes are contained.** A plugin that raises, segfaults, or allocates without
-  bound takes down its worker, not the scan. The failure becomes a diagnostic.
+- **Host state is separated.** A plugin exception or crash takes down its worker,
+  not the scanner process. The failure becomes a diagnostic.
 - **Hangs end.** The worker is killed at its deadline and reported as
   `plugin_timeout`.
-- **Output is bounded.** The response is a size-checked file, so a plugin cannot
-  exhaust host memory by returning too much.
+- **CPU and memory are bounded before import.** The helper installs hard kernel limits before
+  loading plugin code: RLIMIT_AS/RLIMIT_CPU on POSIX and a per-process Windows Job Object on
+  Windows. Failure to install a configured limit rejects the plugin instead of weakening the
+  boundary.
+- **Output is bounded.** stdout and stderr are discarded, and the response is a
+  size-checked file, so a plugin cannot exhaust host memory by printing or returning too much.
 - **Findings cannot be asserted into existence.** Every returned finding is
   re-derived from its own evidence. A plugin cannot forge a finding identity
   (`plugin_forged_finding_id`), attribute a finding to another artifact
@@ -114,10 +118,10 @@ trueai scan ./repo --plugins disabled
 
 ## When the guards apply
 
-The worker installs its guards before it imports the plugin, so module-level code
-and constructors are covered too — import time is exactly where a hostile plugin
-would act. A plugin that legitimately needs a denied capability while importing
-fails with a message naming that capability.
+The manifest inspector and scan worker install guards before importing the plugin,
+so module-level code and constructors are covered too. The scanner process does not
+import a plugin merely to discover its manifest. Import-time side effects are a
+plugin defect and fail with a message naming the denied capability.
 
 Every documented way to write a file is covered: `open`, `io.open`, `Path.open`,
 `os.open`, and the `os`, `shutil`, and `Path` mutators. Reads are unaffected.
@@ -129,18 +133,19 @@ as the host. The in-worker guards are Python-level replacements: they stop an
 ordinary plugin, and they do not stop native code, `ctypes`, or a plugin that
 deliberately restores the functions that were replaced.
 
-Host-side discovery still imports a plugin's module, because an entry point is an
-import path and nothing about the plugin is readable without it. Policy decides
-before the detector is constructed and before it runs; it cannot gate module-level
-code. Under `subprocess` isolation the detector is constructed only in the worker.
+Kernel quotas bound worker memory and CPU time; they do not restrict which files native code can
+open or which system calls it can make. POSIX CPU limits apply per process. A plugin explicitly
+granted subprocess capability can therefore create children with their own inherited per-process
+budgets. On Windows, children remain in the Job Object unless a stricter external host changes that
+policy.
 
 A plugin whose id collides with one that is already registered is refused and
 reported rather than aborting discovery, so an installed package cannot stop the
 tool from starting.
 
-A real sandbox — seccomp, AppContainer, or container-level isolation — is future
-work. Until it exists, `subprocess` isolation should be read as "contains accidents
-and catches dishonest output", not "safely runs hostile code".
+A filesystem/system-call sandbox such as seccomp, AppContainer, or a separately permissioned
+container remains future work. Process isolation, kernel quotas, and Python guards are defense in
+depth; they are not described as protection against malicious native code.
 
 Both isolation modes are equally subject to the engine's existing checks: artifact
 hashes and directory inventories are re-examined after detectors run, and any

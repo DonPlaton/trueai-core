@@ -5,24 +5,24 @@ takes the scan down, a plugin hang never ends, a plugin's memory growth is the
 host's memory growth, and a plugin can return whatever finding it likes. The
 isolated host addresses each of those directly:
 
-* the detector runs in a separate interpreter, so a crash or unbounded allocation
-  is contained;
+* the detector runs in a separate interpreter, so a crash cannot corrupt host state;
 * the worker is killed at a deadline, so a hang becomes a diagnostic;
-* the response is a bounded file, so output cannot exhaust host memory;
+* stdout/stderr are discarded and the response is a bounded file, so plugin output
+  cannot exhaust host memory;
+* kernel CPU and memory limits are installed before third-party code is imported;
 * every returned finding is re-validated against its own evidence, so a plugin
   cannot forge a finding identity, attribute a finding to a different artifact,
   or impersonate another detector.
 
-What this is not: an operating-system sandbox. The worker runs with the same user
-and filesystem access as the host, restrained only by the in-worker guards in
-:mod:`trueai.plugins.guards`. Seccomp, AppContainer, or container-level isolation
-remains future work, and this docstring is the honest statement of that limit.
+What this is not: a filesystem/system-call sandbox. The worker runs with the same
+user and filesystem access as the host. The in-worker guards and kernel resource
+quotas do not stop malicious native code from opening files. Seccomp, AppContainer,
+or container-level isolation remains future work.
 
-One more limit worth stating plainly: reading a plugin's manifest requires
-importing its module, because an entry point is an import path. Host policy is
-evaluated before the detector is constructed and before it ever runs, but it
-cannot prevent module-level code from executing. Under subprocess isolation the
-detector is constructed only inside the worker.
+Manifest inspection also happens in a guarded helper process. A refused plugin is
+therefore never imported or constructed in the scanner process. Python-level
+guards, process separation, and resource quotas still do not replace a platform
+sandbox; operators should combine hostile native plugins with platform controls.
 """
 
 from __future__ import annotations
@@ -41,13 +41,20 @@ from trueai.core.artifact import Artifact
 from trueai.core.errors import DetectorRegistrationError
 from trueai.core.finding_id import finding_id_is_valid
 from trueai.core.models import ArtifactType, Finding, FindingCategory, ScanContext
-from trueai.plugins.loader import describe_target, instantiate, resolve_target
+from trueai.plugins.loader import enrich_manifest, instantiate, manifest_for, resolve_target
 from trueai.plugins.manifest import (
     CapabilityDecision,
     CapabilityPolicy,
     PluginManifest,
 )
-from trueai.plugins.protocol import WorkerArtifact, WorkerRequest, WorkerResponse
+from trueai.plugins.protocol import (
+    InspectionRequest,
+    InspectionResponse,
+    WorkerArtifact,
+    WorkerRequest,
+    WorkerResponse,
+)
+from trueai.plugins.resources import PluginResourceLimits
 
 ENTRY_POINT_GROUP = "trueai.detectors"
 
@@ -55,6 +62,16 @@ ENTRY_POINT_GROUP = "trueai.detectors"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 #: Worker responses larger than this are rejected without being parsed.
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
+
+
+def _read_bounded(path: Path, limit: int) -> bytes:
+    """Read a worker-owned protocol file without a size-check race."""
+
+    with path.open("rb") as handle:
+        payload = handle.read(limit + 1)
+    if len(payload) > limit:
+        raise DetectorRegistrationError(f"Plugin protocol output exceeded {limit} bytes")
+    return payload
 
 
 class PluginIsolation(StrEnum):
@@ -100,6 +117,7 @@ class IsolatedDetector:
         decision: CapabilityDecision,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         search_path: tuple[str, ...] = (),
+        resource_limits: PluginResourceLimits | None = None,
     ) -> None:
         self.id = manifest.detector_id
         self.entry_point = entry_point
@@ -107,6 +125,7 @@ class IsolatedDetector:
         self.decision = decision
         self.timeout = timeout
         self.search_path = search_path
+        self.resource_limits = resource_limits or PluginResourceLimits()
         self.provider: str | None = manifest.vendor
         self.supported_types: frozenset[ArtifactType] = manifest.supported_types
         self.categories: frozenset[FindingCategory] = manifest.categories
@@ -138,6 +157,7 @@ class IsolatedDetector:
             entry_point=self.entry_point,
             detector_id=self.id,
             granted_capabilities=frozenset(self.decision.granted),
+            resource_limits=self.resource_limits,
             artifact=WorkerArtifact(
                 artifact_type=artifact.artifact_type,
                 path=str(artifact.path),
@@ -180,7 +200,9 @@ class IsolatedDetector:
                         str(request_path),
                         str(response_path),
                     ],
-                    capture_output=True,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                     timeout=self.timeout,
                     env=environment,
                     check=False,
@@ -196,29 +218,25 @@ class IsolatedDetector:
                     ),
                 )
             if not response_path.is_file():
-                stderr = completed.stderr.decode("utf-8", errors="replace")[:2000]
                 return WorkerResponse(
                     detector_id=self.id,
                     ok=False,
                     error_code="plugin_crashed",
                     error_message=(
                         f"The worker exited with code {completed.returncode} without a "
-                        f"response. {stderr}"
+                        "response. Plugin-controlled stdout and stderr were discarded."
                     ),
                 )
-            size = response_path.stat().st_size
-            if size > MAX_RESPONSE_BYTES:
+            try:
+                payload = _read_bounded(response_path, MAX_RESPONSE_BYTES)
+                return WorkerResponse.model_validate_json(payload)
+            except DetectorRegistrationError as exc:
                 return WorkerResponse(
                     detector_id=self.id,
                     ok=False,
                     error_code="plugin_output_too_large",
-                    error_message=(
-                        f"The plugin produced {size} bytes, above the {MAX_RESPONSE_BYTES} "
-                        "byte limit."
-                    ),
+                    error_message=str(exc),
                 )
-            try:
-                return WorkerResponse.model_validate_json(response_path.read_text(encoding="utf-8"))
             except Exception as exc:
                 return WorkerResponse(
                     detector_id=self.id,
@@ -301,14 +319,16 @@ class PluginHost:
         self,
         *,
         policy: CapabilityPolicy | None = None,
-        isolation: PluginIsolation = PluginIsolation.IN_PROCESS,
+        isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         search_path: tuple[str, ...] = (),
+        resource_limits: PluginResourceLimits | None = None,
     ) -> None:
         self.policy = policy or CapabilityPolicy()
         self.isolation = isolation
         self.timeout = timeout
         self.search_path = search_path
+        self.resource_limits = resource_limits or PluginResourceLimits()
 
     def discover(self) -> DiscoveryResult:
         """Review every registered plugin and return the ones the policy allows."""
@@ -323,7 +343,7 @@ class PluginHost:
             entry_points(group=ENTRY_POINT_GROUP), key=lambda item: item.name
         ):
             try:
-                target, manifest, prebuilt = self._inspect(entry_point)
+                manifest = self._inspect(entry_point)
             except Exception as exc:
                 rejections.append(
                     PluginRejection(
@@ -355,11 +375,23 @@ class PluginHost:
                         decision=decision,
                         timeout=self.timeout,
                         search_path=self.search_path,
+                        resource_limits=self.resource_limits,
                     )
                 )
             else:
                 try:
-                    detector = prebuilt if prebuilt is not None else instantiate(target)
+                    target = resolve_target(entry_point.value)
+                    detector = instantiate(target)
+                    runtime_manifest = enrich_manifest(manifest_for(target, detector), detector)
+                    runtime_id = str(getattr(detector, "id", "unknown"))
+                    if runtime_id != manifest.detector_id:
+                        raise DetectorRegistrationError(
+                            f"Inspected detector {manifest.detector_id!r} became {runtime_id!r}"
+                        )
+                    if runtime_manifest != manifest:
+                        raise DetectorRegistrationError(
+                            "The plugin manifest changed between inspection and construction"
+                        )
                 except Exception as exc:
                     rejections.append(
                         PluginRejection(
@@ -380,25 +412,62 @@ class PluginHost:
             rejections=tuple(rejections),
         )
 
-    def _inspect(self, entry_point: EntryPoint) -> tuple[object, PluginManifest, object | None]:
-        """Read a plugin's manifest with as little of its code as possible.
+    def _inspect(self, entry_point: EntryPoint) -> PluginManifest:
+        """Inspect a plugin manifest without importing the module in this process."""
 
-        Importing the module is unavoidable: an entry point is a Python import
-        path and nothing about the plugin is readable without it. Everything after
-        that is avoidable, so the detector is not constructed here unless the
-        entry point is a bare factory whose identity cannot be read any other way.
-        """
-
-        target = resolve_target(entry_point.value)
-        manifest, prebuilt = describe_target(target)
-        source = prebuilt if prebuilt is not None else target
-        supported: frozenset[ArtifactType] = getattr(source, "supported_types", frozenset())
-        categories: frozenset[FindingCategory] = getattr(source, "categories", frozenset())
-        updates: dict[str, object] = {}
-        if not manifest.supported_types and supported:
-            updates["supported_types"] = frozenset(supported)
-        if not manifest.categories and categories:
-            updates["categories"] = frozenset(categories)
-        if updates:
-            manifest = manifest.model_copy(update=updates)
-        return target, manifest, prebuilt
+        workspace = Path(tempfile.mkdtemp(prefix="trueai-plugin-inspection-"))
+        request_path = workspace / "request.json"
+        response_path = workspace / "response.json"
+        try:
+            request = InspectionRequest(
+                entry_point=entry_point.value,
+                fallback_detector_id=entry_point.name,
+                resource_limits=self.resource_limits,
+            )
+            request_path.write_text(request.model_dump_json(), encoding="utf-8")
+            environment = dict(os.environ)
+            if self.search_path:
+                existing = environment.get("PYTHONPATH", "")
+                entries = [*self.search_path, existing] if existing else list(self.search_path)
+                environment["PYTHONPATH"] = os.pathsep.join(entries)
+            try:
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "trueai.plugins.inspector",
+                        str(request_path),
+                        str(response_path),
+                    ],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=self.timeout,
+                    env=environment,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise DetectorRegistrationError(
+                    f"Plugin manifest inspection exceeded {self.timeout:g} seconds"
+                ) from exc
+            if not response_path.is_file():
+                raise DetectorRegistrationError(
+                    f"Manifest inspector exited with {completed.returncode} without a response"
+                )
+            response = InspectionResponse.model_validate_json(
+                _read_bounded(response_path, MAX_RESPONSE_BYTES)
+            )
+            if not response.ok or response.manifest is None:
+                raise DetectorRegistrationError(
+                    response.error_message or "Plugin manifest inspection failed"
+                )
+            manifest = PluginManifest.model_validate(response.manifest)
+            if response.detector_id != manifest.detector_id:
+                raise DetectorRegistrationError("Plugin manifest inspection identity mismatch")
+            return manifest
+        finally:
+            for path in (request_path, response_path):
+                with contextlib.suppress(OSError):
+                    path.unlink(missing_ok=True)
+            with contextlib.suppress(OSError):
+                workspace.rmdir()

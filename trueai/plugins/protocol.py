@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from trueai.core.models import ArtifactType, ScanOptions
 from trueai.plugins.manifest import PluginCapability
+from trueai.plugins.resources import PluginResourceLimits
 
 PROTOCOL_VERSION: Literal["1"] = "1"
 
@@ -40,6 +41,7 @@ class WorkerRequest(BaseModel):
     entry_point: str
     detector_id: str
     granted_capabilities: frozenset[PluginCapability]
+    resource_limits: PluginResourceLimits = PluginResourceLimits()
     artifact: WorkerArtifact
     options: ScanOptions
     root: str | None = None
@@ -54,5 +56,29 @@ class WorkerResponse(BaseModel):
     detector_id: str
     ok: bool
     findings: list[dict[str, Any]] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class InspectionRequest(BaseModel):
+    """Request a capability-guarded manifest inspection in a helper process."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    protocol_version: Literal["1"] = PROTOCOL_VERSION
+    entry_point: str
+    fallback_detector_id: str
+    resource_limits: PluginResourceLimits = PluginResourceLimits()
+
+
+class InspectionResponse(BaseModel):
+    """Bounded output of an untrusted plugin-manifest inspection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    protocol_version: Literal["1"] = PROTOCOL_VERSION
+    detector_id: str
+    ok: bool
+    manifest: dict[str, Any] | None = None
     error_code: str | None = None
     error_message: str | None = None

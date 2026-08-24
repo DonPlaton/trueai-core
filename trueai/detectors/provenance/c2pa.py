@@ -17,7 +17,16 @@ from trueai.core.models import (
 from trueai.core.provenance import PROTECTED_PROVENANCE_MARKERS
 from trueai.detectors.base import BaseDetector
 
-_C2PA_TYPES = frozenset({ArtifactType.PNG, ArtifactType.JPEG, ArtifactType.PDF, ArtifactType.SVG})
+_C2PA_TYPES = frozenset(
+    {
+        ArtifactType.PNG,
+        ArtifactType.JPEG,
+        ArtifactType.PDF,
+        ArtifactType.SVG,
+        ArtifactType.AUDIO,
+        ArtifactType.VIDEO,
+    }
+)
 
 
 class C2PAMarkerDetector(BaseDetector):

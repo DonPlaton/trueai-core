@@ -1,0 +1,292 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "additionalProperties": false,
+      "description": "Machine-readable description of an artifact included in a report.",
+      "properties": {
+        "artifact_type": {
+          "$ref": "#/$defs/ArtifactType"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        }
+      },
+      "required": [
+        "path",
+        "artifact_type"
+      ],
+      "title": "ArtifactDescriptor",
+      "type": "object"
+    },
+    "ArtifactType": {
+      "description": "Artifact types understood by the engine.",
+      "enum": [
+        "text",
+        "markdown",
+        "source_code",
+        "html",
+        "css",
+        "svg",
+        "docx",
+        "pptx",
+        "xlsx",
+        "pdf",
+        "png",
+        "jpeg",
+        "audio",
+        "video",
+        "git_repository",
+        "directory",
+        "binary",
+        "unknown"
+      ],
+      "title": "ArtifactType",
+      "type": "string"
+    },
+    "CertificateSignature": {
+      "additionalProperties": false,
+      "description": "Optional issuer signature over the canonical certificate claims.",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "default": "ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 200,
+          "minLength": 40,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key_id",
+        "value"
+      ],
+      "title": "CertificateSignature",
+      "type": "object"
+    },
+    "CertificateStatus": {
+      "description": "Outcome of the scan represented by a certificate.",
+      "enum": [
+        "clear",
+        "indicators_detected",
+        "incomplete"
+      ],
+      "title": "CertificateStatus",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.trueai.dev/certificate/0.1/schema.json",
+  "additionalProperties": false,
+  "description": "Versioned, content-bound record of one TrueAI scan.",
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/ArtifactDescriptor"
+    },
+    "artifact_inventory_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Inventory Sha256",
+      "type": "string"
+    },
+    "certificate_id": {
+      "pattern": "^TAI1-[A-Z2-7]{32}$",
+      "title": "Certificate Id",
+      "type": "string"
+    },
+    "certificate_schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Certificate Schema Version",
+      "type": "string"
+    },
+    "detectors_run": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Detectors Run",
+      "type": "array"
+    },
+    "diagnostic_codes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Diagnostic Codes",
+      "type": "array"
+    },
+    "experimental_detectors_enabled": {
+      "title": "Experimental Detectors Enabled",
+      "type": "boolean"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "indicator_categories": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Indicator Categories",
+      "type": "array"
+    },
+    "indicator_finding_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Indicator Finding Ids",
+      "type": "array"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "package_version": {
+      "default": "0.1.0-dev",
+      "title": "Package Version",
+      "type": "string"
+    },
+    "policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policy"
+    },
+    "protected_provenance_finding_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Protected Provenance Finding Ids",
+      "type": "array"
+    },
+    "report_schema_version": {
+      "default": "0.1",
+      "title": "Report Schema Version",
+      "type": "string"
+    },
+    "report_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "scan_complete": {
+      "title": "Scan Complete",
+      "type": "boolean"
+    },
+    "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+    },
+    "scan_options": {
+      "additionalProperties": true,
+      "title": "Scan Options",
+      "type": "object"
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CertificateSignature"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "statement": {
+      "title": "Statement",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/CertificateStatus"
+    }
+  },
+  "required": [
+    "certificate_id",
+    "issued_at",
+    "scan_id",
+    "status",
+    "statement",
+    "artifact",
+    "artifact_inventory_sha256",
+    "report_sha256",
+    "scan_complete",
+    "experimental_detectors_enabled",
+    "indicator_categories",
+    "scan_options",
+    "limitations"
+  ],
+  "title": "TrueAI Audit Certificate 0.1",
+  "type": "object"
+}

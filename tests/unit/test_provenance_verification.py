@@ -14,9 +14,20 @@ from tests.fixtures_provenance import (
     provenance_dependencies_available,
 )
 from tests.support import assert_optional_dependencies
-from trueai import verify_provenance
+from trueai import (
+    Artifact,
+    PolicyStore,
+    TrueAIEngine,
+    attach_provenance_verifications,
+    verify_provenance,
+)
 from trueai.cli.app import app
-from trueai.core.models import ProvenanceVerificationStatus, ValidationOutcome
+from trueai.core.errors import ProvenanceConfigurationError, UnsafeArtifactError
+from trueai.core.models import (
+    ProvenanceVerification,
+    ProvenanceVerificationStatus,
+    ValidationOutcome,
+)
 from trueai.detectors.provenance.verification import C2PAVerifier, c2pa_available
 
 requires_c2pa = pytest.mark.skipif(
@@ -63,6 +74,64 @@ def test_a_signature_chaining_to_a_configured_anchor_is_trusted(
     assert result.status == ProvenanceVerificationStatus.TRUSTED
     assert result.authenticated
     assert result.trust_anchors_configured
+
+
+@requires_c2pa
+def test_authenticated_verification_can_be_attached_to_a_scan_report(
+    signed_asset: SignedAsset,
+) -> None:
+    report = TrueAIEngine.default(discover_plugins=False).scan(
+        signed_asset.path,
+        policy=PolicyStore.get("audit"),
+    )
+
+    enriched = attach_provenance_verifications(
+        report,
+        signed_asset.path,
+        trust_anchors=signed_asset.trust_anchor_path,
+    )
+
+    assert enriched.findings == report.findings
+    assert len(enriched.provenance_verifications) == 1
+    assert enriched.provenance_verifications[0].status == ProvenanceVerificationStatus.TRUSTED
+
+
+def test_report_verification_rejects_bytes_changed_after_scanning(tmp_path: Path) -> None:
+    asset = tmp_path / "changing.png"
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(asset)
+    report = TrueAIEngine.default(discover_plugins=False).scan(asset)
+
+    original = asset.read_bytes()
+    asset.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+
+    with pytest.raises(UnsafeArtifactError, match="changed after scanning"):
+        attach_provenance_verifications(report, asset)
+
+
+def test_report_verification_rejects_bytes_changed_while_verifier_runs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "racing.png"
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(asset)
+    report = TrueAIEngine.default(discover_plugins=False).scan(asset)
+    original_verify = C2PAVerifier.verify
+
+    def mutate_after_verification(
+        verifier: C2PAVerifier,
+        artifact: Artifact,
+    ) -> ProvenanceVerification:
+        result = original_verify(verifier, artifact)
+        path = artifact.path
+        assert path is not None
+        payload = path.read_bytes()
+        path.write_bytes(payload[:-1] + bytes([payload[-1] ^ 1]))
+        return result
+
+    monkeypatch.setattr(C2PAVerifier, "verify", mutate_after_verification)
+
+    with pytest.raises(UnsafeArtifactError, match="changed after scanning"):
+        attach_provenance_verifications(report, asset)
 
 
 @requires_c2pa
@@ -161,6 +230,25 @@ def test_remote_manifest_fetching_is_off_unless_requested(signed_asset: SignedAs
     assert explicit.remote_manifests_allowed is True
 
 
+@requires_c2pa
+def test_invalid_trust_anchors_fail_closed_instead_of_being_silently_ignored(
+    tmp_path: Path,
+) -> None:
+    plain = tmp_path / "plain.png"
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(plain)
+
+    with pytest.raises(ProvenanceConfigurationError, match=r"trust|C2PA"):
+        verify_provenance(plain, trust_anchors="not-a-pem")
+
+    anchors = tmp_path / "invalid-roots.pem"
+    anchors.write_text("not-a-pem", encoding="utf-8")
+    result = CliRunner().invoke(
+        app,
+        ["verify", str(plain), "--trust-anchors", str(anchors)],
+    )
+    assert result.exit_code == 3, result.output
+
+
 # -- behaviour without the optional dependency ---------------------------------------
 
 
@@ -239,6 +327,34 @@ def test_cli_verify_exit_codes_distinguish_trusted_from_valid(
     assert valid.exit_code == 1, valid.output
     assert trusted.exit_code == 0, trusted.output
     assert "TRUSTED" in trusted.output
+
+
+@requires_c2pa
+def test_cli_scan_can_emit_trusted_provenance_in_the_json_report(
+    signed_asset: SignedAsset,
+) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            str(signed_asset.path),
+            "--verify-provenance",
+            "--trust-anchors",
+            str(signed_asset.trust_anchor_path),
+            "--plugins",
+            "disabled",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    import json
+
+    payload = json.loads(result.stdout)
+    assert payload["provenance_verifications"][0]["status"] == "trusted"
+    assert payload["findings"], "Marker findings stay separate from authenticated verification"
 
 
 @requires_c2pa

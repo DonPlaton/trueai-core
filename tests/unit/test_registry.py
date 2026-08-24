@@ -19,6 +19,7 @@ from trueai.core.models import (
 from trueai.core.registry import DetectorRegistry
 from trueai.detectors import create_default_registry
 from trueai.detectors.base import BaseDetector
+from trueai.plugins.host import IsolatedDetector, PluginIsolation
 
 
 class ExampleDetector(BaseDetector):
@@ -75,7 +76,7 @@ def test_entry_point_discovery_registers_protocol_compatible_detector(
     registry = DetectorRegistry()
 
     assert registry.discover() == [WellBehavedPlugin.id]
-    assert isinstance(registry.get(WellBehavedPlugin.id), WellBehavedPlugin)
+    assert isinstance(registry.get(WellBehavedPlugin.id), IsolatedDetector)
     assert not registry.plugin_discovery.rejections
 
 
@@ -85,6 +86,17 @@ def test_default_registry_discovers_entry_point_plugins(
     install_example_plugin(monkeypatch)
 
     registry = create_default_registry()
+
+    assert isinstance(registry.get(WellBehavedPlugin.id), IsolatedDetector)
+
+
+def test_in_process_plugins_require_an_explicit_trust_choice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_example_plugin(monkeypatch)
+    registry = DetectorRegistry()
+
+    registry.discover(isolation=PluginIsolation.IN_PROCESS)
 
     assert isinstance(registry.get(WellBehavedPlugin.id), WellBehavedPlugin)
 

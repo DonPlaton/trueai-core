@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,6 +39,7 @@ CACHE_FORMAT_VERSION = "1"
 #: Entries larger than this are not written. A pathological artifact should not
 #: be able to fill the cache directory.
 MAX_ENTRY_BYTES = 4 * 1024 * 1024
+_CACHE_KEY = re.compile(r"[0-9a-f]{64}\Z")
 
 #: Option fields that do not change what a detector observes about one artifact.
 _NON_KEY_OPTIONS = frozenset({"max_files", "max_workers", "cache_directory"})
@@ -95,10 +98,18 @@ class ScanCache:
     def load(self, key: str) -> CachedArtifactResult | None:
         """Return a previously stored result, or ``None`` for any miss or damage."""
 
-        path = self._entry_path(key)
+        path = self._safe_entry_path(key)
+        if path is None:
+            return None
         try:
-            raw: Any = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            if path.stat().st_size > MAX_ENTRY_BYTES:
+                return None
+            with path.open("rb") as handle:
+                encoded = handle.read(MAX_ENTRY_BYTES + 1)
+            if len(encoded) > MAX_ENTRY_BYTES:
+                return None
+            raw: Any = json.loads(encoded.decode("utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             return None
         if not isinstance(raw, dict) or raw.get("key") != key:
             return None
@@ -136,9 +147,10 @@ class ScanCache:
         encoded = payload.encode("utf-8")
         if len(encoded) > MAX_ENTRY_BYTES:
             return
-        path = self._entry_path(key)
+        path = self._safe_entry_path(key, create_parent=True)
+        if path is None:
+            return
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
             descriptor, temporary_name = tempfile.mkstemp(prefix=".trueai-cache-", dir=path.parent)
             temporary = Path(temporary_name)
             try:
@@ -154,7 +166,7 @@ class ScanCache:
         """Delete every cache entry and return how many were removed."""
 
         removed = 0
-        if not self.directory.is_dir():
+        if not self.directory.is_dir() or self._contains_link(self.directory):
             return 0
         for entry in sorted(self.directory.rglob("*.json")):
             try:
@@ -166,3 +178,49 @@ class ScanCache:
 
     def _entry_path(self, key: str) -> Path:
         return self.directory / key[:2] / f"{key}.json"
+
+    def _safe_entry_path(self, key: str, *, create_parent: bool = False) -> Path | None:
+        """Resolve one cache entry without following attacker-controlled links.
+
+        Cache contents are untrusted local state. A checkout may already contain a
+        ``.trueai/cache`` symlink, or a hostile process may place a link at a hash
+        prefix. In either case caching degrades to a miss instead of redirecting a
+        scanner write outside the configured cache tree.
+        """
+
+        if _CACHE_KEY.fullmatch(key) is None or self._contains_link(self.directory):
+            return None
+        entry = self._entry_path(key)
+        try:
+            if create_parent:
+                entry.parent.mkdir(parents=True, exist_ok=True)
+            if self._contains_link(entry.parent):
+                return None
+            root = self.directory.resolve(strict=create_parent)
+            parent = entry.parent.resolve(strict=create_parent)
+            parent.relative_to(root)
+            if entry.exists() and self._is_link(entry):
+                return None
+        except (OSError, ValueError):
+            return None
+        return entry
+
+    @classmethod
+    def _contains_link(cls, path: Path) -> bool:
+        """Return whether any existing component is a symlink or junction."""
+
+        absolute = Path(os.path.abspath(path))
+        current = Path(absolute.anchor)
+        for part in absolute.parts[1:]:
+            current /= part
+            try:
+                if current.exists() and cls._is_link(current):
+                    return True
+            except OSError:
+                return True
+        return False
+
+    @staticmethod
+    def _is_link(path: Path) -> bool:
+        junction = getattr(path, "is_junction", None)
+        return path.is_symlink() or bool(junction is not None and junction())

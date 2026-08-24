@@ -15,7 +15,7 @@ def create_default_registry(
     *,
     include_experimental: bool = False,
     discover_plugins: bool = True,
-    plugin_isolation: PluginIsolation = PluginIsolation.IN_PROCESS,
+    plugin_isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
     capability_policy: CapabilityPolicy | None = None,
     plugin_search_path: tuple[str, ...] = (),
 ) -> DetectorRegistry:
@@ -32,6 +32,7 @@ def create_default_registry(
     from trueai.detectors.documents.xlsx import XLSXDetector
     from trueai.detectors.git.commits import GitAttributionDetector
     from trueai.detectors.git.repository import GitRepositoryContextDetector
+    from trueai.detectors.media.metadata import MediaMetadataDetector
     from trueai.detectors.provenance.c2pa import C2PAMarkerDetector
     from trueai.detectors.text.attribution import ExplicitAttributionDetector
     from trueai.detectors.text.stylometry import StylometryDetector
@@ -54,6 +55,7 @@ def create_default_registry(
         PDFDetector(),
         SVGDetector(),
         RasterMetadataDetector(),
+        MediaMetadataDetector(),
         C2PAMarkerDetector(),
         StylometryDetector(),
         DesignStyleDetector(),

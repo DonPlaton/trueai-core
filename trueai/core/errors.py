@@ -65,3 +65,15 @@ class OptionalDependencyError(TrueAIError):
     """Raised when a requested capability needs an optional dependency."""
 
     code = "optional_dependency_missing"
+
+
+class ProvenanceConfigurationError(TrueAIError):
+    """Raised when requested provenance trust settings cannot be enforced."""
+
+    code = "provenance_configuration_error"
+
+
+class AttestationError(TrueAIError):
+    """Raised when an audit certificate cannot be issued or verified safely."""
+
+    code = "attestation_error"

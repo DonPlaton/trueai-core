@@ -16,3 +16,14 @@ frozen published baseline and fails on any breaking change. The rules are in
 
 A breaking change is not fixed by editing the published baseline. It requires a
 new schema version, a new published file, and a migration note in the changelog.
+
+Audit certificates, issuer revocation lists, and enterprise policy bundles have independent
+contracts:
+
+- `trueai-certificate-0.1.schema.json` is emitted by `trueai certificates schema`;
+- `trueai-revocation-list-0.1.schema.json` is emitted by
+  `trueai certificates revocation-schema`.
+- `trueai-policy-bundle-0.1.schema.json` is emitted by
+  `trueai policies bundle-schema`.
+
+All snapshots must match the implementation. They do not change the scan-report schema version.

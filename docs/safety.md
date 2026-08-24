@@ -42,6 +42,8 @@ explicitly permitted.
   instructions match.
 - PNG/JPEG: compressed pixel-bearing chunks/scan data are byte-identical; rendering-critical EXIF
   such as Orientation is preserved.
+- WAV/MP3/FLAC: emitted bytes equal the planned structural transform and audio-bearing chunks,
+  MPEG frames, or FLAC frame payloads remain byte-identical. No codec is invoked.
 - PDF optional cleanup: every reachable non-selected indirect object and raw stream payload
   matches before and after. Object/page/stream budgets are enforced without decoding page streams.
 
@@ -56,14 +58,35 @@ runs. Detection is read-only, so filesystem writes, process creation, and networ
 by default even to a plugin that requests them, and a refused plugin is reported in the scan rather
 than silently dropped.
 
-Subprocess isolation contains crashes, hangs, and unbounded output, and re-derives every returned
+Subprocess isolation separates host state, terminates hangs, discards stdout/stderr, bounds the
+response, and re-derives every returned
 finding so a plugin cannot forge an identity, reattribute a finding, or impersonate another
 detector. Guards are installed before the plugin module is imported, so import-time and constructor
-code is covered.
+code is covered. Kernel CPU and address-space limits are installed before import through POSIX
+rlimits or a Windows Job Object.
 
-It is not an operating-system sandbox: the worker runs as the same user with the same filesystem
-access, restrained only by Python-level guards, and reading a manifest still imports the plugin's
-module in the host. See [plugins](plugins.md).
+It is not a filesystem/system-call sandbox: the worker runs as the same user with the same
+filesystem access, and Python guards do not stop native code. Kernel quotas bound exhaustion, not
+file access. Manifest inspection also runs in a guarded and quota-bound helper, so discovery does
+not import third-party modules in the scanner process. See [plugins](plugins.md).
+
+## Machine/tool residue and certificates
+
+Predictable cleanup removes only the exact fields, chunks, elements, comments, or text spans a
+reviewed plan authorizes. The published output is rescanned by default. A remaining heuristic or
+provider watermark is reported as residue; TrueAI does not rewrite content to evade a detector.
+
+Audit certificates bind this scoped result to exact bytes and include limitations stating that a
+clear scan does not prove human authorship. Unsigned certificates do not authenticate their issuer;
+optional Ed25519 signatures do. Finite validity and signed revocation lists prevent an expired or
+withdrawn certificate from passing strict verification. A revocation list has its own expiry;
+stale or unauthenticated lists fail closed when revocation checking is required. See
+[certificates](certificates.md).
+
+Media detectors walk bounded container metadata only. They do not invoke codecs, render frames,
+load cover art, execute attachments, or scan past file/parser/value budgets. WAV/MP3/FLAC cleanup
+is enabled only for exact fields covered by stream-byte invariants; M4A/MP4/MOV/WebM remain
+inspection-only.
 
 ## Text decoding
 

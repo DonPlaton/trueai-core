@@ -7,9 +7,16 @@ from pathlib import Path
 
 import pytest
 
+from tests.support import create_symlink
 from trueai import TrueAIEngine
 from trueai.core.artifact import Artifact
-from trueai.core.cache import CACHE_FORMAT_VERSION, ScanCache, options_fingerprint
+from trueai.core.cache import (
+    CACHE_FORMAT_VERSION,
+    MAX_ENTRY_BYTES,
+    CachedArtifactResult,
+    ScanCache,
+    options_fingerprint,
+)
 from trueai.core.models import (
     ArtifactType,
     ConfidenceType,
@@ -153,6 +160,23 @@ def test_parallel_scan_repeats_deterministically(tmp_path: Path) -> None:
     second = engine.scan(tmp_path, options=options)
 
     assert [finding.id for finding in first.findings] == [finding.id for finding in second.findings]
+
+
+def test_direct_container_artifact_establishes_a_recursive_inventory_baseline(
+    tmp_path: Path,
+) -> None:
+    """The public Artifact API must behave like scanning the same container path."""
+
+    (tmp_path / "notes.md").write_text(ATTRIBUTION, encoding="utf-8")
+    artifact = Artifact(artifact_type=ArtifactType.DIRECTORY, path=tmp_path, logical_path=".")
+    engine = TrueAIEngine.default(discover_plugins=False)
+
+    direct = engine.scan(artifact)
+    by_path = engine.scan(tmp_path)
+
+    assert [item.path for item in direct.artifacts] == [item.path for item in by_path.artifacts]
+    assert [item.id for item in direct.findings] == [item.id for item in by_path.findings]
+    assert not [item for item in direct.diagnostics if item.code == "detector_mutation"]
 
 
 def test_finding_budget_is_global_across_workers(tmp_path: Path) -> None:
@@ -413,6 +437,39 @@ def test_stored_entry_records_the_key_it_was_written_for(tmp_path: Path) -> None
     payload = json.loads(entries[0].read_text(encoding="utf-8"))
     assert payload["key"] == entries[0].stem
     assert payload["findings"]
+
+
+def test_oversized_cache_entry_is_rejected_before_it_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = ScanCache(tmp_path / "cache")
+    key = "a" * 64
+    entry = cache.directory / key[:2] / f"{key}.json"
+    entry.parent.mkdir(parents=True)
+    entry.write_bytes(b"{" + b" " * MAX_ENTRY_BYTES + b"}")
+    original = Path.read_text
+
+    def fail_if_entry_is_materialized(path: Path, *args: object, **kwargs: object) -> str:
+        if path == entry:
+            raise AssertionError("oversized cache entry was materialized")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_if_entry_is_materialized)
+
+    assert cache.load(key) is None
+
+
+def test_cache_prefix_symlink_cannot_redirect_a_write_outside_the_cache(tmp_path: Path) -> None:
+    cache = ScanCache(tmp_path / "cache")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    key = "b" * 64
+    cache.directory.mkdir()
+    create_symlink(cache.directory / key[:2], outside, target_is_directory=True)
+
+    cache.store(key, CachedArtifactResult((), (), ()))
+
+    assert not (outside / f"{key}.json").exists()
 
 
 @pytest.mark.parametrize("workers", [1, 4])

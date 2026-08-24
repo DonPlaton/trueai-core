@@ -34,7 +34,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build and audit tooling
-        run: python -m pip install build twine cyclonedx-bom pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine cyclonedx-bom pip-audit
 
       - name: Confirm the tag matches the package version
         id: version
@@ -51,8 +53,9 @@ jobs:
 
       - name: Audit dependencies before publishing
         run: |
-          python -m pip install ".[pdf]"
-          python -m pip_audit --strict --progress-spinner off
+          python -m pip install ".[pdf,c2pa,attestation]"
+          python -m pip freeze --all | grep -ivE '^trueai-core([=@ ]|$)' > audit-requirements.txt
+          python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
 
       - name: Enforce the dependency license allowlist
         run: |
@@ -60,7 +63,7 @@ jobs:
           python scripts/check_licenses.py
 
       - name: Generate the release SBOM
-        run: cyclonedx-py environment --output-format JSON --outfile dist/sbom.cdx.json
+        run: cyclonedx-py environment --output-format JSON --output-file dist/sbom.cdx.json
 
       - name: Record SHA-256 digests
         run: |

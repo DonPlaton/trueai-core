@@ -34,13 +34,22 @@ from pathlib import Path
 from typing import Any
 
 from trueai.core.artifact import Artifact, ArtifactDiscovery
-from trueai.core.errors import OptionalDependencyError
+from trueai.core.errors import (
+    OptionalDependencyError,
+    ProvenanceConfigurationError,
+    TrueAIError,
+    UnsafeArtifactError,
+)
 from trueai.core.models import (
+    ArtifactDescriptor,
+    ArtifactType,
+    FindingCategory,
     ProvenanceAssertion,
     ProvenanceSigner,
     ProvenanceValidationEntry,
     ProvenanceVerification,
     ProvenanceVerificationStatus,
+    ScanReport,
     ValidationOutcome,
 )
 
@@ -168,6 +177,8 @@ class C2PAVerifier:
             )
         except errors.FileNotFound as exc:
             raise OptionalDependencyError(f"Verifier could not read {path}: {exc}") from exc
+        except ProvenanceConfigurationError:
+            raise
         except Exception as exc:  # foreign library boundary
             return self._unavailable(
                 artifact,
@@ -197,8 +208,12 @@ class C2PAVerifier:
         try:
             configuration = module.Settings.from_dict(settings)
             return module.ContextBuilder().with_settings(configuration).build()
-        except Exception:  # pragma: no cover - defensive around a foreign library
-            return None
+        except Exception as exc:  # foreign library boundary
+            requested = " with a caller-supplied trust store" if self.trust_anchors else ""
+            raise ProvenanceConfigurationError(
+                f"C2PA verification settings{requested} could not be enforced: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
 
     def _describe(self, artifact: Artifact, reader: Any) -> ProvenanceVerification:
         state = reader.get_validation_state()
@@ -407,6 +422,134 @@ def verify_provenance(
         allow_remote_manifests=allow_remote_manifests,
     )
     return verifier.verify(artifact)
+
+
+def attach_provenance_verifications(
+    report: ScanReport,
+    target: str | Path,
+    *,
+    trust_anchors: str | Path | None = None,
+    allow_remote_manifests: bool = False,
+) -> ScanReport:
+    """Explicitly verify eligible report artifacts and attach typed results."""
+
+    try:
+        root = Path(target).resolve(strict=True)
+    except OSError as exc:
+        raise UnsafeArtifactError(
+            f"Provenance verification target changed or became inaccessible: {target}"
+        ) from exc
+    verifier = C2PAVerifier(
+        trust_anchors=_resolve_trust_anchors(trust_anchors),
+        allow_remote_manifests=allow_remote_manifests,
+    )
+    if root.is_file():
+        artifact = Artifact(
+            artifact_type=report.artifact.artifact_type,
+            path=root,
+            logical_path=report.artifact.path,
+            size=report.artifact.size,
+            media_type=report.artifact.media_type,
+        )
+        single_result = (_verify_scanned_artifact(verifier, artifact, report.artifact),)
+        return report.model_copy(update={"provenance_verifications": single_result})
+
+    if not c2pa_available():
+        unavailable = verifier.verify(
+            Artifact(
+                artifact_type=ArtifactType.DIRECTORY,
+                path=root,
+                logical_path=report.artifact.path,
+            )
+        )
+        return report.model_copy(update={"provenance_verifications": (unavailable,)})
+
+    supported_media_types = verifier.supported_media_types()
+    marker_paths = {
+        finding.artifact_path
+        for finding in report.findings
+        if finding.category == FindingCategory.C2PA_PROVENANCE
+    }
+    results: list[ProvenanceVerification] = []
+    for descriptor in report.artifacts:
+        if descriptor.sha256 is None or descriptor.artifact_type in {
+            ArtifactType.DIRECTORY,
+            ArtifactType.GIT_REPOSITORY,
+        }:
+            continue
+        if (
+            descriptor.media_type not in supported_media_types
+            and descriptor.path not in marker_paths
+        ):
+            continue
+        try:
+            candidate = (root / descriptor.path).resolve(strict=True)
+            candidate.relative_to(root)
+        except (OSError, ValueError) as exc:
+            raise UnsafeArtifactError(
+                "Provenance verification candidate escaped the scanned root, changed, "
+                "or became inaccessible"
+            ) from exc
+        artifact = Artifact(
+            artifact_type=descriptor.artifact_type,
+            path=candidate,
+            logical_path=descriptor.path,
+            size=descriptor.size,
+            media_type=descriptor.media_type,
+        )
+        results.append(_verify_scanned_artifact(verifier, artifact, descriptor))
+    return report.model_copy(update={"provenance_verifications": tuple(results)})
+
+
+def _verify_scanned_artifact(
+    verifier: C2PAVerifier,
+    artifact: Artifact,
+    descriptor: ArtifactDescriptor,
+) -> ProvenanceVerification:
+    """Verify only while the artifact remains identical to its scan descriptor."""
+
+    _assert_matches_scanned_descriptor(artifact, descriptor)
+    result = verifier.verify(artifact)
+    _assert_matches_scanned_descriptor(artifact, descriptor)
+    return result
+
+
+def _assert_matches_scanned_descriptor(
+    artifact: Artifact,
+    descriptor: ArtifactDescriptor,
+) -> None:
+    """Fail closed when verification would inspect bytes absent from the scan."""
+
+    if descriptor.sha256 is None or descriptor.size is None:
+        raise UnsafeArtifactError(
+            f"Cannot bind provenance verification to the scan for {descriptor.path}: "
+            "the report has no complete content fingerprint"
+        )
+    if artifact.path is None or not artifact.path.is_file():
+        raise UnsafeArtifactError(
+            f"Provenance verification target is no longer a file: {descriptor.path}"
+        )
+    try:
+        current_size = artifact.path.stat().st_size
+    except OSError as exc:
+        raise UnsafeArtifactError(
+            f"Unable to bind provenance verification to {descriptor.path}: {exc}"
+        ) from exc
+    if current_size != descriptor.size:
+        raise UnsafeArtifactError(
+            f"Artifact changed after scanning: {descriptor.path} has size {current_size}, "
+            f"expected {descriptor.size}"
+        )
+    try:
+        current_sha256 = artifact.sha256(max(descriptor.size, 1))
+    except (OSError, TrueAIError) as exc:
+        raise UnsafeArtifactError(
+            f"Unable to bind provenance verification to {descriptor.path}: {exc}"
+        ) from exc
+    if current_sha256 != descriptor.sha256:
+        raise UnsafeArtifactError(
+            f"Artifact changed after scanning: SHA-256 mismatch for {descriptor.path}"
+        )
 
 
 def _resolve_trust_anchors(trust_anchors: str | Path | None) -> str | None:

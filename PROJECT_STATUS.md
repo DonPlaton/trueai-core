@@ -1,6 +1,6 @@
 # TrueAI Core: Project Overview and Status
 
-Status date: 2026-08-21  
+Status date: 2026-08-24
 Package version: `0.1.0-dev`  
 Public report schema: `0.1`  
 License: Apache-2.0
@@ -22,13 +22,204 @@ fundamentally different evidence classes:
 
 The current release is a functional development baseline rather than a prototype. The public API,
 CLI, detector registry, policies, remediation workflow, integrity verification, reports, tests,
-security boundaries, documentation, and packaging are implemented. Since the previous status, all
-five near-term priorities have landed: cross-platform CI and release hardening, official C2PA
+security boundaries, documentation, and packaging are implemented. Since the previous status, the
+near-term priorities have landed: cross-platform CI and release hardening, official C2PA
 verification, PPTX/XLSX support through the shared OPC layer, repository-scale parallelism, nested
-ignore rules and incremental caching, and process-isolated plugins with capability manifests.
+ignore rules and incremental caching, process-isolated plugins with capability manifests, post-clean
+residue verification, content-bound audit certificates with optional Ed25519 signatures and
+offline revocation, bounded audio/video container metadata inspection and WAV/MP3/FLAC cleanup,
+kernel CPU/memory quotas for plugin helpers, explicit C2PA results inside scan reports, and signed
+enterprise policy bundles with baselines, suppressions, exceptions, and audit trails.
 
-The main remaining work is media-format expansion, an operating-system sandbox for plugins,
-enterprise policy distribution, and calibrated learned models.
+The main remaining work is complex video-container cleanup integrity, filesystem/system-call
+confinement for hostile native plugins, enterprise certificate identity/timestamps/transparency,
+hosted release validation, HTML/GUI surfaces, the proposed Human Contribution Record and Process
+Attestation layer, and calibrated learned models.
+
+## Current work board
+
+This section is the operational source of truth for the active development cycle.
+
+### Completed
+
+- [x] Stable finding, artifact, policy, remediation, integrity, report, and certificate models.
+- [x] Recursive bounded scanning for repositories and all v0.1 artifact families.
+- [x] Deterministic text, Git, web, OPC, PDF, SVG, raster, and media-container inspection.
+- [x] Safe cleanup for text, DOCX, PPTX, XLSX, PDF, SVG, PNG, and JPEG with post-clean rescans.
+- [x] Provenance-preserving cleanup guards and explicit C2PA verification.
+- [x] Content-bound audit certificates with Ed25519 signatures, expiry, and signed offline
+  revocation lists.
+- [x] JSON, SARIF, terminal reports, frozen schema checks, packaging, and adversarial tests.
+- [x] Deterministic parallel repository scanning, incremental cache, and process-isolated plugins.
+- [x] Surgical WAV, FLAC, and MP3 metadata cleanup with byte-identical audio-payload verification.
+- [x] Format-specific media integrity records plus positive, refusal, and malformed-input tests.
+- [x] Kernel CPU/memory quotas installed before third-party plugin import on Windows and POSIX.
+- [x] Signed enterprise policy bundles, exact baselines, suppressions, exceptions, and report audit
+  trails with protected-provenance enforcement.
+- [x] Explicit authenticated C2PA verification embedded in terminal/JSON scan reports without
+  mutating marker findings.
+
+### In progress
+
+- No implementation block is currently incomplete. The next block starts with the remaining
+  priorities below.
+
+### Known remaining backlog
+
+This is the source of truth for all known unfinished work as of the status date. An unchecked item
+is not an implied commitment for `0.1.0`; the priority labels identify sequencing. Tasks that need
+external accounts or hosted infrastructure are explicitly marked `external`.
+
+#### P0 — release candidate gates
+
+- [ ] `REL-01` (`external`) Run the complete GitHub Actions matrix on hosted Linux, macOS, and
+  Windows, including optional PDF/C2PA/attestation jobs and the symlink security cases.
+- [ ] `REL-02` (`external`) Configure the protected `pypi` environment and PyPI trusted publisher,
+  then exercise the release workflow against TestPyPI.
+- [ ] `REL-03` (`external`) Sign wheel, sdist, provenance statement, and SBOM in hosted CI; verify
+  signatures from a clean machine before cutting `v0.1.0-rc1`.
+- [ ] `REL-04` Publish a reproducible auditor environment: pinned `uv.lock`, minimal container
+  image, recorded build inputs, and documented bit-for-bit reproduction procedure.
+- [ ] `REL-05` Freeze the broader Python API surface, document deprecation rules, and classify any
+  post-`0.1` model/schema change as additive or breaking before the release candidate.
+
+#### P1 — hostile-plugin confinement and supply chain
+
+- [ ] `PLUG-01` Define one capability-broker contract for read-only artifact handles, temporary
+  output, optional network access, subprocesses, and native libraries.
+- [ ] `PLUG-02` Enforce the contract with AppContainer or an equivalent restricted token on Windows,
+  seccomp plus namespaces on Linux, and an appropriate macOS sandbox/container boundary.
+- [ ] `PLUG-03` Add platform adversarial tests proving that a hostile native plugin cannot read
+  outside its grant, open the network, spawn children, or survive its deadline.
+- [ ] `PLUG-04` Sign plugin distributions, validate publisher identity and compatibility before
+  import, and support centrally managed allowlists and revocation.
+- [ ] `PLUG-05` Continuously fuzz the plugin protocol, manifest parser, finding validation, and
+  resource-limit failure paths.
+
+#### P1 — artifact coverage and integrity
+
+- [ ] `FMT-01` Specify executable MP4/MOV/M4A invariants for samples, timing, edit lists, indexes,
+  encryption state, rendering-critical metadata, and protected provenance.
+- [ ] `FMT-02` Implement surgical MP4/MOV/M4A metadata cleanup only after `FMT-01`, with positive,
+  refusal, malformed, signed-provenance, and large-container tests.
+- [ ] `FMT-03` Specify equivalent EBML/WebM track, cluster, cue, timing, and provenance invariants,
+  then implement cleanup only when those invariants pass.
+- [ ] `FMT-04` Expand PDF inspection from bounded lexical coverage to a deeper bounded object-graph
+  model without enabling decompression bombs or weakening signature/provenance preservation.
+- [ ] `FMT-05` Add richer HTML DOM topology and stylesheet feature extraction with parser-event and
+  memory budgets.
+- [ ] `FMT-06` Evaluate ODF and legacy binary Office support; proceed only with maintained parsers,
+  hostile-input tests, and a format-specific integrity proof.
+
+#### P1 — enterprise trust and certificate infrastructure
+
+- [ ] `TRUST-01` Add RFC 3161 or equivalent trusted timestamps for audit certificates and policy
+  bundles without making normal scanning network-dependent.
+- [ ] `TRUST-02` Bind issuers to organization identity through a documented PKI or enterprise trust
+  profile rather than treating possession of any Ed25519 key as organizational identity.
+- [ ] `TRUST-03` Add an append-only transparency mechanism and sequence/rollback protection for
+  revocation and policy state.
+- [ ] `TRUST-04` Support HSM/KMS-backed signing through a narrow provider interface while keeping
+  private keys outside TrueAI processes.
+- [ ] `TRUST-05` Define retention, access control, privacy, and export contracts for premium fleet
+  history without adding telemetry to the open-source scanner.
+
+#### P1 — human contribution and process attestation
+
+- [ ] `PROC-01` Freeze the claim taxonomy and threat model for Human Contribution Records: keep
+  machine-verifiable facts, signed declarations, and evaluator judgements as separate claim types.
+- [ ] `PROC-02` Publish an independent `trueai-process-attestation-0.1` JSON Schema for actors,
+  artifact bindings, derivation events, AI-tool roles, human decisions, validation evidence,
+  contribution dimensions, disclosure levels, limitations, and signatures.
+- [ ] `PROC-03` Implement immutable Pydantic models, canonical serialization, content-derived
+  `TAIP1-…` identifiers, artifact/inventory binding, expiry, signatures, and verification without
+  changing the existing `TAI1-…` audit-certificate contract.
+- [ ] `PROC-04` Add headless CLI and Python workflows to create, validate, sign, verify, summarize,
+  redact, and countersign process attestations; never infer undeclared creative claims from scanner
+  findings or prompt counts.
+- [ ] `PROC-05` Add local evidence adapters for Git commits, reviewed diffs, tests, build outputs,
+  research notes, source citations, approvals, and external receipts while storing content hashes
+  rather than private source material by default.
+- [ ] `PROC-06` Implement public/private disclosure profiles, deterministic redaction, commitment
+  proofs for selectively revealable evidence, and checks that prevent prompts, source documents,
+  credentials, or personal data from leaking into a public attestation accidentally.
+- [ ] `PROC-07` Reuse certificate trust primitives for organization identity, trusted timestamps,
+  revocation, HSM/KMS signing, and transparency, while keeping process claims under a distinct
+  schema, identifier prefix, status vocabulary, and verification result.
+- [ ] `PROC-08` Implement versioned, domain-specific evaluation profiles that emit a contribution
+  vector and evidence confidence. Core must not emit a universal “human percentage” or silently
+  collapse incomparable dimensions into one score.
+- [ ] `PROC-09` Add terminal, JSON, SARIF-property, HTML, desktop, and CI presentation rules that
+  state “human-originated”, “AI-executed”, “human-validated”, and similar stage claims precisely
+  without converting them into authorship or originality proof.
+- [ ] `PROC-10` Add adversarial and usability tests for forged evidence, backdated claims, prompt
+  spam, actor impersonation, omitted AI roles, conflicting countersignatures, redaction leaks,
+  changed artifacts, expired claims, revoked issuers, and unsupported evaluation profiles.
+- [ ] `PROC-11` Map the derivation graph to interoperable provenance concepts such as W3C PROV,
+  in-toto/DSSE-style signed statements, and C2PA assertions where semantically compatible; retain
+  TrueAI-specific claims only where existing standards cannot express them faithfully.
+- [ ] `PROC-12` Run consented design-partner pilots in research, software delivery, creative
+  services, and education; publish the rubric, disagreements, false interpretations, and revision
+  history before presenting contribution profiles as a stable product feature.
+
+#### P2 — provenance adapters and trust presentation
+
+- [ ] `PROV-01` Add provider verification adapters only when a provider publishes an official API,
+  verifier, or specification; unsupported providers must continue to report unavailable status.
+- [ ] `PROV-02` Route every remote verifier through explicit `NetworkPolicy`, consent, endpoint
+  allowlisting, timeout/size limits, credential isolation, and auditable request metadata.
+- [ ] `PROV-03` Add managed trust-store distribution, rotation, expiry, and offline update bundles.
+- [ ] `PROV-04` Present marker, signature validity, signer trust, and provider-verification status as
+  separate concepts in future HTML/desktop interfaces.
+
+#### P2 — repository scale and public interfaces
+
+- [ ] `SCALE-01` Benchmark synthetic and real consented repositories at 10,000 and 100,000 files;
+  publish wall time, peak memory, cache hit rate, and deterministic-output checks.
+- [ ] `SCALE-02` Add bounded cache size, deterministic eviction, cache inspection, and safe pruning.
+- [ ] `SCALE-03` Add engine-level progress and cancellation events without coupling core code to
+  Rich, a desktop UI, or a particular async framework.
+- [ ] `API-01` Stabilize detector/plugin SDK compatibility and publish minimal third-party examples.
+- [ ] `UI-01` Implement a self-contained, escaped, content-security-policy-compatible HTML reporter.
+- [ ] `UI-02` Build desktop, CI, and IDE adapters around the public schema, including finding
+  explanation, remediation preview, integrity evidence, provenance, and certificate views.
+
+#### P3 — calibrated research features
+
+- [ ] `ML-01` Define consent, licensing, domain balance, contamination control, and retention rules
+  before collecting any labelled corpus.
+- [ ] `ML-02` Publish a detector-evaluation protocol covering false positives, calibration, domain
+  shift, subgroup analysis, abstention, and reproducibility.
+- [ ] `ML-03` Train only optional, replaceable consumers of versioned feature vectors; keep heavy ML
+  dependencies outside the core package.
+- [ ] `ML-04` Add model cards, dataset statements, signed model manifests, versioned thresholds, and
+  regression gates before exposing learned scores.
+- [ ] `ML-05` Add longitudinal style comparison as a review aid, never as proof of authorship or as
+  an optimization target for evading third-party detectors.
+
+#### Continuous quality work
+
+- [ ] `QA-01` Expand property-based and coverage-guided fuzzing for ZIP/OPC, XML, PDF, image, media,
+  Git, cache, policy-bundle, certificate, and report parsing boundaries.
+- [ ] `QA-02` Track parser and dependency advisories, regenerate SBOMs, and re-run license and
+  vulnerability gates for every release.
+- [ ] `QA-03` Maintain synthetic regression fixtures for every bug and every new removable field.
+- [ ] `QA-04` Keep documentation, schemas, CLI help, the Codex skill, and this backlog aligned with
+  demonstrated behavior.
+- [ ] `QA-05` Define support and disclosure processes for security reports, plugin incidents, trust
+  store compromise, certificate revocation, and release rollback.
+
+#### Explicit non-goals
+
+- [ ] None: TrueAI will not add C2PA forgery/removal, SynthID defeat, statistical-watermark
+  suppression, secret-key inference, or artifact optimization intended to evade AI-authorship
+  detectors. These are permanent safety boundaries, not unfinished features.
+- [ ] None: TrueAI certificates will not claim human authorship or that AI was never used. They
+  attest only that a named scanner version and detector scope found no scoped indicators in exact
+  artifact bytes at a recorded time.
+
+The permitted indicator-handling plan is documented in
+[`docs/indicator-handling.md`](docs/indicator-handling.md).
 
 ## Product purpose
 
@@ -41,6 +232,8 @@ TrueAI answers questions such as:
 - Which evidence must be preserved?
 - Did remediation alter visible or logical content?
 - Was the scan complete within its declared resource limits?
+- Does a content-bound audit record match these exact artifact bytes and this scanner scope?
+- Is that audit record still within its validity period and absent from a current issuer list?
 
 TrueAI is intended to become the shared open-source engine behind future desktop, CI, IDE, studio,
 and enterprise products. The core therefore has no UI dependency and exposes versioned Pydantic
@@ -119,7 +312,13 @@ explicit. Exceeding a completeness boundary creates a high-severity diagnostic a
 `3`; a partial scan is never presented as a clean result. The finding budget is global and shared
 across workers, so parallelism cannot quietly raise it.
 
-### 8. Local-first privacy
+### 8. Certificates attest only observed scope
+
+A `clear` audit certificate means that the recorded scan completed and no scoped indicator was
+found for the bound artifact bytes. It never means “human-authored” or “AI was never used.” The
+`TAI1-…` content ID detects changed claims; optional Ed25519 signatures authenticate the issuer.
+
+### 9. Local-first privacy
 
 Normal scanning performs no network requests and has no telemetry. Verification is local unless
 remote manifests are explicitly permitted. The incremental cache is local and is never uploaded.
@@ -176,13 +375,14 @@ The major extension boundaries are:
 | XLSX | Shared OPC evidence plus hidden sheets, cell and threaded comments, participant identities, defined names, external links, cleanup |
 | PDF | Bounded Info/XMP inspection and optional surgical metadata cleanup using `pikepdf` |
 | PNG and JPEG | EXIF, XMP, comments, text chunks, provenance markers, and metadata cleanup |
-| Provenance | Marker detection during scans, plus authenticated C2PA verification through the reference implementation with an operator trust store |
+| Audio and video | Bounded WAV/MP3/FLAC/M4A/MP4/MOV/WebM metadata; surgical WAV/MP3/FLAC cleanup without codec execution |
+| Provenance | Marker detection plus explicit authenticated C2PA verification through the reference implementation; typed results can be attached to terminal/JSON scan reports |
 | Watermarks | Explicit unsupported/unavailable provider verification statuses |
 | Stylometry | Experimental interpretable feature extraction and heuristic scoring |
 | Repository scale | Deterministic parallel scanning, content-addressed incremental caching, nested Git ignore semantics |
-| Plugins | Capability manifests, host policy, and optional process isolation with output validation |
-| Reports | Rich terminal, stable JSON schema `0.1`, SARIF 2.1.0, and an emittable JSON Schema |
-| Interfaces | Stable Python API, Typer CLI, detector entry points, external YAML policies |
+| Plugins | Capability manifests, process isolation, output validation, and pre-import kernel CPU/memory quotas |
+| Reports | Rich terminal, stable JSON schema `0.1`, SARIF 2.1.0, policy audit, and authenticated provenance results |
+| Interfaces | Stable Python API, Typer CLI, detector entry points, YAML policies, and signed enterprise policy bundles |
 
 ## Innovations and differentiators
 
@@ -247,15 +447,18 @@ The current security model includes:
 - cleared Git routing environment and disabled interactive/lazy fetches;
 - no execution of HTML, SVG, macros, attachments, hooks, or embedded scripts;
 - bounded raster dimensions before decoding metadata;
+- bounded RIFF, ID3, FLAC, ISO BMFF/QuickTime, and EBML metadata parsing without codec execution;
 - detector mutation checks for discovered file hashes and newly appearing paths;
-- plugin capability manifests reviewed by host policy before any plugin code is trusted;
-- worker-process containment of plugin crashes, hangs, and unbounded output;
+- capability-guarded plugin manifest inspection outside the scanner process;
+- subprocess plugin execution by default, with deadlines, discarded stdout/stderr, and bounded responses;
+- pre-import kernel CPU and memory quotas through POSIX rlimits or a Windows Job Object;
 - re-derivation of every plugin finding from its own evidence.
 
 Plugin isolation contains accidents and catches dishonest output. It is not an operating-system
 sandbox: the worker runs as the same user with the same filesystem access, and the in-worker
 capability guards are Python-level replacements that do not stop native code or `ctypes`. A
-process-isolated host with OS-level confinement remains a future enterprise hardening task.
+filesystem/system-call sandbox remains a future enterprise hardening task; resource-exhaustion
+quotas are implemented.
 
 ## Current project state
 
@@ -263,30 +466,45 @@ The implementation currently satisfies the v0.1 development definition of done:
 
 - the package builds and installs;
 - `trueai --help` and every declared command are available;
-- directory, text, Git, DOCX, PPTX, XLSX, SVG, PDF, PNG, and JPEG inspection work;
-- safe-clean and integrity workflows are implemented for every supported format;
+- directory, text, Git, DOCX, PPTX, XLSX, SVG, PDF, PNG, JPEG, WAV, MP3, FLAC, M4A,
+  MP4/MOV, and WebM inspection work;
+- safe-clean and integrity workflows are implemented for every cleanable format; WAV/MP3/FLAC use
+  byte-identical audio-payload invariants, while M4A/MP4/MOV/WebM remain inspection-only;
+- cleaned output is rescanned by default and can produce a content-bound audit certificate;
+- unsigned and Ed25519-signed certificates can be issued and verified against files or inventories,
+  with optional expiry and issuer-signed finite-lifetime revocation lists;
 - authenticated C2PA verification works against synthetic signed fixtures;
-- JSON schema `0.1` and SARIF output are available, and the schema is emittable and frozen;
+- explicit C2PA verification can be attached to scan reports while marker findings remain separate;
+- report, audit-certificate, revocation-list, and enterprise policy-bundle JSON schemas `0.1`, plus
+  SARIF output, are available;
 - built-in policy profiles are validated;
+- Ed25519 enterprise policy bundles support exact baselines, finite suppressions/exceptions, and
+  immutable audit entries without hiding findings;
 - documentation, security policy, contribution guide, AGENTS.md, changelog, and the TrueAI Codex
   skill exist;
 - wheel and source distributions pass Twine validation and are byte-reproducible.
 
 Latest local verification on Windows 11 with Python 3.14.4:
 
-- `220 passed`;
-- `2 skipped` because the current Windows account cannot create test symlinks; those cases are
+- `299 passed` with the PDF, C2PA, and attestation extras installed from the built wheel;
+- `3 skipped` because the current Windows account cannot create test symlinks; those cases are
   required to execute on the POSIX CI jobs and fail there if they cannot;
 - Ruff lint passed;
 - Ruff format check passed;
-- strict mypy passed for 78 source files;
-- schema snapshot matches the emitted schema;
+- strict mypy passed for 87 source files;
+- report, audit-certificate, revocation-list, and enterprise-policy schema snapshots match their
+  emitted schemas;
 - wheel and sdist built, `twine check --strict` passed;
 - rebuild under a fixed `SOURCE_DATE_EPOCH` produced byte-identical artifacts;
 - packaged source manifest verified;
-- clean-environment install of `trueai-core[pdf,c2pa]` and `pip check` passed;
+- clean-environment install of `trueai-core[pdf,c2pa,attestation]` and `pip check` passed;
+- the installed dependency set passed the vulnerability audit and all 34 runtime distributions in
+  the selected-extra dependency closure passed the license allowlist gate;
+- a validated CycloneDX SBOM was generated successfully with the current release tooling;
 - the installed console script passed the full smoke test, including exit codes 0/1/2/3, JSON
-  report validity, provenance verification, cached parallel scanning, and verified cleanup.
+  report validity, provenance verification, unsigned and Ed25519-signed certificates, certificate
+  expiry/revocation, signed policy bundles, cached parallel scanning, verified cleanup, and
+  post-clean certificate binding.
 
 The source files have not yet been placed in an initial Git commit at the time of the previous
 status; that commit is now the first entry in the repository history.
@@ -304,16 +522,17 @@ status; that commit is now the first entry in the repository history.
 
 ### Provenance
 
-- Model certificate revocation, timestamp-authority trust, and expiry policy explicitly rather than
-  relying on the verifier's defaults.
+- Add timestamp-authority trust, organization identity, transparency/sequence rollback detection,
+  and hardware-backed key custody. Local finite validity and signed issuer revocation lists are
+  implemented.
 - Add optional explicit network verification where a provider publishes an API.
-- Present provenance results in report and GUI surfaces, not only in the dedicated command.
+- Present the implemented report-level provenance results in a future GUI surface.
 - Keep marker detection distinct from authenticated verification.
 
 ### Artifact formats
 
-- Add audio container metadata for WAV, MP3, FLAC, and M4A.
-- Add video container metadata for MP4/MOV/WebM.
+- Add M4A/MP4/MOV and WebM metadata cleanup only after sample/timing/index/provenance invariants can
+  prove that streams and rendering remain unchanged. WAV/MP3/FLAC cleanup is implemented.
 - Expand PDF inspection beyond bounded lexical markers while preserving hostile-input limits.
 - Add richer HTML DOM topology and stylesheet feature extraction.
 - Extend OPC coverage to ODF and legacy binary Office formats if demand justifies the parser risk.
@@ -323,14 +542,14 @@ status; that commit is now the first entry in the repository history.
 - Benchmark repositories with 10,000 to 100,000 files and publish the measurements.
 - Add cache eviction and a size budget for long-lived checkouts.
 - Add progress events without coupling the engine to terminal rendering.
-- Make truncated parallel scans deterministic, or document the non-determinism in the report itself
-  rather than only in the architecture guide.
 
 ### Plugin and enterprise architecture
 
 - Add operating-system confinement (seccomp, AppContainer, or containers) to the worker host.
-- Sign and distribute enterprise policy and plugin bundles.
-- Add suppressions, baselines, audit history, and policy exception workflows.
+- Sign plugin distributions and add centrally managed policy/plugin bundle distribution.
+- Kernel worker memory/CPU quotas are implemented; add platform tests under hosted Linux/macOS CI.
+- Signed policy bundles, baselines, suppressions, finite exceptions, and per-report audit trails are
+  implemented; fleet history storage remains a premium service concern.
 - Preserve schema compatibility for desktop, CI, and IDE consumers.
 
 ### Heuristics and learned models
@@ -358,21 +577,28 @@ Remaining: run the matrix on real infrastructure, configure trusted publishing, 
 1. Official C2PA verification adapter. **Done.**
 2. Structured trust and signature results. **Done.**
 3. Optional explicit network adapters where providers support verification. Outstanding.
-4. Provenance-aware GUI/report presentation rules. Outstanding.
+4. Provenance-aware report presentation rules. **Done** for terminal/JSON; GUI presentation remains
+   outstanding.
 
 ### Phase 3: Office and media expansion — partially implemented
 
 1. Generalized OPC engine for PPTX and XLSX. **Done.**
-2. Audio and video container abstractions. Outstanding.
-3. Integrity invariants for presentations and spreadsheets. **Done.** Media streams outstanding.
+2. Audio and video container abstractions. **Done** for bounded metadata inspection; surgical
+   WAV/MP3/FLAC cleanup is also implemented without stream decoding. Complex video-container
+   cleanup remains outstanding.
+3. Integrity invariants for presentations, spreadsheets, and WAV/MP3/FLAC audio. **Done.**
 
 ### Phase 4: repository and enterprise scale — partially implemented
 
 1. Deterministic parallel scheduling and incremental caching. **Done.**
-2. Third-party plugin isolation in worker processes. **Done** at process level; OS confinement
-   outstanding.
-3. Signed policy bundles, baselines, suppressions, and audit trails. Outstanding.
-4. Stable SDK contracts for desktop, CI, and IDE integrations. **Done** for the report schema;
+2. Third-party plugin isolation in worker processes plus kernel CPU/memory quotas. **Done**;
+   filesystem/system-call confinement remains outstanding.
+3. Content-bound audit certificates, optional Ed25519 issuer signatures, finite validity, and
+   signed issuer revocation lists. **Done.** Enterprise identity, trusted timestamps, transparency
+   logs/rollback resistance, and hardware-backed key custody are outstanding.
+4. Signed policy bundles, baselines, suppressions, finite exceptions, and report audit trails.
+   **Done.**
+5. Stable SDK contracts for desktop, CI, and IDE integrations. **Done** for the report schema;
    broader API stability outstanding.
 
 ### Phase 5: optional calibrated intelligence — not started
@@ -382,15 +608,455 @@ Remaining: run the matrix on real infrastructure, configure trusted publishing, 
 3. Publish calibration and false-positive metrics.
 4. Keep learned output explicitly non-provenance unless independently authenticated.
 
+## Proposed Human Contribution and Process Attestation
+
+This section is the implementation specification for a future TrueAI product layer. Its working
+name is **Human Contribution Record (HCR)**; its signed portable form is a **TrueAI Process
+Attestation**. It complements the implemented scan certificate but must never be merged with it.
+
+- A `TAI1-…` audit certificate records what a particular scanner scope observed in exact bytes.
+- A future `TAIP1-…` process attestation records who declared, performed, reviewed, or verified
+  particular stages of creating those bytes and which evidence supports each claim.
+
+The first is artifact forensics. The second is accountable workflow provenance. Neither proves
+that a human exclusively authored an artifact, that an idea is objectively original, or that AI
+was never used.
+
+### Why elapsed time, prompt count, and edit count are invalid measures
+
+Human contribution is not proportional to typing volume. A hundred hours of minor prompt tuning
+can contribute less intellectually than one previously unseen causal insight expressed in two
+sentences. Conversely, a novel prompt does not establish that the resulting implementation is
+correct, safe, lawful, or actually understood by the person who requested it.
+
+TrueAI must reject these shortcuts as primary metrics:
+
+- elapsed time can measure effort, not creative or causal importance;
+- number or length of prompts rewards verbosity and is trivial to game;
+- number of edits penalizes a correct first insight and rewards unnecessary churn;
+- changed-line percentages confuse mechanical execution with design responsibility;
+- the presence or absence of a watermark says nothing about the intellectual value of a human
+  decision;
+- a single aggregate “human percentage” hides which stages were human-controlled and creates
+  false precision.
+
+Prompt, edit, and time records may be attached as supporting facts when a user chooses, but they
+must never determine an authorship score automatically.
+
+### The contribution model: a vector, not a percentage
+
+The core record should describe independent dimensions. Each claim carries its own evidence level,
+issuer, scope, and limitations instead of being averaged silently.
+
+| Dimension | Question answered | Examples of supporting evidence |
+|---|---|---|
+| `origination` | Who introduced the central insight, hypothesis, aesthetic direction, or invention? | Dated notes, signed concept brief, lab notebook, prior versions, independent witness |
+| `framing` | Who converted the idea into constraints, requirements, success criteria, and a tractable problem? | Specification, architecture decision record, experiment plan, acceptance criteria |
+| `decision_control` | Who compared alternatives and made consequential choices? | Reviewed options, rejection reasons, design decisions, approved diffs |
+| `execution` | Who or what produced the concrete prose, code, design, data transform, or media? | Git patches, tool receipts, build provenance, editing history |
+| `validation` | Who tested claims and outputs against reality rather than accepting generation? | Test logs, source checks, experiments, peer review, reproducible build, audit report |
+| `integration` | Who reconciled components, resolved conflicts, and adapted the result to its actual context? | Integration commits, interface decisions, migration evidence, deployment review |
+| `accountability` | Which person or organization accepts responsibility for the delivered result? | Signed approval, named owner, policy acknowledgement, release authorization |
+| `evidence_quality` | How strongly are the preceding claims supported? | Artifact-bound hashes, trusted timestamps, countersignatures, independent verification |
+
+AI autonomy is a separate per-stage property, not the inverse of human value. Suggested values are
+`none`, `assistive`, `proposal`, `delegated_execution`, and `autonomous_with_review`. A record can
+therefore say that execution was delegated to a model while origination, framing, selection,
+validation, and accountability remained human.
+
+The initial rubric should use descriptive levels rather than percentages:
+
+| Level | Meaning for one dimension |
+|---|---|
+| `not_claimed` | The record makes no claim about this dimension. |
+| `supporting` | The actor contributed useful but non-controlling input. |
+| `substantial` | The contribution materially shaped the result. |
+| `primary` | The actor supplied most of the consequential direction or work in this dimension. |
+| `originating_or_controlling` | The actor introduced the central contribution or retained final decision authority. |
+
+Every level must be paired with an evidence status:
+
+- `self_declared`: signed by the claimant but not independently corroborated;
+- `artifact_correlated`: consistent with bound local artifacts such as commits, notes, or tests;
+- `countersigned`: confirmed by another identified participant;
+- `independently_assessed`: evaluated by a separate reviewer under a named rubric;
+- `cryptographically_verified`: the integrity and issuer of a receipt are verified, although the
+  truth of its semantic claim may still require judgement.
+
+Cryptographic verification proves who signed which bytes. It does not turn a subjective originality
+claim into an objective fact.
+
+### The short-genius-insight case
+
+Suppose a person states a genuinely new mechanism in two sentences and an AI system produces a
+correct implementation on the first attempt. A faithful record should not describe the result as
+“almost entirely AI” merely because the model emitted most tokens. It should report the stage split:
+
+- `origination`: human, `originating_or_controlling`;
+- `framing`: human, usually `primary` or `originating_or_controlling` if the two sentences captured
+  the decisive mechanism and constraints;
+- `execution`: AI, `delegated_execution`;
+- `decision_control`: human if the person knowingly selected and approved the implementation;
+- `validation`: human only to the extent demonstrated by tests, derivations, experiments, or expert
+  review; otherwise `not_claimed` or weakly supported;
+- `accountability`: the person or organization that signs the release decision.
+
+The resulting summary can be **“human-originated, AI-executed, human-validated”**. If the output was
+accepted without understanding or testing, the accurate summary is **“human-originated,
+AI-executed, validation not evidenced.”** The central insight can still be a major human
+contribution; TrueAI should not inflate the validation claim to make the overall record look better.
+
+Objective novelty is a separate and difficult claim. Dated evidence can establish that a person
+recorded an idea by a certain time. A prior-art search, independent expert assessment, publication,
+or peer review can strengthen a novelty claim. None can prove universal nonexistence of the same
+idea elsewhere. The schema should therefore record the search scope, assessor, date, conflicts of
+interest, and confidence rather than a boolean `is_genius` or `is_original` field.
+
+### Causal contribution and counterfactual reasoning
+
+When an evaluator needs to judge importance, the most defensible question is causal: which input or
+decision changed the space of possible outcomes? The assessment should consider:
+
+1. **Specificity:** did the contribution constrain the solution meaningfully, or merely request a
+   generic result?
+2. **Novelty within the documented context:** was the contribution already present in cited inputs,
+   or did it introduce a new direction?
+3. **Decisional consequence:** did later work depend on this choice?
+4. **Replaceability:** could a competent participant have supplied the same contribution routinely,
+   or was it the scarce insight?
+5. **Validation burden:** did the contributor establish that the result worked and understand its
+   failure modes?
+6. **Responsibility:** did the contributor accept the consequences of publication or deployment?
+
+These questions produce an evaluator judgement, not scanner output. TrueAI should store the
+judgement, rubric version, evidence references, assessor identity, and dissenting assessments. It
+should never conceal disagreement behind a single number.
+
+### Domain-specific evaluation profiles
+
+Different contexts value different dimensions. Core should publish the vector and leave weighting
+to explicit, versioned profiles:
+
+- a research profile emphasizes origination, prior-art discipline, experimental validation, and
+  reproducibility;
+- a software-delivery profile emphasizes framing, architecture decisions, review, testing,
+  security, licensing, and accountable release;
+- a creative-work profile emphasizes concept, selection, composition, transformation, and rights;
+- an education profile may emphasize demonstrated understanding and forbid delegated execution for
+  particular assignments;
+- a regulated-enterprise profile emphasizes authorized tools, human approval, validation controls,
+  retention, and responsibility more than stylistic authorship.
+
+A profile may calculate a policy result such as `meets_review_requirements`; it must expose its
+weights and thresholds and must not rename that policy result to `human_authored`. Two profiles can
+legitimately reach different decisions from the same contribution vector.
+
+### Process Assurance Level: the simple result that can be issued
+
+Recipients often need one compact trust signal. TrueAI can issue a **Process Assurance Level
+(PAL)**, but it must measure evidence strength and governance, not human creativity or token share:
+
+| Level | Minimum meaning |
+|---|---|
+| `PAL-0 unsubstantiated` | A record is missing, invalid, or not bound to the delivered artifact. |
+| `PAL-1 declared` | An identified claimant signed a structured declaration bound to the artifact. |
+| `PAL-2 evidenced` | Material claims reference artifact-correlated evidence and disclose AI roles and known omissions. |
+| `PAL-3 reviewed` | Consequential human decisions and validation are evidenced and countersigned by an identified reviewer. |
+| `PAL-4 independently_assured` | An independent assessor applied a named profile, verified disclosed evidence, and the record uses organization identity, finite validity, revocation, and a trusted timestamp or equivalent transparency proof. |
+
+PAL is deliberately orthogonal to the contribution vector. A brilliant two-sentence insight could
+have high `origination` but only `PAL-1` if it is merely self-declared. A routine implementation may
+reach `PAL-4` because its process was independently audited. A higher PAL means “better supported”,
+not “more human”, “more original”, or “better work”.
+
+An example portable summary for the short-insight case is:
+
+```text
+TrueAI Process Attestation: TAIP1-…
+Artifact binding: verified
+Process summary: human-originated, AI-executed, human-validated
+Origination: originating_or_controlling / artifact_correlated
+Execution: AI / delegated_execution
+Validation: primary human / countersigned
+Process Assurance Level: PAL-3 reviewed
+Originality: not independently assessed
+Limitations: process completeness is declared; exclusive authorship is not proven
+```
+
+This is the most defensible answer to “what certificate should be issued?”: issue the stage-specific
+record and its assurance strength, never a universal human percentage.
+
+### Proposed data and trust model
+
+The `trueai-process-attestation-0.1` schema should contain at least:
+
+- `attestation_id`: content-derived `TAIP1-…` identifier;
+- `schema_version`, `created_at`, optional `expires_at`, and producer version;
+- `subject`: exact artifact hash or deterministic directory/repository inventory digest;
+- `project`: title, declared purpose, policy context, and optional parent attestation;
+- `actors`: pseudonymous or identified people, organizations, AI systems, and automation tools;
+- `activities`: ordered or partially ordered derivation events;
+- `artifact_bindings`: input, intermediate, and output hashes with media types and relationships;
+- `claims`: contribution dimension, actor, scope, level, AI autonomy, explanation, and limitations;
+- `decisions`: alternatives considered, selection, rationale commitment, and approving actor;
+- `validation`: tests, reviews, experiments, citations, build receipts, and outcome hashes;
+- `evidence`: typed local references, hashes, issuer, collection method, and disclosure status;
+- `evaluation`: optional profile, rubric version, assessor, per-dimension result, confidence, and
+  dissent;
+- `disclosure`: public, private, committed-for-later-disclosure, or omitted-with-reason;
+- `signatures`: claimant, reviewer, organization, and optional independent assessor signatures;
+- `limitations`: mandatory machine-readable and human-readable statements about what was not
+  verified.
+
+Each activity should be able to express a provenance tuple similar to:
+
+```text
+actor -> action -> input bindings -> output bindings -> tool role -> evidence -> review decision
+```
+
+The graph must allow multiple humans, multiple models, branching attempts, rejected alternatives,
+and later review. A linear “human versus AI” slider cannot represent real collaborative work.
+
+### Evidence capture and privacy
+
+TrueAI should be useful without uploading prompts or private work. Local adapters may calculate
+hashes and extract narrow receipts from:
+
+- Git commits, signed tags, pull-request exports, and reviewed diffs;
+- architecture decision records and research notes;
+- test, benchmark, build, and reproducibility outputs;
+- source/citation manifests and licensing checks;
+- local model or tool identity records;
+- human approval and reviewer countersignatures.
+
+The public record should contain the minimum necessary claim plus commitments to private evidence.
+The user can later disclose selected evidence and prove that it matches the earlier commitment.
+Raw prompts, proprietary source documents, credentials, personal identifiers, and confidential
+feedback must remain private by default. Normal creation and verification remain local-first and
+network-free; trusted timestamping or remote issuer validation requires explicit network policy.
+
+### Issuance and verification workflow
+
+The planned workflow is:
+
+```text
+initialize record
+      -> bind actors, policy, and artifact inputs
+      -> append decisions and evidence during work
+      -> bind final artifact and validation outputs
+      -> run TrueAI artifact scan separately
+      -> review contribution claims and limitations
+      -> sign claimant/reviewer/organization statements
+      -> optionally countersign or timestamp
+      -> emit public summary plus private evidence bundle
+      -> verify hashes, schema, signatures, validity, and revocation
+```
+
+The artifact scan can be referenced, but its result must not manufacture process claims. Finding no
+AI residue cannot populate `execution=human`; finding a provider marker cannot erase a documented
+human origination claim.
+
+Planned public interfaces should include:
+
+```console
+trueai attestations init manifest.yaml
+trueai attestations validate manifest.yaml
+trueai attestations issue manifest.yaml --artifact deliverable.pdf --output deliverable.process.json
+trueai attestations sign deliverable.process.json --signing-key reviewer.pem
+trueai attestations verify deliverable.process.json --artifact deliverable.pdf
+trueai attestations summarize deliverable.process.json --profile research
+trueai attestations redact deliverable.process.json --profile public
+trueai attestations schema --output trueai-process-attestation-0.1.schema.json
+```
+
+Exact command names remain subject to API review. Creation should support a declarative manifest and
+Python API first; an interactive desktop timeline can consume the same schema later.
+
+### Verification result semantics
+
+Verification must return independent results rather than one green badge:
+
+- schema validity;
+- content-ID validity;
+- final artifact binding;
+- evidence-binding completeness;
+- claimant signature status;
+- reviewer or organization signature status;
+- certificate validity and revocation status;
+- evaluation-profile support;
+- disclosed-evidence consistency;
+- unresolved conflicts or dissent;
+- limitations acknowledged.
+
+A fully valid signature can coexist with `self_declared` evidence. The UI must say “authenticated
+declaration” rather than “verified human contribution” unless an applicable assessor actually
+verified the semantic claim.
+
+### Abuse resistance and failure modes
+
+The implementation and documentation must address:
+
+- fabricated or selectively omitted events;
+- backdated notes and replayed receipts;
+- prompt spam intended to inflate apparent effort;
+- splitting one actor into many pseudonyms;
+- model output presented as a human note;
+- an issuer signing its own unsupported novelty claim;
+- a changed artifact paired with an old record;
+- hidden contradictory evidence;
+- disclosure of trade secrets or personal data;
+- coercive workplace surveillance;
+- educational use that reduces learning to a score;
+- organizations treating `not_claimed` as misconduct;
+- verifiers confusing cryptographic integrity with truth.
+
+Controls include typed claim provenance, exact artifact binding, independent countersignatures,
+finite validity, trusted timestamps, revocation, visible missing fields, competing assessments,
+privacy-preserving commitments, and explicit refusal to derive a universal percentage. No technical
+system can prove that every offline human action was recorded, so completeness remains a declared
+scope.
+
+### Commercial proposition
+
+The commercial product is not “a badge saying no AI”. That badge would be scientifically weak,
+easy to misunderstand, and dependent on TrueAI already being trusted. The stronger proposition is
+an evidence and policy layer for organizations that need to accept AI-assisted work without losing
+accountability.
+
+Buyers pay for reduced review cost and defensible process, not for the existence of a JSON file.
+Concrete paid value includes:
+
+- organization identity, managed signing keys, HSM/KMS integration, timestamps, revocation, and
+  transparency;
+- configurable workflow gates for research, client delivery, software releases, publishing,
+  education, and regulated review;
+- team review, countersignatures, exception approval, and separation of duties;
+- fleet policy distribution, audit history, retention, access control, and export;
+- desktop, CI, IDE, document-management, Git-hosting, and publishing integrations;
+- premium format support and supported provider-verification adapters where official mechanisms
+  exist;
+- compliance mappings, evidence packages, service-level agreements, and incident support;
+- private deployment and air-gapped enterprise operation.
+
+The open-source engine remains the independently inspectable trust anchor: scanning, schemas,
+local issuance, local verification, and basic signatures should stay open. Premium products sell
+identity, coordination, governance, integration, support, and operational trust. Keeping the
+verifier and schemas open reduces adoption risk and prevents a commercial badge from becoming an
+opaque pay-to-trust mechanism.
+
+A practical open-core packaging boundary is:
+
+| Product layer | Primary user | Value | Suggested boundary |
+|---|---|---|---|
+| TrueAI Core | Individual, integrator, open-source maintainer | Local scan, safe cleanup, schemas, verification, basic attestations | Open source |
+| TrueAI Studio | Freelancer, researcher, creator | Desktop review, evidence timeline, private bundles, client-ready reports | Paid desktop |
+| TrueAI Guard | Development and content teams | CI gates, reviewer workflow, countersignatures, policy templates, integrations | Paid per team/workspace |
+| TrueAI Enterprise | Regulated or large organization | Managed identity, HSM/KMS, policy fleet, retention, audit export, private deployment, SLA | Annual contract |
+| TrueAI Trust Services | Issuers and recipients needing external assurance | Trusted timestamps, transparency, revocation distribution, optional independent assessment | Usage or assurance service; never required for local scanning |
+
+The durable moat should come from rigor and workflow adoption rather than a secret detector:
+
+- format-specific integrity proofs and conservative remediation are difficult to implement safely;
+- an open, stable attestation schema lowers recipient risk and encourages integrations;
+- organization trust, key lifecycle, policy distribution, and evidence workflows create operational
+  switching costs without locking artifact owners out of their records;
+- domain profiles and a visible revision history can become a shared language between buyers and
+  suppliers;
+- plugin and integration ecosystems expand coverage while the core trust contract remains stable;
+- published false-positive handling and refusal semantics create credibility that an opaque “AI
+  score” cannot supply.
+
+TrueAI should not depend on harvesting user artifacts as a data moat. Local-first privacy is part of
+the product, so defensibility must come from engineering quality, interoperability, distribution,
+institutional integrations, and trusted operations.
+
+### Escaping the popularity trap
+
+TrueAI must have **single-player utility before network authority**. A user should benefit even when
+no recipient has heard of TrueAI:
+
+1. find and explain metadata, attribution, provenance, and structural residue locally;
+2. clean only predictable fields and prove integrity;
+3. assemble a private evidence package for disputes, clients, peer review, or internal approval;
+4. enforce the user's own delivery policy in CI;
+5. retain an artifact-bound record of decisions and validation.
+
+Network effects are then layered on top:
+
+- verification is free, local, and requires no account;
+- every issued attestation is a portable invitation for a recipient to verify it;
+- schemas, verifier code, and trust semantics are public;
+- integrations show the record inside tools recipients already use;
+- organizations can countersign rather than accepting TrueAI itself as the source of truth;
+- compatibility with external provenance standards reduces the need for TrueAI to become the sole
+  authority.
+
+The first credible users should be design partners with an immediate bilateral problem, not a mass
+audience: a freelancer and client, a research team and reviewer, a software vendor and enterprise
+buyer, or a university and course team. In each case both sides agree on the rubric before delivery.
+Their signatures and policy establish trust; TrueAI transports and verifies the evidence.
+
+The go-to-market sequence should be:
+
+1. ship the open scanner and verifier as useful local tools;
+2. publish precise schemas, sample policies, threat model, and reproducible demonstrations;
+3. recruit a small number of design partners in two domains and encode their real acceptance
+   criteria;
+4. make verification frictionless through CLI, web-without-upload, and repository checks;
+5. publish case studies about reduced review time and resolved disputes, not unverifiable detection
+   accuracy claims;
+6. offer paid organization identity, team workflow, audit retention, integrations, and support;
+7. pursue interoperability and standards participation after practical semantics stabilize.
+
+Success should be measured by completed and independently verified workflows, repeat verification,
+time saved in review, policy violations caught before delivery, accepted countersignatures,
+integration retention, and dispute resolution. Download counts or the number of issued badges alone
+do not establish trust.
+
+### Product naming and separation
+
+The product family can expose three clearly separated records:
+
+- **TrueAI Audit Certificate (`TAI1`)**: scanner result for exact bytes and declared detector scope;
+- **TrueAI Process Attestation (`TAIP1`)**: signed claims and evidence about creation, decisions,
+  validation, AI roles, and accountability;
+- **TrueAI Independent Assessment**: an optional countersigned evaluator opinion under a named,
+  versioned domain profile.
+
+The GUI may present them together, but the schemas, identifiers, verification statuses, and claims
+must remain distinct. A clean audit certificate must never upgrade a process attestation, and a
+strong human contribution record must never suppress observed artifact provenance.
+
+### Acceptance criteria for the first implementation
+
+The HCR/Process Attestation milestone is complete only when:
+
+- the schema has a frozen compatibility contract independent of scan reports and audit
+  certificates;
+- one artifact and one deterministic repository inventory can be bound and re-verified;
+- multiple human and AI actors plus branched/rejected activities are representable;
+- contribution vectors preserve per-dimension evidence and never require an aggregate percentage;
+- public/private disclosure and deterministic redaction have adversarial leakage tests;
+- unsigned, claimant-signed, reviewer-countersigned, expired, revoked, and modified-artifact cases
+  have distinct verification results;
+- Git, test, build, and note evidence can be committed by hash without copying private content;
+- the CLI and Python API can create and verify a record entirely offline;
+- every human-readable summary repeats the applicable limitations;
+- no scanner finding automatically asserts authorship, originality, or human execution;
+- at least two consented domain pilots expose rubric disagreements before the schema is called
+  stable.
+
 ## Near-term priorities
 
 The five highest-value next tasks are:
 
 1. run the CI matrix on real infrastructure, then cut the `v0.1.0` release candidate;
-2. surface provenance verification in reports and future GUI presentation;
-3. audio and video container metadata through a bounded media abstraction;
-4. operating-system confinement for the plugin worker host;
-5. signed enterprise policy bundles with baselines, suppressions, and audit history.
+2. freeze the Human Contribution Record claim model and build the `TAIP1` schema plus offline
+   create/verify MVP with one research and one software-delivery pilot;
+3. filesystem/system-call confinement and signed distributions for hostile native plugins;
+4. enterprise identity, trusted timestamps, revocation transparency, and hardware-backed key custody;
+5. MP4/MOV/M4A/WebM integrity work plus repository benchmarks, cache lifecycle, and HTML/GUI
+   report consumers.
 
 ## Success criteria for the next milestone
 
@@ -398,14 +1064,15 @@ TrueAI Core should move from `0.1.0-dev` to a release candidate when:
 
 - all supported Python and operating-system CI jobs pass;
 - skipped symlink/security cases execute successfully on at least one CI platform;
-- wheel and sdist builds are reproducible and signed;
+- wheel and sdist builds are reproducible; release artifacts are signed by hosted release CI;
 - the public schema compatibility policy is documented and enforced;
 - hostile-input regression suites remain green;
 - no cleaner can remove protected provenance through an overlapping metadata operation;
 - every supported cleanup either proves integrity or refuses publication;
 - documentation describes only demonstrated capabilities.
 
-All eight are satisfied locally. The outstanding gate is executing the same suite on hosted CI.
+The code-side gates can be checked locally. Hosted cross-platform CI, release signatures, and trusted
+publishing remain external release gates and are not claimed complete by a local run.
 
 ## Strategic direction
 
@@ -416,4 +1083,6 @@ and supported verification services without weakening the core evidence model.
 The durable product advantage is not a sensational AI score. It is a trustworthy chain from
 inspection, through explanation and policy, to predictable remediation with verifiable content
 integrity — and the discipline to report `valid` when a signature is merely correct, and
-`verifier_unavailable` when nothing can be checked at all.
+`verifier_unavailable` when nothing can be checked at all. Audit certificates extend that chain by
+binding the exact detector scope and outcome to exact bytes without turning absence of evidence into
+an authorship claim.

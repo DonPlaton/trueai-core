@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "defusedxml>=0.7.1,<1",
-  "pathspec>=0.12.1,<1",
+  "pathspec>=0.12.1,<2",
   "Pillow>=11.1,<13",
   "pydantic>=2.10,<3",
   "PyYAML>=6.0.2,<7",
@@ -36,9 +36,10 @@ pdf = ["pikepdf>=9.5,<11"]
 # Official C2PA verification. Without it the provenance adapter reports
 # VERIFICATION_UNAVAILABLE instead of inventing a result.
 c2pa = ["c2pa-python>=0.10,<1"]
+attestation = ["cryptography>=50,<51"]
 dev = [
   # Generates the throwaway certificate chain that signs synthetic C2PA fixtures.
-  "cryptography>=44,<48",
+  "cryptography>=50,<51",
   "mypy>=1.14,<2",
   "pytest>=8.3,<10",
   "pytest-cov>=6,<8",

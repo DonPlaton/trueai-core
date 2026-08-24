@@ -4,8 +4,8 @@ A third-party detector is ordinary Python running inside a forensic tool, which
 is exactly the position an attacker would like to be in. The manifest makes the
 plugin state its intentions up front, and the policy lets an operator decide
 which of those intentions are acceptable before the detector is constructed or
-run. Reading the manifest still imports the plugin's module, because an entry
-point is an import path; module-level code is outside what a policy can gate.
+run. A deny-by-default helper process imports the plugin to inspect its manifest;
+the scanner process does not import refused plugin modules.
 
 Nothing here is a sandbox on its own. The manifest is the declaration, the policy
 is the decision, and :mod:`trueai.plugins.host` is the enforcement point.
@@ -175,7 +175,7 @@ class PluginRegistration(FrozenModel):
     """What an entry point may return instead of a bare detector.
 
     Returning a registration is how a plugin declares its manifest without the
-    host having to import and instantiate the detector first.
+    inspector having to instantiate the detector first.
     """
 
     model_config = FrozenModel.model_config | {"arbitrary_types_allowed": True}

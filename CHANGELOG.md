@@ -12,6 +12,45 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Clean-delivery verification and audit certificates**
+
+- `trueai clean` now rescans the bytes it actually publishes and reports `clear`,
+  `indicators_remain`, or `incomplete`; heuristic findings are reported rather than
+  rewritten away.
+- `trueai certificates issue|verify|keygen` creates content-bound `TAI1-…` audit
+  records for files and recursive inventories, with optional Ed25519 issuer signatures.
+- Optional certificate expiry plus signed, finite-lifetime, sequenced revocation lists through
+  `trueai certificates revoke`; strict verification can require a current issuer-authenticated list.
+- Certificates bind package/schema versions, exact report and artifact hashes, policy,
+  detector scope, resource boundaries, diagnostics, findings, and explicit limitations.
+- The certificate claim is deliberately “no indicators detected in scope,” never proof
+  of human authorship or proof that AI assistance was absent.
+
+**Signed enterprise policy**
+
+- Content-addressed, finite-lifetime Ed25519 policy bundles through
+  `trueai policies bundle-create|bundle-verify|bundle-schema`.
+- Exact finding-ID baselines, selector-based finite suppressions, and finite action exceptions.
+- Controls alter only policy decisions; findings remain serialized and each applied or expired
+  control is recorded in `policy_audit`.
+- Conflicting exceptions fail closed, and C2PA/provider watermark findings remain preserved
+  regardless of enterprise overrides.
+
+**Audio and video metadata**
+
+- Signature-based discovery for WAV, MP3, FLAC, M4A, MP4/MOV, and WebM/Matroska containers.
+- `media.container-metadata.v1` reads bounded RIFF INFO/BEXT, ID3v1/v2, Vorbis comments,
+  ISO BMFF/QuickTime keyed metadata and XMP boxes, and EBML application/tag fields without
+  decoding media streams.
+- Generator, personal, ordinary media, literal provider attribution, and protected provenance
+  evidence remain separate findings.
+- Surgical WAV, MP3, and FLAC cleanup removes only selected RIFF INFO/BEXT/XML fields, ID3v1/v2
+  fields, or Vorbis comments. The integrity gate verifies the exact planned transform and
+  byte-identical audio-bearing payload; no codec is invoked and protected provenance blocks the
+  operation.
+- M4A, MP4/MOV, and WebM remain inspection-only until sample-table, timing, index, and provenance
+  invariants can prove a container rewrite harmless.
+
 **Office Open XML expansion**
 
 - PPTX inspection (`documents.pptx-forensics.v1`): speaker notes, review comments,
@@ -39,6 +78,10 @@ change is called out explicitly and governed by
   unknown signer) are separate states. Without the optional dependency the result
   is `verifier_unavailable`; nothing is inferred.
 - Remote manifests are never fetched unless explicitly permitted.
+- `trueai scan --verify-provenance` can attach typed authenticated results directly to JSON and
+  terminal reports while retaining separate marker findings.
+- Report-attached verification is content-bound to the scan descriptor; a size or SHA-256 change
+  between scanning and verification fails closed.
 - Signed test fixtures are generated at test time from a throwaway CA, so the suite
   covers real signature validation without redistributing anyone's certificates.
 
@@ -70,14 +113,23 @@ change is called out explicitly and governed by
 - Refused plugins appear in the report as `plugin_rejected` diagnostics instead of
   silently reducing coverage.
 - `trueai plugins list` and `trueai scan --plugins in_process|subprocess|disabled`.
+- Plugin manifests are now inspected in a capability-guarded helper without importing
+  third-party modules in the scanner process. Subprocess execution is the default.
+- Plugin stdout/stderr are discarded rather than captured in unbounded host buffers.
+- Helper processes install kernel CPU and memory limits before plugin import through POSIX rlimits
+  or a Windows Job Object; inability to install a configured limit fails closed.
 
 **Release engineering**
 
 - Cross-platform CI: Python 3.12, 3.13, and 3.14 on Linux, macOS, and Windows.
+- The attestation dependency now requires the security-fixed `cryptography` 50.x line; the
+  release audit fails on known vulnerable transitive dependencies.
 - Security cases that can only run on POSIX now fail instead of skipping there, so
   the suite cannot report green while covering less than the security policy claims.
 - Reproducible-build comparison, packaged-manifest verification, dependency audit,
   license allowlist, and CycloneDX SBOM generation.
+- The license gate follows the installed TrueAI runtime dependency closure and selected extras,
+  excluding CI tools that are not shipped to users; workflows use the current CycloneDX CLI.
 - Release workflow with tag/version agreement, build provenance attestation,
   Sigstore signing, and PyPI trusted publishing.
 - The source distribution now ships the test suite, docs, published schema, and
@@ -92,10 +144,15 @@ change is called out explicitly and governed by
 
 ### Changed
 
+- `PluginIsolation.SUBPROCESS` replaces fully trusted in-process execution as the
+  default for the Python API, registry discovery, and CLI. `in_process` remains an
+  explicit compatibility/trust choice.
+
 - The C2PA marker finding now records `"verification": "not_attempted"` and points
   at `trueai verify`, replacing the previous claim that verification was
   unavailable.
-- `ArtifactType` gained `pptx` and `xlsx`. Adding an enum member is a compatible
+- `ArtifactType` gained `pptx`, `xlsx`, `audio`, and `video`; `FindingCategory` gained
+  `media_metadata`. Adding an enum member is a compatible
   change inside schema `0.1`; consumers must tolerate unknown members.
 - DOCX detection and cleanup moved onto a shared Office Open XML implementation.
   Detector IDs, finding identities, remediation identifiers, and integrity
@@ -105,6 +162,19 @@ change is called out explicitly and governed by
 ### Fixed
 
 Found in review of the changes above, each with a regression test:
+
+- Caller-supplied directory/repository `Artifact` objects now establish the same
+  recursive inventory baseline as path-based scans instead of reporting every existing
+  child as a detector-created file.
+- Cache entries are size-checked before reading, and cache symlink/junction components
+  disable the operation instead of redirecting writes outside the configured tree.
+- Invalid C2PA trust settings fail closed instead of silently falling back to an
+  unconfigured verifier while reporting that trust anchors were configured.
+- The `pathspec` range now includes compatible 1.x releases. The former `<1` cap
+  conflicted with supported recent mypy releases and made a fresh `.[dev]` resolve
+  impossible even though TrueAI uses the unaffected public `GitIgnoreSpec` API.
+- The release license gate now parses simple SPDX `OR`/`AND` expressions instead
+  of rejecting dual-licensed dependencies whose individual licenses are allowlisted.
 
 - **SVG cleanup could delete rendered text and still report `PASS`.** The visible
   structure invariant ignored the text that follows a node, so removing a comment

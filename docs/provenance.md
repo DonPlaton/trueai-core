@@ -6,13 +6,13 @@ TrueAI keeps two things apart that are routinely conflated.
 Content Credentials bytes appear in a file. Anyone can write those bytes. A marker
 is evidence about the file's contents and nothing more.
 
-**Verification** is a separate, explicit operation. It validates a signed manifest,
-reports whose certificate signed it, and says whether that certificate chains to a
-trust anchor the operator configured.
+**Verification** is an explicit operation. It validates a signed manifest, reports whose
+certificate signed it, and says whether that certificate chains to a trust anchor the operator
+configured. It can run as the dedicated verify command or be explicitly attached to a scan report.
 
-A scan never verifies, and verification never happens implicitly. This is why the
-marker finding says `"verification": "not_attempted"` rather than claiming a
-result it did not obtain.
+The default scan never verifies, and verification never happens implicitly. This is why a marker
+finding says `"verification": "not_attempted"` unless the separate
+`provenance_verifications` report field records an explicit verifier result.
 
 ## Verifying an artifact
 
@@ -21,6 +21,7 @@ Verification uses the C2PA reference implementation and is an optional install:
 ```bash
 pip install "trueai-core[c2pa]"
 trueai verify design.png --trust-anchors corporate-roots.pem
+trueai scan design.png --verify-provenance --trust-anchors corporate-roots.pem --format json
 ```
 
 `trueai doctor` reports whether the verifier is present and which version of the
@@ -33,6 +34,17 @@ result = verify_provenance("design.png", trust_anchors="corporate-roots.pem")
 if result.authenticated:
     print(result.signer.common_name)
 ```
+
+`scan --verify-provenance` preserves marker findings and adds typed verification objects; it does
+not rewrite a marker finding into authenticated evidence. For directory scans, eligible
+verifier-supported artifacts are processed in report order. If the optional verifier is missing,
+the report records `verifier_unavailable` and exits with code 3 instead of silently omitting the
+requested coverage.
+
+Every attached result is bound to the descriptor recorded by the scan. TrueAI compares the current
+size and SHA-256 with the report immediately before and after invoking the verifier; a file changed
+after the scan or while verification runs is rejected instead of combining findings from old bytes
+with provenance from new bytes.
 
 ## The five outcomes
 

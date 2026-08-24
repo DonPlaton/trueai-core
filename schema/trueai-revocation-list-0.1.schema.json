@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "CertificateSignature": {
+      "additionalProperties": false,
+      "description": "Optional issuer signature over the canonical certificate claims.",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "default": "ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "key_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 200,
+          "minLength": 40,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key_id",
+        "value"
+      ],
+      "title": "CertificateSignature",
+      "type": "object"
+    },
+    "RevocationEntry": {
+      "additionalProperties": false,
+      "description": "One immutable withdrawal record published by a certificate issuer.",
+      "properties": {
+        "certificate_id": {
+          "pattern": "^TAI1-[A-Z2-7]{32}$",
+          "title": "Certificate Id",
+          "type": "string"
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Explanation"
+        },
+        "reason": {
+          "$ref": "#/$defs/RevocationReason"
+        },
+        "replacement_certificate_id": {
+          "anyOf": [
+            {
+              "pattern": "^TAI1-[A-Z2-7]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replacement Certificate Id"
+        },
+        "revoked_at": {
+          "format": "date-time",
+          "title": "Revoked At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "certificate_id",
+        "revoked_at",
+        "reason"
+      ],
+      "title": "RevocationEntry",
+      "type": "object"
+    },
+    "RevocationReason": {
+      "description": "Operator-auditable reason an issuer withdrew a certificate.",
+      "enum": [
+        "unspecified",
+        "key_compromise",
+        "artifact_withdrawn",
+        "superseded",
+        "issued_in_error"
+      ],
+      "title": "RevocationReason",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.trueai.dev/revocation-list/0.1/schema.json",
+  "additionalProperties": false,
+  "description": "Signed, finite-lifetime list of certificates withdrawn by one issuer.",
+  "properties": {
+    "entries": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RevocationEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "issuer_key_id": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Issuer Key Id",
+      "type": "string"
+    },
+    "revocation_schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Revocation Schema Version",
+      "type": "string"
+    },
+    "sequence": {
+      "minimum": 1,
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CertificateSignature"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "issuer_key_id",
+    "sequence",
+    "issued_at",
+    "expires_at"
+  ],
+  "title": "TrueAI Certificate Revocation List 0.1",
+  "type": "object"
+}

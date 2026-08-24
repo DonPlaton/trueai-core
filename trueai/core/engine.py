@@ -91,7 +91,7 @@ class TrueAIEngine:
         *,
         include_experimental: bool = False,
         discover_plugins: bool = True,
-        plugin_isolation: PluginIsolation = PluginIsolation.IN_PROCESS,
+        plugin_isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
         capability_policy: CapabilityPolicy | None = None,
         plugin_search_path: tuple[str, ...] = (),
     ) -> TrueAIEngine:

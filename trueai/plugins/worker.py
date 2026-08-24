@@ -65,7 +65,12 @@ def _write(response_path: Path, response: Any) -> None:
     # the filesystem guard replaces every open() the plugin could reach.
     descriptor = _RAW_OPEN(str(response_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        _RAW_WRITE(descriptor, encoded)
+        remaining = memoryview(encoded)
+        while remaining:
+            written = _RAW_WRITE(descriptor, remaining)
+            if written <= 0:
+                raise OSError("Unable to write plugin response")
+            remaining = remaining[written:]
     finally:
         _RAW_CLOSE(descriptor)
 
@@ -91,6 +96,17 @@ def main(argv: list[str]) -> int:
     from trueai.core.models import ScanContext
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.loader import load_entry_point
+    from trueai.plugins.resources import apply_process_resource_limits
+
+    try:
+        apply_process_resource_limits(request.resource_limits)
+    except Exception as exc:
+        return _fail(
+            response_path,
+            request.detector_id,
+            "plugin_resource_limits_unavailable",
+            f"{type(exc).__name__}: {exc}",
+        )
 
     # Guards go up before the plugin is imported. Everything the plugin runs,
     # including module-level code and its constructor, is subject to them.

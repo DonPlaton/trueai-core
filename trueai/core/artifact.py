@@ -22,7 +22,19 @@ from trueai.core.models import ArtifactType
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _JPEG_SIGNATURE = b"\xff\xd8\xff"
 _PDF_SIGNATURE = b"%PDF-"
+_FLAC_SIGNATURE = b"fLaC"
+_EBML_SIGNATURE = b"\x1aE\xdf\xa3"
 _ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
+
+_ISO_AUDIO_BRANDS = frozenset(
+    {
+        b"M4A ",
+        b"M4B ",
+        b"M4P ",
+        b"F4A ",
+        b"F4B ",
+    }
+)
 
 # Office Open XML packages share one container format and one safety layer. The
 # family is decided by the part that must exist in a valid package, not by the
@@ -331,6 +343,15 @@ class ArtifactDiscovery:
         self.truncated = False
         self.issues = []
         if isinstance(target, Artifact):
+            if (
+                target.artifact_type in {ArtifactType.DIRECTORY, ArtifactType.GIT_REPOSITORY}
+                and target.path is not None
+            ):
+                # A caller-supplied container is still a recursive scan target. Treating
+                # it as a one-item inventory made the post-scan mutation check rediscover
+                # every pre-existing child and falsely accuse detectors of creating them.
+                # Re-identification also avoids trusting a caller-provided container type.
+                return self.discover(target.path)
             return [target]
         raw_path = Path(target)
         if raw_path.is_symlink() and not self.options.follow_symlinks:
@@ -475,6 +496,24 @@ class ArtifactDiscovery:
             return ArtifactType.JPEG, "image/jpeg"
         if head.startswith(_PDF_SIGNATURE):
             return ArtifactType.PDF, "application/pdf"
+        if head.startswith(_FLAC_SIGNATURE):
+            return ArtifactType.AUDIO, "audio/flac"
+        if head.startswith((b"RIFF", b"RIFX")) and head[8:12] == b"WAVE":
+            return ArtifactType.AUDIO, "audio/wav"
+        if head.startswith(b"ID3") or (
+            suffix in {".mp2", ".mp3", ".mpa"} and ArtifactDiscovery._looks_like_mp3_frame(head)
+        ):
+            return ArtifactType.AUDIO, "audio/mpeg"
+        if len(head) >= 12 and head[4:8] == b"ftyp":
+            major_brand = head[8:12]
+            if major_brand in _ISO_AUDIO_BRANDS or suffix in {".m4a", ".m4b", ".m4p"}:
+                return ArtifactType.AUDIO, "audio/mp4"
+            media_type = "video/quicktime" if major_brand == b"qt  " else "video/mp4"
+            return ArtifactType.VIDEO, media_type
+        if head.startswith(_EBML_SIGNATURE):
+            if suffix in {".weba", ".mka"}:
+                return ArtifactType.AUDIO, "audio/webm"
+            return ArtifactType.VIDEO, "video/webm"
         if head.startswith(_ZIP_SIGNATURES):
             known = _OOXML_BY_SUFFIX.get(suffix)
             if known is not None:
@@ -551,3 +590,20 @@ class ArtifactDiscovery:
         except UnicodeDecodeError:
             control_count = sum(byte < 9 or 13 < byte < 32 for byte in sample)
             return control_count / len(sample) < 0.02
+
+    @staticmethod
+    def _looks_like_mp3_frame(data: bytes) -> bool:
+        """Recognize a plausible MPEG audio frame header without trusting the suffix."""
+
+        if len(data) < 4 or data[0] != 0xFF or data[1] & 0xE0 != 0xE0:
+            return False
+        version = (data[1] >> 3) & 0x03
+        layer = (data[1] >> 1) & 0x03
+        bitrate_index = (data[2] >> 4) & 0x0F
+        sample_rate_index = (data[2] >> 2) & 0x03
+        return (
+            version != 0x01
+            and layer != 0x00
+            and bitrate_index not in {0x00, 0x0F}
+            and sample_rate_index != 0x03
+        )

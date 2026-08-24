@@ -61,7 +61,7 @@ class DetectorRegistry:
         self,
         *,
         policy: CapabilityPolicy | None = None,
-        isolation: PluginIsolation = PluginIsolation.IN_PROCESS,
+        isolation: PluginIsolation = PluginIsolation.SUBPROCESS,
         timeout: float | None = None,
         search_path: tuple[str, ...] = (),
     ) -> list[str]:

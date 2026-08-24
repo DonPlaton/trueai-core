@@ -31,11 +31,12 @@ uv run trueai --help
 
 `pip install -e ".[dev]"` is also supported.
 
-Two capabilities are optional installs, and both report honestly when absent rather than guessing:
+Three capabilities are optional installs, and all report honestly when absent rather than guessing:
 
 ```console
 uv sync --extra pdf     # surgical PDF cleanup and its reachable-object integrity gate
 uv sync --extra c2pa    # authenticated C2PA verification
+uv sync --extra attestation  # Ed25519-signed audit certificates
 ```
 
 `trueai doctor` prints which optional capabilities are present.
@@ -50,10 +51,20 @@ trueai scan deck.pptx --verbose
 trueai inspect model.xlsx
 trueai clean report.docx --policy client-delivery
 trueai clean README.md --dry-run
+trueai clean README.md --certificate README.audit.json
 trueai verify design.png --trust-anchors roots.pem  # authenticated provenance
+trueai scan design.png --verify-provenance --trust-anchors roots.pem --format json
+trueai certificates issue deliverable.pdf --output deliverable.audit.json
+trueai certificates verify deliverable.audit.json --artifact deliverable.pdf
+trueai certificates keygen --private-key issuer.pem --public-key issuer.pub.pem
+trueai certificates revoke deliverable.audit.json --revocation-list issuer.crl.json --signing-key issuer.pem
+trueai certificates schema --output trueai-certificate-0.1.schema.json
+trueai certificates revocation-schema --output trueai-revocation-list-0.1.schema.json
 trueai schema --output trueai-report-0.1.schema.json
 trueai detectors list
 trueai policies list
+trueai policies bundle-create strict --output policy.json --signing-key issuer.pem --issuer "Security"
+trueai policies bundle-verify policy.json --public-key issuer.pub.pem
 trueai plugins list
 trueai cache clear ./repository
 trueai doctor
@@ -61,7 +72,19 @@ trueai doctor
 
 `clean` writes `name.cleaned.ext` by default. It never overwrites the source unless `--in-place` is
 explicit; in-place mode creates a `.trueai.bak` backup and still applies changes through a verified
-temporary file.
+temporary file. Unless `--no-verify-residue` is explicit, the command rescans the bytes it actually
+published and reports whether scoped machine/tool indicators remain.
+
+### What cleanup can and cannot remove
+
+TrueAI removes only traces with a predictable transform: exact attribution spans, standalone
+generator comments, selected ordinary metadata, and Unicode characters a policy explicitly
+approves. The integrity gate proves that each supported cleaner changed only approved material.
+
+TrueAI does not rewrite prose, code, images, or designs to make a statistical detector return a
+different answer. It does not defeat provider watermarks or remove signed provenance. Heuristic
+style findings can therefore remain after cleaning; post-clean verification reports them as
+`INDICATORS_REMAIN` instead of manufacturing a false success.
 
 ## Current capabilities
 
@@ -77,6 +100,9 @@ temporary file.
 | PDF | Bounded Info/XMP markers, annotations, embedded-file markers | Optional `pikepdf` Info/XMP cleanup | Every reachable non-selected object and raw stream payload |
 | SVG | Metadata/RDF/XMP, comments, editor attributes, hidden/off-canvas elements, scripts, duplicated geometry | Metadata, standalone generator comments, editor attributes | Canonical visible/active structure including processing instructions |
 | PNG / JPEG | Text chunks, EXIF, XMP/comments exposed by Pillow, provenance markers | Surgical chunk/segment/tag editing; no pixel recompression | Compressed pixel-bearing payload; rendering-critical orientation preserved |
+| WAV / MP3 / FLAC | RIFF INFO/BEXT, ID3v1/v2, Vorbis comments, encoder/vendor and literal provider attribution | Selected textual fields and whole XML metadata chunks | Exact planned transform plus byte-identical audio-bearing payload |
+| M4A | ISO BMFF keyed/legacy metadata and XMP UUID boxes | Inspection only | Not modified |
+| MP4 / MOV / WebM | ISO BMFF keyed/legacy metadata, XMP UUID boxes, EBML writing/muxing applications and tags | Inspection only | Not modified |
 
 Office, SVG, raster, PDF, Git, and recursive filesystem inputs are treated as hostile. Archive,
 parser-event, finding, Git-output, file-count, file-size, path, XML, and image-pixel limits are
@@ -90,6 +116,7 @@ them apart:
 ```console
 trueai verify design.png                            # valid signature, unknown signer  → exit 1
 trueai verify design.png --trust-anchors roots.pem  # chains to a trusted root         → exit 0
+trueai scan design.png --verify-provenance --trust-anchors roots.pem --format json
 ```
 
 `trusted` is the only result that establishes provenance. `valid` means the cryptography checks out
@@ -97,6 +124,28 @@ but the signer is not established as trusted, which is a materially weaker state
 as its own state rather than rounded up. Without the optional verifier installed, the result is
 `verifier_unavailable`; nothing is inferred. Remote manifests are never fetched unless explicitly
 permitted. See [provenance](docs/provenance.md).
+
+The scan flag is still explicit. Marker findings remain unchanged while typed authenticated results
+are added under `provenance_verifications`; a marker is never promoted into verified provenance.
+
+## Audit certificates
+
+`trueai certificates issue` creates a JSON audit certificate with a `TAI1-…` content ID. It binds
+the exact file hash—or an ordered directory inventory—to the scan report hash, package and schema
+versions, policy, detector set, resource boundaries, diagnostics, and individual indicator finding
+IDs. The status is one of:
+
+- `clear`: no scoped indicator was detected and the scan completed;
+- `indicators_detected`: one or more scoped findings are present;
+- `incomplete`: a parser, resource, plugin, or coverage boundary prevented clearance.
+
+The statement is deliberately narrow: “no indicators detected within the documented detector
+scope.” It is not proof of human authorship or proof that AI was never used. An unsigned certificate
+is content-addressed but does not authenticate its issuer. Install the `attestation` extra and use
+an Ed25519 signing key when issuer identity matters. Certificates can carry a finite validity
+period. Issuers can publish a finite-lifetime, monotonically sequenced signed revocation list;
+verification can require a current authenticated list before returning success. See
+[audit certificates](docs/certificates.md).
 
 ## Confidence and provenance semantics
 
@@ -114,7 +163,8 @@ chance of AI authorship.
 Provider watermark adapters for Anthropic, OpenAI, Google, and Generic currently return
 `VERIFICATION_UNAVAILABLE` or `NOT_SUPPORTED`. TrueAI does not invent provider watermark
 algorithms, reverse-engineer keys, forge provenance, or claim watermark removal. C2PA verification
-is real but explicit: a scan reports markers, `trueai verify` validates signatures.
+is real but explicit: default scanning reports markers; `trueai verify` or
+`scan --verify-provenance` validates signatures through the official implementation.
 
 See [safety](docs/safety.md) and [finding semantics](docs/findings.md).
 
@@ -138,6 +188,10 @@ rules:
 
 See [policies](docs/policies.md).
 
+Enterprise bundles sign a profile, exact finding-ID baseline, finite suppressions, and finite
+exceptions with Ed25519. Applying one requires its issuer public key. Findings remain in the report,
+and every override is recorded in `policy_audit`; protected provenance cannot be suppressed.
+
 ## Python API
 
 ```python
@@ -158,9 +212,10 @@ print(result.integrity.status)
 Public report and finding models use Pydantic v2 and reject unknown fields.
 
 Third-party detectors register explicitly through `DetectorRegistry.register()` or expose an entry
-point in the `trueai.detectors` group. A plugin declares a capability manifest; the host policy
-decides what it may do before any of its code is trusted. Detection is read-only, so filesystem
-writes, process creation, and network access are denied by default even to a plugin that asks:
+point in the `trueai.detectors` group. A plugin declares a capability manifest; a guarded helper
+inspects it without importing the module in the scanner process, then host policy decides whether
+the plugin may run. Detection is read-only, so filesystem writes, process creation, and network
+access are denied by default even to a plugin that asks. Subprocess isolation is the default:
 
 ```python
 from trueai import TrueAIEngine
@@ -172,9 +227,11 @@ engine = TrueAIEngine.default(
 )
 ```
 
-Subprocess isolation contains crashes, hangs, and unbounded output, and re-derives every returned
-finding so a plugin cannot forge an identity or impersonate another detector. It is not an OS
-sandbox. See [plugins](docs/plugins.md).
+Subprocess isolation contains host-state corruption, hangs, and unbounded output, and re-derives
+every returned finding so a plugin cannot forge an identity or impersonate another detector.
+Workers install hard CPU and memory limits before importing third-party code (POSIX rlimits or a
+Windows Job Object). This is still not a filesystem/system-call sandbox. See
+[plugins](docs/plugins.md).
 
 ## Architecture
 
@@ -247,14 +304,17 @@ and the repository [AGENTS.md](AGENTS.md) before changing parser or public-model
 
 ## Roadmap
 
-- Audio and video container metadata
+- MP4/MOV/M4A and WebM cleanup after sample-table, timing, index, and provenance invariants are implemented
 - Richer HTML DOM topology and stylesheet feature extraction
 - HTML report and desktop/IDE consumers
-- Operating-system sandboxing for third-party plugins
-- Signed enterprise policy bundles, baselines, suppressions, and audit trails
+- Filesystem/system-call sandboxing for third-party native code
+- Signed plugin distributions and centrally managed policy-bundle distribution
 - Calibrated optional ML feature consumers, kept outside the core dependency set
 
 The roadmap does not promise removal of robust statistical or cryptographic watermarks.
+See the [indicator-handling boundary and implementation plan](docs/indicator-handling.md) for the
+exact distinction between predictable cleanup, provenance verification, heuristics, and prohibited
+detector evasion.
 
 ## Deliberate limitations
 
@@ -263,13 +323,15 @@ The roadmap does not promise removal of robust statistical or cryptographic wate
   guaranteed; PDF cleanup requires `pikepdf`.
 - Git worktrees, object databases, and alternates outside the selected root are rejected;
   unreachable or dangling commits remain outside the all-refs history scope.
-- Plugin isolation is process-level with Python-level capability guards. It contains accidents and
-  catches dishonest output; it does not safely run hostile native code, and reading a plugin's
-  manifest still imports its module.
+- Plugin isolation is process-level with Python capability guards and kernel CPU/memory quotas. It
+  contains accidents and catches dishonest output; it does not safely run hostile native code.
+  `ctypes` and native extensions still require filesystem/system-call confinement for a
+  hostile-plugin threat model.
 - A textual artifact that cannot be decoded exactly is reported as corrupt rather than scanned with
   replacement characters, because an offset the cleaner cannot reproduce is not a safe basis for
   removing anything.
 - With `--jobs` above 1, third-party detectors must be thread-safe or run under subprocess
   isolation.
-- Audio, video, HTML reports, learned classifiers, and destructive Git remediation are not
-  implemented.
+- Audio/video stream decoding, MP4/MOV/M4A/WebM cleanup, HTML reports, learned classifiers, and
+  destructive Git remediation are not implemented. WAV/MP3/FLAC cleanup edits only bounded
+  metadata structures and never decodes or re-encodes audio samples.

@@ -1,13 +1,40 @@
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from trueai import TrueAIEngine
 from trueai.cli.app import app
+from trueai.core.certificates import generate_ed25519_keypair
+from trueai.core.models import FindingCategory
+from trueai.core.policy import PolicyStore
+from trueai.core.policy_bundle import (
+    FindingSelector,
+    PolicyBundleControls,
+    PolicySuppression,
+    issue_policy_bundle,
+    policy_bundle_json,
+)
 from trueai.reporters import JSONReporter, SARIFReporter
 
 runner = CliRunner()
+
+
+def _riff_chunk(identifier: bytes, payload: bytes) -> bytes:
+    return (
+        identifier
+        + len(payload).to_bytes(4, "little")
+        + payload
+        + (b"\x00" if len(payload) & 1 else b"")
+    )
+
+
+def _wave_with_software(software: str, audio: bytes) -> bytes:
+    info = b"INFO" + _riff_chunk(b"ISFT", software.encode("latin-1") + b"\x00")
+    body = b"WAVE" + _riff_chunk(b"fmt ", b"\x01\x00\x01\x00" + b"\x00" * 12)
+    body += _riff_chunk(b"LIST", info) + _riff_chunk(b"data", audio)
+    return b"RIFF" + len(body).to_bytes(4, "little") + body
 
 
 def test_json_schema_is_stable_and_round_trips(tmp_path: Path) -> None:
@@ -41,6 +68,9 @@ def test_public_json_schema_has_versioned_top_level_and_finding_contract() -> No
         "detectors_run",
         "policy",
         "policy_decisions",
+        "policy_bundle_id",
+        "policy_audit",
+        "provenance_verifications",
         "integrity",
     }
     assert set(finding_schema["properties"]) == {
@@ -109,6 +139,187 @@ def test_cli_dry_run_does_not_write_output(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert not (tmp_path / "notes.cleaned.txt").exists()
     assert "Dry run" in result.stdout
+
+
+def test_cli_clean_rescans_output_and_can_issue_a_clear_certificate(tmp_path: Path) -> None:
+    path = tmp_path / "notes.txt"
+    certificate_path = tmp_path / "cleaned-certificate.json"
+    path.write_text("Generated with ChatGPT\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "clean",
+            str(path),
+            "--certificate",
+            str(certificate_path),
+        ],
+    )
+
+    cleaned = tmp_path / "notes.cleaned.txt"
+    assert result.exit_code == 0, result.output
+    assert "Post-clean residue verification: CLEAR" in result.stdout
+    assert "ChatGPT" not in cleaned.read_text(encoding="utf-8")
+    certificate = json.loads(certificate_path.read_text(encoding="utf-8"))
+    assert certificate["status"] == "clear"
+    assert "does not prove human authorship" in certificate["limitations"][0]
+
+
+def test_cli_clean_surgically_removes_wave_generator_metadata(tmp_path: Path) -> None:
+    audio = b"\x01\x02\x03\x04"
+    path = tmp_path / "audio.wav"
+    path.write_bytes(_wave_with_software("Reference Generator", audio))
+
+    result = runner.invoke(app, ["clean", str(path)])
+
+    cleaned = tmp_path / "audio.cleaned.wav"
+    assert result.exit_code == 0, result.output
+    assert "Post-clean residue verification: CLEAR" in result.stdout
+    assert cleaned.exists()
+    assert b"Reference Generator" not in cleaned.read_bytes()
+    assert _riff_chunk(b"data", audio) in cleaned.read_bytes()
+
+
+def test_cli_certificate_issue_and_verify_round_trip(tmp_path: Path) -> None:
+    artifact = tmp_path / "deliverable.txt"
+    certificate = tmp_path / "deliverable.certificate.json"
+    artifact.write_text("Ordinary delivery text.\n", encoding="utf-8")
+
+    issued = runner.invoke(
+        app,
+        ["certificates", "issue", str(artifact), "--output", str(certificate)],
+    )
+    verified = runner.invoke(
+        app,
+        ["certificates", "verify", str(certificate), "--artifact", str(artifact)],
+    )
+
+    assert issued.exit_code == 0, issued.output
+    assert "TAI1-" in issued.stdout
+    assert verified.exit_code == 0, verified.output
+    assert "Artifact bytes match" in verified.stdout
+
+
+def test_cli_emits_certificate_schema() -> None:
+    result = runner.invoke(app, ["certificates", "schema"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["properties"]["certificate_schema_version"]["const"] == "0.1"
+
+
+def test_cli_signed_certificate_expiry_and_revocation_workflow(tmp_path: Path) -> None:
+    artifact = tmp_path / "deliverable.txt"
+    certificate = tmp_path / "deliverable.certificate.json"
+    revocations = tmp_path / "issuer.revocations.json"
+    private_key = tmp_path / "issuer-private.pem"
+    public_key = tmp_path / "issuer-public.pem"
+    artifact.write_text("Ordinary delivery text.\n", encoding="utf-8")
+    generate_ed25519_keypair(private_key, public_key)
+
+    issued = runner.invoke(
+        app,
+        [
+            "certificates",
+            "issue",
+            str(artifact),
+            "--output",
+            str(certificate),
+            "--signing-key",
+            str(private_key),
+            "--valid-for-days",
+            "90",
+        ],
+    )
+    revoked = runner.invoke(
+        app,
+        [
+            "certificates",
+            "revoke",
+            str(certificate),
+            "--revocation-list",
+            str(revocations),
+            "--signing-key",
+            str(private_key),
+            "--reason",
+            "artifact_withdrawn",
+        ],
+    )
+    verified = runner.invoke(
+        app,
+        [
+            "certificates",
+            "verify",
+            str(certificate),
+            "--artifact",
+            str(artifact),
+            "--public-key",
+            str(public_key),
+            "--revocation-list",
+            str(revocations),
+            "--require-revocation-check",
+        ],
+    )
+
+    assert issued.exit_code == 0, issued.output
+    assert json.loads(certificate.read_text(encoding="utf-8"))["expires_at"]
+    assert revoked.exit_code == 0, revoked.output
+    assert json.loads(revocations.read_text(encoding="utf-8"))["sequence"] == 1
+    assert verified.exit_code == 2, verified.output
+    assert "Certificate is revoked by the issuer" in verified.stdout
+
+
+def test_cli_emits_revocation_list_schema() -> None:
+    result = runner.invoke(app, ["certificates", "revocation-schema"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["properties"]["revocation_schema_version"]["const"] == "0.1"
+
+
+def test_cli_certificate_reports_indicators_instead_of_issuing_false_clearance(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "flagged.txt"
+    certificate = tmp_path / "flagged.certificate.json"
+    artifact.write_text("Generated with ChatGPT\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["certificates", "issue", str(artifact), "--output", str(certificate)],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(certificate.read_text(encoding="utf-8"))["status"] == "indicators_detected"
+
+
+def test_cli_does_not_rewrite_style_to_evade_a_heuristic_detector(tmp_path: Path) -> None:
+    artifact = tmp_path / "regular.txt"
+    paragraph = " ".join(f"word{index}" for index in range(50)) + "."
+    original = "\n\n".join([paragraph] * 4)
+    artifact.write_text(original, encoding="utf-8")
+
+    result = runner.invoke(app, ["clean", str(artifact), "--experimental"])
+
+    assert result.exit_code == 1, result.output
+    assert "INDICATORS_REMAIN" in result.stdout
+    assert artifact.read_text(encoding="utf-8") == original
+    assert not (tmp_path / "regular.cleaned.txt").exists()
+
+
+def test_cli_refuses_certificate_output_inside_a_certified_directory(tmp_path: Path) -> None:
+    root = tmp_path / "delivery"
+    root.mkdir()
+    (root / "notes.txt").write_text("Ordinary delivery text.\n", encoding="utf-8")
+    certificate = root / "certificate.json"
+
+    result = runner.invoke(
+        app,
+        ["certificates", "issue", str(root), "--output", str(certificate)],
+    )
+
+    assert result.exit_code == 3
+    assert not certificate.exists()
 
 
 def test_cli_unsupported_binary_exit_code(tmp_path: Path) -> None:
@@ -182,6 +393,90 @@ def test_cli_clean_rejects_corrupt_scan_before_planning(tmp_path: Path) -> None:
 
     assert result.exit_code == 3
     assert not (tmp_path / "broken.cleaned.svg").exists()
+
+
+def test_cli_applies_authenticated_policy_bundle_without_hiding_finding(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "delivery.txt"
+    private = tmp_path / "private.pem"
+    public = tmp_path / "public.pem"
+    bundle_path = tmp_path / "policy-bundle.json"
+    artifact.write_text("Generated with ChatGPT" + chr(10), encoding="utf-8")
+    generate_ed25519_keypair(private, public)
+    bundle = issue_policy_bundle(
+        PolicyStore.get("strict"),
+        issuer="Test Security",
+        signing_key=private,
+        controls=PolicyBundleControls(
+            suppressions=(
+                PolicySuppression(
+                    id="approved.cli-smoke",
+                    selector=FindingSelector(category=FindingCategory.EXPLICIT_AI_ATTRIBUTION),
+                    reason="Reviewed for CLI integration coverage.",
+                    approved_by="test@example.test",
+                    expires_at=datetime.now(UTC) + timedelta(days=1),
+                ),
+            )
+        ),
+    )
+    bundle_path.write_text(policy_bundle_json(bundle), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            str(artifact),
+            "--policy-bundle",
+            str(bundle_path),
+            "--policy-key",
+            str(public),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["findings"]
+    assert payload["policy_bundle_id"] == bundle.bundle_id
+    assert payload["policy_audit"][0]["source"] == "suppression"
+
+
+def test_policy_bundle_cli_can_create_and_verify(tmp_path: Path) -> None:
+    private = tmp_path / "private.pem"
+    public = tmp_path / "public.pem"
+    bundle_path = tmp_path / "policy-bundle.json"
+    generate_ed25519_keypair(private, public)
+
+    created = runner.invoke(
+        app,
+        [
+            "policies",
+            "bundle-create",
+            "audit",
+            "--output",
+            str(bundle_path),
+            "--signing-key",
+            str(private),
+            "--issuer",
+            "Test Security",
+        ],
+    )
+    verified = runner.invoke(
+        app,
+        [
+            "policies",
+            "bundle-verify",
+            str(bundle_path),
+            "--public-key",
+            str(public),
+        ],
+    )
+
+    assert created.exit_code == 0
+    assert verified.exit_code == 0
+    assert "VALID" in verified.stdout
 
 
 def test_module_entry_points_both_run_the_cli() -> None:

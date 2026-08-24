@@ -32,6 +32,8 @@ class ArtifactType(StrEnum):
     PDF = "pdf"
     PNG = "png"
     JPEG = "jpeg"
+    AUDIO = "audio"
+    VIDEO = "video"
     GIT_REPOSITORY = "git_repository"
     DIRECTORY = "directory"
     BINARY = "binary"
@@ -50,6 +52,7 @@ class FindingCategory(StrEnum):
     DOCUMENT_METADATA = "document_metadata"
     PERSONAL_METADATA = "personal_metadata"
     IMAGE_METADATA = "image_metadata"
+    MEDIA_METADATA = "media_metadata"
     C2PA_PROVENANCE = "c2pa_provenance"
     PROVIDER_WATERMARK = "provider_watermark"
     STYLISTIC_SIGNAL = "stylistic_signal"
@@ -288,6 +291,18 @@ class PolicyDecision(FrozenModel):
     rationale: str
 
 
+class PolicyAuditEntry(FrozenModel):
+    """Auditable enterprise override applied without hiding the finding."""
+
+    finding_id: str
+    source: Literal["baseline", "suppression", "exception", "protected"]
+    rule_id: str | None = None
+    action: PolicyAction
+    reason: str
+    approved_by: str | None = None
+    expires_at: datetime | None = None
+
+
 class ScanSummary(FrozenModel):
     """Precomputed counts for stable clients."""
 
@@ -327,6 +342,9 @@ class ScanReport(FrozenModel):
     detectors_run: tuple[str, ...] = ()
     policy: str | None = None
     policy_decisions: tuple[PolicyDecision, ...] = ()
+    policy_bundle_id: str | None = None
+    policy_audit: tuple[PolicyAuditEntry, ...] = ()
+    provenance_verifications: tuple[ProvenanceVerification, ...] = ()
     integrity: IntegrityReport = Field(
         default_factory=lambda: IntegrityReport(
             status=IntegrityStatus.NOT_MODIFIED,
@@ -443,3 +461,6 @@ class WatermarkVerificationResult(FrozenModel):
     verified: bool = False
     explanation: str
     findings: tuple[Finding, ...] = ()
+
+
+ScanReport.model_rebuild()

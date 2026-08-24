@@ -8,8 +8,14 @@ rather than a discovery made after distribution.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+from importlib.metadata import PackageNotFoundError, distribution
+
+from packaging.markers import default_environment
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 ALLOWED_LICENSES = frozenset(
     {
@@ -21,11 +27,13 @@ ALLOWED_LICENSES = frozenset(
         "HPND",
         "ISC License (ISCL)",
         "MIT",
+        "MIT-0",
         "MIT License",
         "MIT-CMU",
         "MPL-2.0",
         "Mozilla Public License 2.0 (MPL 2.0)",
         "Python Software Foundation License",
+        "PSF-2.0",
         "The Unlicense (Unlicense)",
     }
 )
@@ -34,13 +42,93 @@ ALLOWED_LICENSES = frozenset(
 REVIEWED_EXCEPTIONS = {
     "trueai-core": "Apache-2.0 (this project)",
 }
+RUNTIME_EXTRAS = frozenset({"attestation", "c2pa", "pdf"})
+
+
+def license_is_allowed(license_expression: str) -> bool:
+    """Validate every atom in a simple SPDX OR/AND or pip-licenses list.
+
+    Dependency metadata commonly reports dual licenses as ``MIT OR Apache-2.0``.
+    Treating that whole expression as one unknown label creates false release
+    failures. Requiring every named atom to be allowlisted stays conservative for
+    both OR and AND expressions without adding a runtime SPDX parser.
+    """
+
+    if license_expression.strip() in ALLOWED_LICENSES:
+        return True
+    atoms = [
+        atom.strip().strip("()")
+        for atom in re.split(r"\s+(?:OR|AND)\s+|;", license_expression)
+        if atom.strip()
+    ]
+    return bool(atoms) and all(atom in ALLOWED_LICENSES for atom in atoms)
+
+
+def runtime_distribution_names(
+    root: str = "trueai-core",
+    *,
+    extras: frozenset[str] = RUNTIME_EXTRAS,
+) -> tuple[str, ...]:
+    """Return the installed runtime dependency closure for the selected extras.
+
+    Release environments also contain pytest, pip-audit, CycloneDX, and this
+    script's own license reader. Including those tools would make the runtime
+    license gate depend on whichever transitive packages the CI tooling happened
+    to install that day, despite none of them shipping in the TrueAI wheel.
+    """
+
+    pending: list[tuple[str, frozenset[str]]] = [(canonicalize_name(root), extras)]
+    evaluated_extras: dict[str, frozenset[str]] = {}
+    display_names: dict[str, str] = {}
+    marker_environment = default_environment()
+    while pending:
+        name, requested_extras = pending.pop()
+        previous = evaluated_extras.get(name)
+        if previous is not None and requested_extras <= previous:
+            continue
+        active_extras = requested_extras | (previous or frozenset())
+        try:
+            package = distribution(name)
+        except PackageNotFoundError as exc:
+            raise RuntimeError(
+                f"Runtime distribution {name!r} is not installed; install all release extras"
+            ) from exc
+        evaluated_extras[name] = active_extras
+        display_names[name] = package.metadata.get("Name", name)
+        for requirement_text in package.requires or ():
+            requirement = Requirement(requirement_text)
+            if requirement.marker is not None:
+                contexts = active_extras | frozenset({""})
+                if not any(
+                    requirement.marker.evaluate(
+                        {**marker_environment, "extra": extra},
+                        context="metadata",
+                    )
+                    for extra in contexts
+                ):
+                    continue
+            dependency_name = canonicalize_name(requirement.name)
+            pending.append((dependency_name, frozenset(requirement.extras)))
+    return tuple(sorted(display_names.values(), key=str.casefold))
 
 
 def main() -> int:
     """Compare installed distribution licenses against the allowlist."""
 
+    try:
+        runtime_packages = runtime_distribution_names()
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     completed = subprocess.run(
-        [sys.executable, "-m", "piplicenses", "--format=json", "--with-system"],
+        [
+            sys.executable,
+            "-m",
+            "piplicenses",
+            "--format=json",
+            "--packages",
+            *runtime_packages,
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -57,8 +145,7 @@ def main() -> int:
         version = package["Version"]
         if name in REVIEWED_EXCEPTIONS:
             continue
-        declared = {part.strip() for part in license_name.split(";") if part.strip()}
-        if declared & ALLOWED_LICENSES:
+        if license_is_allowed(license_name):
             continue
         problems.append(f"{name} {version} declares license {license_name!r}")
 
@@ -72,7 +159,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"All {len(packages)} installed distributions use allowlisted licenses.")
+    print(f"All {len(packages)} runtime distributions use allowlisted licenses.")
     return 0
 
 

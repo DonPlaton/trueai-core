@@ -19,6 +19,7 @@ from trueai.plugins.manifest import (
     PluginManifest,
     PluginRegistration,
 )
+from trueai.plugins.resources import PluginResourceLimits
 
 __all__ = [
     "DEFAULT_CAPABILITIES",
@@ -36,4 +37,5 @@ __all__ = [
     "PluginManifest",
     "PluginRegistration",
     "PluginRejection",
+    "PluginResourceLimits",
 ]
