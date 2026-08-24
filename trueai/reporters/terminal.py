@@ -382,6 +382,64 @@ class TerminalReporter:
             for limitation in attestation.limitations:
                 self.console.print(f"  [dim]- {_safe(limitation.statement)}[/dim]")
 
+    def render_distribution_verification(
+        self,
+        result: object,
+        distribution: object = None,
+    ) -> None:
+        """Print each distribution property on its own line.
+
+        Integrity, identity, currency, and compatibility are four questions. A
+        single verdict would let "signed by someone unknown" and "signed by a
+        known publisher and revoked yesterday" render identically.
+        """
+
+        from trueai.plugins.distribution import DistributionVerification, PluginDistribution
+
+        assert isinstance(result, DistributionVerification)
+        table = Table(title="Plugin distribution verification")
+        table.add_column("Property")
+        table.add_column("Result")
+
+        def mark(value: bool | None, yes: str = "yes", no: str = "no") -> str:
+            if value is None:
+                return "[dim]not checked[/dim]"
+            return f"[green]{yes}[/green]" if value else f"[red]{no}[/red]"
+
+        table.add_row("Distribution", _safe(result.distribution_id))
+        if isinstance(distribution, PluginDistribution):
+            table.add_row("Detector", _safe(distribution.detector_id))
+            table.add_row("Publisher", _safe(distribution.publisher))
+            table.add_row("Files signed", str(len(distribution.files)))
+        table.add_row("Content identifier", mark(result.content_id_valid))
+        table.add_row("Files match what was signed", mark(result.files_match))
+        table.add_row("Publisher signature", _safe(result.signature))
+        table.add_row("Within validity window", mark(not result.expired))
+        table.add_row("Withdrawn by publisher", mark(not result.revoked, "no", "yes"))
+        table.add_row("On the organization allowlist", mark(result.allowlisted))
+        table.add_row("Core version compatible", mark(result.core_compatible))
+        table.add_row("Report schema compatible", mark(result.schema_compatible))
+        if result.publisher_identity is not None:
+            table.add_row("Publisher identity", _safe(result.publisher_identity.assurance.value))
+        self.console.print(table)
+
+        for path in result.unlisted_files:
+            self.console.print(f"[red]•[/red] not covered by the signature: {_safe(path)}")
+        for path in result.missing_files:
+            self.console.print(f"[red]•[/red] signed but missing: {_safe(path)}")
+        for problem in result.problems:
+            self.console.print(f"[red]•[/red] {_safe(problem)}")
+
+        if result.may_load():
+            self.console.print(
+                "\n[green]This plugin may be loaded[/green] — every check the host requires "
+                "before import came back clean."
+            )
+        else:
+            self.console.print(
+                "\n[yellow]This plugin will not be loaded[/yellow] — see the properties above."
+            )
+
     def _finding(self, finding: Finding, *, verbose: bool) -> None:
         style = _SEVERITY_STYLE[finding.severity]
         location = ""

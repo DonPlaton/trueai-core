@@ -117,8 +117,15 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   platform, and everything except the deadline on Windows, where a restricted token is not
   AppContainer. Negative controls run the same plugins with confinement off and require the attack
   to succeed, so a check cannot pass because the attempt would have failed anyway.
-- [ ] `PLUG-04` Sign plugin distributions, validate publisher identity and compatibility before
-  import, and support centrally managed allowlists and revocation.
+- [x] `PLUG-04` `trueai/plugins/distribution.py` signs every file of a plugin together with the
+  capabilities it declares, so the host reads the manifest from the signature and never imports a
+  plugin to find out what it wants. Verification reports integrity, identity, currency, and
+  compatibility as separate properties — there is no `valid` field, because "signed by an unknown
+  key" and "signed and revoked an hour ago" must not render identically. `PluginAllowlist` is
+  sequenced and finite-lifetime with publisher withdrawals, and `verify_allowlist` takes the
+  highest sequence the verifier has seen because a memoryless verifier cannot detect a rollback.
+  `trueai plugins sign/verify/allowlist`; `DistributionPolicy(require_signed=True)` is the posture
+  that makes it a control.
 - [ ] `PLUG-05` Continuously fuzz the plugin protocol, manifest parser, finding validation, and
   resource-limit failure paths.
 

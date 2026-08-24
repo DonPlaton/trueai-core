@@ -12,6 +12,32 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Signed plugin distributions**
+
+- `trueai/plugins/distribution.py` signs every file of a plugin together with the
+  capabilities it declares. The host reads the manifest from the signature, so a
+  plugin is never imported to find out what it wants — and because the module's
+  bytes are covered by the same signature, a declared capability set cannot be
+  contradicted by what module-level code actually does.
+- Every file is listed, not a chosen subset. `__pycache__` is excluded because the
+  interpreter generates it, and `trueai-distribution.json` because a document
+  cannot contain its own digest.
+- `DistributionVerification` has no `valid` field. Integrity, identity, currency,
+  and compatibility are reported separately, and a file that changed, a file that
+  is present but unlisted, and a signed file that is missing are three different
+  results because they are three different attacks.
+- `authenticated_publisher` says a signature verified over content that still
+  matches. Naming the publisher's organization needs a `TrustProfile`, the same
+  primitive certificates and attestations use.
+- `PluginAllowlist` names distributions or publisher keys and carries the
+  publisher's withdrawals with a reason. It is sequenced and finite-lifetime, and
+  `verify_allowlist` takes the highest sequence the verifier has seen: an
+  allowlist replaceable by an older copy allows whatever the older copy allowed.
+- `trueai plugins sign`, `trueai plugins verify`, and `trueai plugins allowlist`.
+  `DistributionPolicy(require_signed=True)` is what turns any of it into a
+  control; without it a distribution is checked when present and absent otherwise,
+  which is useful during a rollout and is not enforcement.
+
 **Adversarial tests with hostile native plugins**
 
 - Example plugins that reach the operating system through `ctypes` on both POSIX

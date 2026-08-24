@@ -19,6 +19,16 @@ from trueai.plugins.confinement import (
     PlatformConfinement,
     describe_platform,
 )
+from trueai.plugins.distribution import (
+    DistributionDecision,
+    DistributionPolicy,
+    DistributionVerification,
+    PluginAllowlist,
+    PluginDistribution,
+    build_distribution,
+    sign_distribution,
+    verify_distribution,
+)
 from trueai.plugins.host import (
     DEFAULT_TIMEOUT_SECONDS,
     ENTRY_POINT_GROUP,
@@ -55,11 +65,16 @@ __all__ = [
     "ConfinementReport",
     "ConfinementUnavailableError",
     "DiscoveryResult",
+    "DistributionDecision",
+    "DistributionPolicy",
+    "DistributionVerification",
     "IsolatedDetector",
     "NativeLibraryGrant",
     "NetworkGrant",
     "PlatformConfinement",
+    "PluginAllowlist",
     "PluginCapability",
+    "PluginDistribution",
     "PluginExecutionError",
     "PluginHost",
     "PluginIsolation",
@@ -70,6 +85,9 @@ __all__ = [
     "SubprocessGrant",
     "TemporaryOutputGrant",
     "WorkspaceGrant",
+    "build_distribution",
     "describe_platform",
     "grants_for",
+    "sign_distribution",
+    "verify_distribution",
 ]

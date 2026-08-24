@@ -56,6 +56,7 @@ from trueai.plugins.confinement import (
     ConfinementUnavailableError,
     describe_platform,
 )
+from trueai.plugins.distribution import DistributionPolicy
 from trueai.plugins.loader import enrich_manifest, instantiate, manifest_for, resolve_target
 from trueai.plugins.manifest import (
     CapabilityDecision,
@@ -447,8 +448,10 @@ class PluginHost:
         subprocess_grant: SubprocessGrant | None = None,
         native_library_grant: NativeLibraryGrant | None = None,
         confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
+        distribution_policy: DistributionPolicy | None = None,
     ) -> None:
         self.policy = policy or CapabilityPolicy()
+        self.distribution_policy = distribution_policy or DistributionPolicy()
         self.isolation = isolation
         self.timeout = timeout
         self.search_path = search_path
@@ -470,17 +473,34 @@ class PluginHost:
         for entry_point in sorted(
             entry_points(group=ENTRY_POINT_GROUP), key=lambda item: item.name
         ):
-            try:
-                manifest = self._inspect(entry_point)
-            except Exception as exc:
+            # The distribution decision comes first, and on the accepting path it
+            # supplies the manifest. That is the whole point: a signed manifest is
+            # readable without importing the module, and a refused plugin is one
+            # whose module never ran.
+            published = self.distribution_policy.evaluate(entry_point.value)
+            if not published.allowed:
                 rejections.append(
                     PluginRejection(
                         detector_id=entry_point.name,
                         entry_point=entry_point.value,
-                        reason=f"The plugin could not be loaded: {type(exc).__name__}: {exc}",
+                        reason=published.reason,
                     )
                 )
                 continue
+            if published.manifest is not None:
+                manifest = published.manifest
+            else:
+                try:
+                    manifest = self._inspect(entry_point)
+                except Exception as exc:
+                    rejections.append(
+                        PluginRejection(
+                            detector_id=entry_point.name,
+                            entry_point=entry_point.value,
+                            reason=f"The plugin could not be loaded: {type(exc).__name__}: {exc}",
+                        )
+                    )
+                    continue
             # The decision comes before the detector is built, so a blocked or
             # undeclared plugin does not get to run its constructor.
             decision = self.policy.evaluate(manifest)

@@ -2107,6 +2107,11 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "confinement",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "distribution_policy",
+                "required": false
               }
             ]
           },
@@ -5461,6 +5466,166 @@
         "kind": "class",
         "methods": {}
       },
+      "DistributionDecision": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "allowed": {
+            "required": true
+          },
+          "entry_point": {
+            "required": true
+          },
+          "manifest": {
+            "required": false
+          },
+          "reason": {
+            "required": true
+          },
+          "verification": {
+            "required": false
+          }
+        }
+      },
+      "DistributionPolicy": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "distribution_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "entry_point",
+                "required": true
+              }
+            ]
+          },
+          "evaluate": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "entry_point",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "now",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "core_version",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "schema_version",
+                "required": false
+              }
+            ]
+          }
+        },
+        "model_fields": {
+          "allowlist": {
+            "required": false
+          },
+          "distributions": {
+            "required": false
+          },
+          "install_roots": {
+            "required": false
+          },
+          "known_allowlist_sequence": {
+            "required": false
+          },
+          "publisher_keys": {
+            "required": false
+          },
+          "require_signed": {
+            "required": false
+          },
+          "trust_profile": {
+            "required": false
+          },
+          "trust_root_public_key": {
+            "required": false
+          }
+        }
+      },
+      "DistributionVerification": {
+        "attributes": [
+          "authenticated_publisher",
+          "model_config",
+          "organizationally_attributed"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "may_load": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "allowlisted": {
+            "required": false
+          },
+          "content_id_valid": {
+            "required": true
+          },
+          "core_compatible": {
+            "required": false
+          },
+          "distribution_id": {
+            "required": true
+          },
+          "expired": {
+            "required": false
+          },
+          "files_match": {
+            "required": false
+          },
+          "missing_files": {
+            "required": false
+          },
+          "problems": {
+            "required": false
+          },
+          "publisher_identity": {
+            "required": false
+          },
+          "revocation_reason": {
+            "required": false
+          },
+          "revoked": {
+            "required": false
+          },
+          "schema_compatible": {
+            "required": false
+          },
+          "signature": {
+            "required": false
+          },
+          "unlisted_files": {
+            "required": false
+          }
+        }
+      },
       "ENTRY_POINT_GROUP": {
         "kind": "value",
         "type": "str"
@@ -5569,6 +5734,67 @@
           }
         }
       },
+      "PluginAllowlist": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "revocation_for": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "distribution_id",
+                "required": true
+              }
+            ]
+          },
+          "signed_payload": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "validate_list": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "allowed_distribution_ids": {
+            "required": false
+          },
+          "allowed_publisher_key_ids": {
+            "required": false
+          },
+          "expires_at": {
+            "required": true
+          },
+          "issued_at": {
+            "required": true
+          },
+          "issuer_key_id": {
+            "required": true
+          },
+          "organization": {
+            "required": true
+          },
+          "revocations": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "sequence": {
+            "required": true
+          },
+          "signature": {
+            "required": false
+          }
+        }
+      },
       "PluginCapability": {
         "kind": "enum",
         "members": [
@@ -5580,6 +5806,78 @@
           "write_filesystem",
           "write_temporary"
         ]
+      },
+      "PluginDistribution": {
+        "attributes": [
+          "model_config"
+        ],
+        "bases": [
+          "trueai.core.models.FrozenModel"
+        ],
+        "kind": "class",
+        "methods": {
+          "is_expired": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "now",
+                "required": false
+              }
+            ]
+          },
+          "validate_document": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
+        "model_fields": {
+          "compatible_schema_versions": {
+            "required": false
+          },
+          "created_at": {
+            "required": true
+          },
+          "detector_id": {
+            "required": true
+          },
+          "distribution_id": {
+            "required": true
+          },
+          "entry_point": {
+            "required": true
+          },
+          "expires_at": {
+            "required": false
+          },
+          "files": {
+            "required": false
+          },
+          "manifest": {
+            "required": true
+          },
+          "maximum_core_version": {
+            "required": false
+          },
+          "minimum_core_version": {
+            "required": false
+          },
+          "publisher": {
+            "required": true
+          },
+          "publisher_id": {
+            "required": false
+          },
+          "schema_version": {
+            "required": false
+          },
+          "signature": {
+            "required": false
+          },
+          "version": {
+            "required": true
+          }
+        }
       },
       "PluginExecutionError": {
         "attributes": [],
@@ -5781,6 +6079,79 @@
           }
         }
       },
+      "build_distribution": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "detector_id",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "version",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "entry_point",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "manifest",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "publisher",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "root",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "publisher_id",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "ignore",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "created_at",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "expires_at",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "minimum_core_version",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "maximum_core_version",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "compatible_schema_versions",
+              "required": false
+            }
+          ]
+        }
+      },
       "describe_platform": {
         "kind": "callable",
         "signature": {
@@ -5826,6 +6197,82 @@
             {
               "kind": "KEYWORD_ONLY",
               "name": "native_library",
+              "required": false
+            }
+          ]
+        }
+      },
+      "sign_distribution": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "distribution",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "signing_key",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "provider",
+              "required": false
+            }
+          ]
+        }
+      },
+      "verify_distribution": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "distribution",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "root",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "public_key",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "trust_profile",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "trust_root_public_key",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "allowlist",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "now",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "core_version",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "schema_version",
               "required": false
             }
           ]
@@ -5947,6 +6394,21 @@
               {
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "name": "attestation",
+                "required": false
+              }
+            ]
+          },
+          "render_distribution_verification": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "distribution",
                 "required": false
               }
             ]

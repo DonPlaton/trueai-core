@@ -586,6 +586,212 @@ def plugins_callback(ctx: typer.Context) -> None:
         _print_plugins()
 
 
+@plugins_app.command("sign")
+def plugins_sign(
+    root: Annotated[
+        Path,
+        typer.Argument(exists=True, file_okay=False, help="Directory the plugin was built in."),
+    ],
+    detector_id: Annotated[str, typer.Option("--detector-id", help="Detector this publishes.")],
+    version: Annotated[str, typer.Option("--version", help="Distribution version.")],
+    entry_point: Annotated[
+        str, typer.Option("--entry-point", help="module:attribute the host will load.")
+    ],
+    publisher: Annotated[str, typer.Option("--publisher", help="Publishing organization.")],
+    signing_key: Annotated[
+        Path,
+        typer.Option("--signing-key", exists=True, dir_okay=False, help="Ed25519 private key."),
+    ],
+    capability: Annotated[
+        list[str] | None,
+        typer.Option("--capability", help="Capability the plugin needs, repeatable."),
+    ] = None,
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Where to write the distribution.")
+    ] = None,
+    publisher_id: Annotated[
+        str | None, typer.Option("--publisher-id", help="Directory identifier for the publisher.")
+    ] = None,
+    minimum_core: Annotated[
+        str | None, typer.Option("--minimum-core", help="Lowest TrueAI core this supports.")
+    ] = None,
+    maximum_core: Annotated[
+        str | None, typer.Option("--maximum-core", help="Highest TrueAI core this supports.")
+    ] = None,
+) -> None:
+    """Sign every file of a plugin along with the capabilities it declares.
+
+    The manifest travels inside the signature, so a host can decide what the
+    plugin may do without importing it — and the module's bytes are covered by
+    the same signature, so a declared capability set cannot be contradicted by
+    what module-level code actually does.
+    """
+
+    from trueai.plugins.distribution import (
+        DISTRIBUTION_FILENAME,
+        DistributionError,
+        build_distribution,
+        distribution_json,
+        sign_distribution,
+    )
+    from trueai.plugins.manifest import PluginCapability, PluginManifest
+
+    try:
+        capabilities = frozenset(PluginCapability(item) for item in capability or [])
+        manifest = PluginManifest(
+            detector_id=detector_id,
+            name=detector_id,
+            version=version,
+            vendor=publisher,
+            capabilities=capabilities or PluginManifest.model_fields["capabilities"].default,
+        )
+        published = build_distribution(
+            detector_id=detector_id,
+            version=version,
+            entry_point=entry_point,
+            manifest=manifest,
+            publisher=publisher,
+            publisher_id=publisher_id,
+            root=root,
+            minimum_core_version=minimum_core,
+            maximum_core_version=maximum_core,
+        )
+        published = sign_distribution(published, signing_key=signing_key)
+        destination = output or root / DISTRIBUTION_FILENAME
+        destination.write_text(distribution_json(published) + chr(10), encoding="utf-8")
+        console.print(
+            f"{published.distribution_id} covers {len(published.files)} file(s), "
+            f"written to {destination}"
+        )
+    except (DistributionError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@plugins_app.command("verify")
+def plugins_verify(
+    distribution_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Distribution document.")
+    ],
+    root: Annotated[
+        Path | None,
+        typer.Option(
+            "--root",
+            exists=True,
+            file_okay=False,
+            help="Installed plugin directory. Without it, file digests are not checked.",
+        ),
+    ] = None,
+    public_key: Annotated[
+        Path | None,
+        typer.Option("--public-key", exists=True, dir_okay=False, help="Publisher public key."),
+    ] = None,
+    allowlist_path: Annotated[
+        Path | None,
+        typer.Option("--allowlist", exists=True, dir_okay=False, help="Organization allowlist."),
+    ] = None,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", "-f", help="terminal or json")
+    ] = OutputFormat.TERMINAL,
+) -> None:
+    """Report every property separately: integrity, identity, currency, compatibility."""
+
+    from trueai.plugins.distribution import (
+        DistributionError,
+        load_allowlist,
+        load_distribution,
+        verify_distribution,
+    )
+
+    try:
+        published = load_distribution(distribution_path)
+        allowlist = load_allowlist(allowlist_path) if allowlist_path else None
+        result = verify_distribution(
+            published, root=root, public_key=public_key, allowlist=allowlist
+        )
+        if output_format == OutputFormat.JSON:
+            typer.echo(
+                json.dumps(
+                    result.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True
+                )
+            )
+        else:
+            TerminalReporter(console).render_distribution_verification(result, published)
+        raise typer.Exit(ExitCode.SUCCESS if result.may_load() else ExitCode.REVIEW_REQUIRED)
+    except typer.Exit:
+        raise
+    except (DistributionError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@plugins_app.command("allowlist")
+def plugins_allowlist(
+    output: Annotated[Path, typer.Argument(help="Where to write the signed allowlist.")],
+    organization: Annotated[str, typer.Option("--organization", help="Whose decision this is.")],
+    signing_key: Annotated[
+        Path,
+        typer.Option("--signing-key", exists=True, dir_okay=False, help="Ed25519 private key."),
+    ],
+    sequence: Annotated[
+        int,
+        typer.Option("--sequence", min=1, help="Monotonic sequence; a lower one is a rollback."),
+    ],
+    days: Annotated[int, typer.Option("--days", min=1, help="Validity window in days.")] = 90,
+    allow_distribution: Annotated[
+        list[str] | None,
+        typer.Option("--allow-distribution", help="TAIPKG1- identifier, repeatable."),
+    ] = None,
+    allow_publisher_key: Annotated[
+        list[str] | None,
+        typer.Option("--allow-publisher-key", help="sha256:… publisher key id, repeatable."),
+    ] = None,
+) -> None:
+    """Publish an organization's decision about which plugins may be installed.
+
+    Finite-lifetime and sequenced, because an allowlist that can be replaced with
+    an older copy allows whatever the older copy allowed.
+    """
+
+    from datetime import UTC, datetime, timedelta
+
+    from trueai.core.trust import public_key_id
+    from trueai.plugins.distribution import (
+        DistributionError,
+        PluginAllowlist,
+        allowlist_json,
+        sign_allowlist,
+    )
+
+    try:
+        issued = datetime.now(UTC)
+        public = signing_key.with_suffix(".pub")
+        if not public.is_file():
+            raise DistributionError(
+                f"Expected the matching public key at {public}, so the allowlist can record "
+                "which key issued it."
+            )
+        allowlist = PluginAllowlist(
+            organization=organization,
+            issuer_key_id=public_key_id(public),
+            sequence=sequence,
+            issued_at=issued,
+            expires_at=issued + timedelta(days=days),
+            allowed_distribution_ids=frozenset(allow_distribution or []),
+            allowed_publisher_key_ids=frozenset(allow_publisher_key or []),
+        )
+        allowlist = sign_allowlist(allowlist, signing_key=signing_key)
+        output.write_text(allowlist_json(allowlist) + chr(10), encoding="utf-8")
+        console.print(
+            f"{organization} allowlist sequence {sequence} written to {output}; "
+            f"{len(allowlist.allowed_distribution_ids)} distribution(s), "
+            f"{len(allowlist.allowed_publisher_key_ids)} publisher key(s)"
+        )
+    except (DistributionError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
 @plugins_app.command("list")
 def list_plugins() -> None:
     """List installed third-party detectors, what they ask for, and the verdict."""

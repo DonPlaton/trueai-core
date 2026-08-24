@@ -156,6 +156,96 @@ trueai scan ./repo --plugins subprocess
 trueai scan ./repo --plugins disabled
 ```
 
+## Signed distributions
+
+Everything else on this page decides what a plugin may *do*. This decides whether
+it is loaded at all, and it fixes an ordering problem: reading a plugin's manifest
+means importing the plugin, and import time is when hostile code acts. A
+capability decision made after the module ran is a decision made too late.
+
+A signed distribution moves the manifest out of the module:
+
+```bash
+trueai plugins sign ./acme_plugin \
+    --detector-id acme.invoice-forensics.v1 --version 1.2.3 \
+    --entry-point "acme_plugin:Detector" --publisher "ACME" \
+    --signing-key publisher.key --capability read_artifact
+
+trueai plugins verify acme_plugin/trueai-distribution.json \
+    --root ./acme_plugin --public-key publisher.pub
+```
+
+The capabilities, the detector id, the entry point, and the digest of **every**
+file are in one document the publisher signed. The host reads the manifest from
+the signature, so nothing is imported before the decision — and because the
+module's bytes are covered by the same signature, a publisher cannot declare
+`read_artifact` and open a socket from module level.
+
+Every file is listed, not a chosen subset: a publisher who signs only the
+interesting files has signed nothing useful, because the uninteresting ones are
+where a payload would go. Two exclusions are deliberate and named:
+`__pycache__`, which the interpreter generates rather than the publisher shipping,
+and `trueai-distribution.json` itself, which cannot contain its own digest.
+
+### Four separate questions
+
+`DistributionVerification` has no `valid` field. "Signed by an unknown key" and
+"signed by a known publisher and revoked an hour ago" are different situations,
+and one boolean would render them identically.
+
+| Question | Properties |
+|---|---|
+| **Integrity** | `content_id_valid`, `files_match`, `unlisted_files`, `missing_files` |
+| **Identity** | `signature`, `publisher_identity`, `organizationally_attributed` |
+| **Currency** | `expired`, `revoked`, `revocation_reason`, `allowlisted` |
+| **Compatibility** | `core_compatible`, `schema_compatible` |
+
+A file present that the distribution does not list is reported separately from a
+file whose digest changed, and separately again from a signed file that is
+missing. They are different attacks.
+
+`authenticated_publisher` is deliberately not called "trusted": it says a
+signature verified over content that still matches, and nothing about whether the
+publisher should be believed. Naming the publisher's organization requires a
+[trust profile](trust.md), exactly as it does for certificates and attestations.
+
+### Central allowlists and revocation
+
+```bash
+trueai plugins allowlist ./acme-allowlist.json \
+    --organization "ACME" --signing-key org.key --sequence 7 \
+    --allow-publisher-key sha256:…
+```
+
+An allowlist names distributions individually, or publisher keys for an operator
+who trusts a vendor rather than an individual build. It also carries the
+publisher's withdrawals, each with a reason in machine and human form.
+
+It is **sequenced and finite-lifetime** for the same reason a revocation list is:
+an allowlist that can be replaced with an older copy allows whatever the older
+copy allowed. `verify_allowlist(..., known_sequence=...)` takes the highest
+sequence the verifier has seen, because a verifier with no memory cannot detect a
+rollback and the API says so rather than pretending otherwise.
+
+### Requiring signatures
+
+```python
+from trueai.plugins import DistributionPolicy
+
+policy = DistributionPolicy(
+    require_signed=True,
+    distributions=(published,),
+    publisher_keys={"sha256:…": "publisher.pub"},
+    install_roots={"acme.invoice-forensics.v1": "/opt/acme_plugin"},
+    allowlist=allowlist,
+)
+```
+
+`require_signed=False` checks a distribution when one is present and does nothing
+otherwise. That is useful during a rollout and it is not a control. With
+`require_signed=True` an unsigned plugin does not run and, more importantly, is
+never imported.
+
 ## Operating-system confinement
 
 The broker is a contract and the guards enforce it against ordinary Python.
