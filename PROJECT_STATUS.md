@@ -145,15 +145,19 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   content-derived `TAIP1-…` identifiers, subject binding, expiry, multi-role signatures that do not
   invalidate each other, and verification returning independent results. The `TAI1-…` contract is
   unchanged; the trust primitives are reused, the schema and prefix are not.
-- [ ] `PROC-04` Add headless CLI and Python workflows to create, validate, sign, verify, summarize,
-  redact, and countersign process attestations; never infer undeclared creative claims from scanner
-  findings or prompt counts.
-- [ ] `PROC-05` Add local evidence adapters for Git commits, reviewed diffs, tests, build outputs,
-  research notes, source citations, approvals, and external receipts while storing content hashes
-  rather than private source material by default.
-- [ ] `PROC-06` Implement public/private disclosure profiles, deterministic redaction, commitment
-  proofs for selectively revealable evidence, and checks that prevent prompts, source documents,
-  credentials, or personal data from leaking into a public attestation accidentally.
+- [x] `PROC-04` `trueai attestations init/validate/issue/sign/verify/summarize/redact/keygen/schema`
+  plus the matching Python API, all offline. A scan can be attached as evidence but never populates
+  a claim, and a test asserts the claims are exactly what the manifest declared. Verification
+  prints each property separately and says "authenticated declaration", never "verified human
+  contribution".
+- [x] `PROC-05` `trueai/core/evidence.py` adapts Git commits and repository state, reviewed diffs,
+  command and test receipts, build outputs, research notes, citations, approvals, external
+  receipts, tool identity, scan reports, and certificates. Everything is stored by digest; tests
+  assert a private commit summary and a private note's contents never reach the record.
+- [x] `PROC-06` Four disclosure statuses, deterministic `redact_for_public`, and salted
+  commitments so a guessable statement cannot be confirmed by hashing it. `private_material()`
+  enumerates exactly what a public variant must not contain, and the leakage test executes that
+  check rather than assuming it.
 - [ ] `PROC-07` Reuse certificate trust primitives for organization identity, trusted timestamps,
   revocation, HSM/KMS signing, and transparency, while keeping process claims under a distinct
   schema, identifier prefix, status vocabulary, and verification result.

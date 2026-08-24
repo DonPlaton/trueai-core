@@ -21,6 +21,8 @@ from trueai import __version__
 from trueai.core.engine import TrueAIEngine
 from trueai.core.errors import (
     ArtifactNotFoundError,
+    AttestationError,
+    OptionalDependencyError,
     PolicyValidationError,
     RemediationError,
     TrueAIError,
@@ -540,6 +542,348 @@ def list_plugins() -> None:
 
 cache_app = typer.Typer(help="Inspect and clear the incremental scan cache.")
 app.add_typer(cache_app, name="cache")
+
+attestations_app = typer.Typer(
+    help="Create, sign, and verify Human Contribution Records (process attestations)."
+)
+app.add_typer(attestations_app, name="attestations")
+
+
+@attestations_app.command("init")
+def attestations_init(
+    output: Annotated[Path, typer.Argument(help="Manifest path to create.")] = Path(
+        "attestation.yaml"
+    ),
+    force: Annotated[bool, typer.Option("--force", help="Overwrite an existing manifest.")] = False,
+) -> None:
+    """Write a starter manifest that claims nothing it cannot support."""
+
+    from trueai.core.attestation_manifest import template_manifest
+
+    try:
+        if output.exists() and not force:
+            raise RemediationError(f"Refusing to overwrite {output}; pass --force")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(template_manifest(), encoding="utf-8")
+        console.print(f"Wrote {output}")
+        console.print(
+            "[dim]Fill in only what you can support. A dimension you leave out stays "
+            "not_claimed, which is an honest answer.[/dim]"
+        )
+    except (OSError, RemediationError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("validate")
+def attestations_validate(
+    manifest: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Manifest to check.")
+    ],
+    artifact: Annotated[
+        Path | None,
+        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+    ] = None,
+) -> None:
+    """Check a manifest without writing anything."""
+
+    from trueai.core.attestation_manifest import build_attestation, load_manifest
+
+    try:
+        record = build_attestation(
+            load_manifest(manifest),
+            artifact=artifact,
+            base_directory=manifest.parent,
+        )
+        console.print(
+            f"Manifest is valid: {len(record.claims)} claim(s), "
+            f"{len(record.actors)} actor(s), {len(record.evidence)} evidence reference(s)."
+        )
+    except (AttestationError, ValueError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("issue")
+def attestations_issue(
+    manifest: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Manifest describing the work.")
+    ],
+    artifact: Annotated[
+        Path | None,
+        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+    ] = None,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Record path.")] = None,
+    signing_key: Annotated[
+        Path | None,
+        typer.Option(
+            "--signing-key",
+            exists=True,
+            dir_okay=False,
+            help="Ed25519 key that signs the record as the claimant.",
+        ),
+    ] = None,
+    claimant: Annotated[
+        str | None,
+        typer.Option("--claimant", help="Actor id that the signing key belongs to."),
+    ] = None,
+    valid_for_days: Annotated[
+        int | None, typer.Option("--valid-for-days", min=1, help="Finite validity period.")
+    ] = None,
+) -> None:
+    """Build a content-bound record from a manifest, optionally signing it."""
+
+    from trueai.core.attestation import SignatureRole, attestation_json, sign_attestation
+    from trueai.core.attestation_manifest import build_attestation, load_manifest
+
+    try:
+        record = build_attestation(
+            load_manifest(manifest),
+            artifact=artifact,
+            base_directory=manifest.parent,
+            valid_for_days=valid_for_days,
+        )
+        if signing_key is not None:
+            if claimant is None:
+                raise AttestationError("--signing-key requires --claimant")
+            record = sign_attestation(
+                record,
+                role=SignatureRole.CLAIMANT,
+                actor_id=claimant,
+                signing_key=signing_key,
+            )
+        destination = output or manifest.with_suffix(".process.json")
+        destination.write_text(attestation_json(record) + "\n", encoding="utf-8")
+        console.print(f"{record.attestation_id} written to {destination}")
+        if signing_key is None:
+            console.print(
+                "[dim]Unsigned: the record is content-addressed and tamper evident, but "
+                "nobody has stood behind it yet.[/dim]"
+            )
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("sign")
+def attestations_sign(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to countersign.")
+    ],
+    signing_key: Annotated[
+        Path, typer.Option("--signing-key", exists=True, dir_okay=False, help="Ed25519 key.")
+    ],
+    actor: Annotated[str, typer.Option("--actor", help="Actor id doing the signing.")],
+    role: Annotated[
+        str,
+        typer.Option("--role", help="claimant, reviewer, organization, or assessor."),
+    ] = "reviewer",
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Where to write the signed record.")
+    ] = None,
+) -> None:
+    """Add one signed statement without invalidating the existing ones."""
+
+    from trueai.core.attestation import (
+        SignatureRole,
+        attestation_json,
+        load_attestation,
+        sign_attestation,
+    )
+
+    try:
+        try:
+            signature_role = SignatureRole(role)
+        except ValueError as exc:
+            allowed = ", ".join(item.value for item in SignatureRole)
+            raise AttestationError(f"Unknown role {role!r}; expected one of {allowed}") from exc
+        record = sign_attestation(
+            load_attestation(record_path),
+            role=signature_role,
+            actor_id=actor,
+            signing_key=signing_key,
+        )
+        destination = output or record_path
+        destination.write_text(attestation_json(record) + "\n", encoding="utf-8")
+        console.print(f"{actor} signed {record.attestation_id} as {signature_role.value}")
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("verify")
+def attestations_verify(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to verify.")
+    ],
+    artifact: Annotated[
+        Path | None,
+        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+    ] = None,
+    public_key: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--public-key",
+            help="actor=path, repeatable. Without a key a signature is unverified, not invalid.",
+        ),
+    ] = None,
+    profile: Annotated[
+        list[str] | None,
+        typer.Option("--profile", help="Evaluation profile this verifier supports."),
+    ] = None,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", "-f", help="terminal or json")
+    ] = OutputFormat.TERMINAL,
+) -> None:
+    """Report every verification property separately, never as one badge."""
+
+    from trueai.core.attestation import load_attestation, verify_attestation
+
+    try:
+        keys: dict[str, str | Path] = {}
+        for entry in public_key or []:
+            actor_id, separator, key_path = entry.partition("=")
+            if not separator:
+                raise AttestationError(f"--public-key expects actor=path, got {entry!r}")
+            keys[actor_id] = key_path
+        record = load_attestation(record_path)
+        result = verify_attestation(
+            record,
+            artifact=artifact,
+            public_keys=keys or None,
+            supported_profiles=frozenset(profile) if profile else None,
+        )
+        if output_format == OutputFormat.JSON:
+            typer.echo(
+                json.dumps(
+                    result.model_dump(mode="json"),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            TerminalReporter(console).render_attestation_verification(result, record)
+        raise typer.Exit(_attestation_exit_code(result))
+    except typer.Exit:
+        raise
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("summarize")
+def attestations_summarize(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to summarize.")
+    ],
+) -> None:
+    """Print a stage-by-stage summary that repeats its own limitations."""
+
+    from trueai.core.attestation import load_attestation
+    from trueai.core.attestation_manifest import summarize
+
+    try:
+        typer.echo(summarize(load_attestation(record_path)))
+    except (AttestationError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("redact")
+def attestations_redact(
+    record_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Record to redact.")
+    ],
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Where to write the public variant.")
+    ] = None,
+) -> None:
+    """Write a public variant carrying no withheld material.
+
+    The redacted record gets a new identifier because it makes a narrower set of
+    statements, and signatures are dropped because they covered the full bytes.
+    """
+
+    from trueai.core.attestation import attestation_json, load_attestation
+    from trueai.core.attestation_manifest import redact_for_public
+
+    try:
+        record = load_attestation(record_path)
+        public = redact_for_public(record)
+        destination = output or record_path.with_suffix(".public.json")
+        destination.write_text(attestation_json(public) + "\n", encoding="utf-8")
+        console.print(f"{public.attestation_id} written to {destination}")
+        if record.signatures:
+            console.print(
+                "[dim]Signatures were dropped: they cover the unredacted bytes. Sign the "
+                "public variant separately if it needs to be authenticated.[/dim]"
+            )
+    except (AttestationError, ValueError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("keygen")
+def attestations_keygen(
+    private_key: Annotated[Path, typer.Argument(help="Where to write the private key.")],
+    public_key: Annotated[Path, typer.Argument(help="Where to write the public key.")],
+) -> None:
+    """Generate an Ed25519 key pair for signing records."""
+
+    from trueai.core.certificates import generate_ed25519_keypair
+
+    try:
+        identifier = generate_ed25519_keypair(private_key, public_key)
+        console.print(f"Key {identifier} written to {private_key} and {public_key}")
+    except (AttestationError, OptionalDependencyError, OSError) as exc:
+        error_console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT) from exc
+
+
+@attestations_app.command("schema")
+def attestations_schema(
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Write the schema to a file.")
+    ] = None,
+) -> None:
+    """Emit the process-attestation JSON Schema."""
+
+    from trueai.core.attestation import attestation_schema_json
+
+    rendered = attestation_schema_json()
+    if output is None:
+        typer.echo(rendered.rstrip("\n"))
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(rendered, encoding="utf-8")
+    error_console.print(f"Schema written: {output}")
+
+
+def _attestation_exit_code(result: object) -> ExitCode:
+    """Map verification results onto the documented exit codes.
+
+    A record whose content identifier or artifact binding fails is corrupt. A
+    record that is merely unsigned or self-declared needs review, not rejection:
+    that is a normal, honest state.
+    """
+
+    from trueai.core.attestation import AttestationVerification
+
+    assert isinstance(result, AttestationVerification)
+    if not result.content_id_valid or result.subject_bound is False:
+        return ExitCode.POLICY_VIOLATION
+    if "invalid" in {
+        result.claimant_signature,
+        result.reviewer_signature,
+        result.organization_signature,
+        result.assessor_signature,
+    }:
+        return ExitCode.POLICY_VIOLATION
+    if result.authenticated_declaration and not result.problems:
+        return ExitCode.SUCCESS
+    return ExitCode.REVIEW_REQUIRED
+
 
 certificates_app = typer.Typer(help="Issue and verify content-bound TrueAI audit certificates.")
 app.add_typer(certificates_app, name="certificates")

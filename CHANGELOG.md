@@ -12,6 +12,31 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Attestation workflow, evidence adapters, and redaction**
+
+- `trueai attestations init | validate | issue | sign | verify | summarize |
+  redact | keygen | schema`, with a matching Python API. Everything runs offline.
+- A declarative YAML manifest describes actors, evidence, activities, decisions,
+  validations, and claims. The starter manifest claims nothing it cannot support,
+  so running `issue` unedited yields a narrow record rather than an overclaiming
+  one.
+- Local evidence adapters for Git commits and repository state, reviewed diffs,
+  command and test receipts, build outputs, research notes, citations, approvals,
+  external receipts, tool identity, scan reports, and audit certificates — all
+  recorded by digest. A private commit's summary and a private note's contents
+  never enter the record, which is asserted rather than assumed.
+- Salted commitments, so committing to a short guessable statement cannot be
+  confirmed by hashing a guess. The salt is returned to the holder, never stored.
+- Deterministic `redact_for_public`: private and committed evidence keeps its
+  identifier, kind, and commitment and loses everything identifying, while claims
+  are kept in full because they are what the record is for. The redacted variant
+  gets a new identifier and drops signatures, which covered the unredacted bytes.
+- Summaries print the stage table and always repeat the record's own limitations.
+- `attestations verify` reports each property separately and exits 0 only for an
+  authenticated declaration, 1 for an unsigned or self-declared record — an honest
+  state, not a failure — and 2 for a changed artifact or an invalid signature.
+
+
 **Human Contribution Records (process attestations)**
 
 - `trueai/core/attestation.py` records who originated, framed, decided, executed,

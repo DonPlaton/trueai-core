@@ -228,6 +228,86 @@ class TerminalReporter:
             )
             self.console.print(f"[dim]{passed} validation check(s) passed.[/dim]")
 
+    def render_attestation_verification(
+        self,
+        result: object,
+        attestation: object = None,
+    ) -> None:
+        """Print each verification property on its own line.
+
+        There is no summary verdict here on purpose. A reader who wants one has
+        to decide which properties matter for their situation, which is the
+        decision this record exists to support rather than to make for them.
+        """
+
+        from trueai.core.attestation import AttestationVerification, ProcessAttestation
+
+        assert isinstance(result, AttestationVerification)
+        table = Table(title="Process attestation verification", show_lines=False)
+        table.add_column("Property")
+        table.add_column("Result")
+
+        def mark(value: bool | None, yes: str = "yes", no: str = "no") -> str:
+            if value is None:
+                return "[dim]not checked[/dim]"
+            return f"[green]{yes}[/green]" if value else f"[red]{no}[/red]"
+
+        def signature(status: str) -> str:
+            styles = {
+                "valid": "[green]valid[/green]",
+                "invalid": "[red]invalid[/red]",
+                "unverified": "[yellow]unverified (no key supplied)[/yellow]",
+                "error": "[red]could not be checked[/red]",
+                "absent": "[dim]absent[/dim]",
+            }
+            return styles.get(status, _safe(status))
+
+        table.add_row("Record", _safe(result.attestation_id))
+        table.add_row("Schema valid", mark(result.schema_valid))
+        table.add_row("Content identifier", mark(result.content_id_valid))
+        table.add_row("Artifact binding", mark(result.subject_bound))
+        table.add_row("Evidence references resolve", mark(result.evidence_binding_complete))
+        table.add_row("Claimant signature", signature(result.claimant_signature))
+        table.add_row("Reviewer signature", signature(result.reviewer_signature))
+        table.add_row("Organization signature", signature(result.organization_signature))
+        table.add_row("Assessor signature", signature(result.assessor_signature))
+        table.add_row("Within validity window", mark(not result.expired))
+        table.add_row("Evaluation profile supported", mark(result.evaluation_profile_supported))
+        table.add_row("Disclosed evidence consistent", mark(result.disclosed_evidence_consistent))
+        table.add_row("Unresolved dissent", mark(not result.unresolved_dissent))
+        table.add_row("Limitations acknowledged", mark(result.limitations_acknowledged))
+        if result.strongest_evidence_status is not None:
+            table.add_row(
+                "Strongest evidence anywhere",
+                _safe(result.strongest_evidence_status.value),
+            )
+        self.console.print(table)
+
+        if result.authenticated_declaration:
+            # The wording is the point. An identified person signed this; that is
+            # not the same as anyone having checked whether it is true.
+            self.console.print(
+                "\n[bold green]Authenticated declaration[/bold green] — an identified claimant "
+                "signed this record over these exact bytes."
+            )
+            self.console.print(
+                "[dim]This is not a verified human-contribution claim. Only an applicable "
+                "assessor can evaluate whether a claim is true.[/dim]"
+            )
+        else:
+            self.console.print(
+                "\n[yellow]Not an authenticated declaration[/yellow] — see the properties above "
+                "for which check did not pass."
+            )
+
+        for problem in result.problems:
+            self.console.print(f"[red]•[/red] {_safe(problem)}")
+
+        if isinstance(attestation, ProcessAttestation):
+            self.console.print("\n[bold]Limitations[/bold]")
+            for limitation in attestation.limitations:
+                self.console.print(f"  [dim]- {_safe(limitation.statement)}[/dim]")
+
     def _finding(self, finding: Finding, *, verbose: bool) -> None:
         style = _SEVERITY_STYLE[finding.severity]
         location = ""

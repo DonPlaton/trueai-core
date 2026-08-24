@@ -5449,6 +5449,21 @@
               }
             ]
           },
+          "render_attestation_verification": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "result",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "attestation",
+                "required": false
+              }
+            ]
+          },
           "render_plan": {
             "introspectable": true,
             "parameters": [
