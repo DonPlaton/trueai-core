@@ -105,6 +105,41 @@ def test_the_rss_high_water_mark_never_falls_between_phases() -> None:
         assert second[0].process_peak_rss_bytes >= first[0].process_peak_rss_bytes
 
 
+def test_a_lower_reading_from_the_operating_system_does_not_lower_the_peak(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The kernel is allowed to be approximate. The published field is not.
+
+    Linux 6.2 moved RSS accounting to per-CPU counters and derives ``VmHWM`` as
+    ``max(stored_high_water, approximate_current_rss)``. The second term is a
+    racy read, so two consecutive samples can descend -- which is how a hosted
+    runner failed a test asserting the thing this module's docstring promises.
+    """
+
+    from trueai.core import benchmark
+
+    readings = iter([900, 500, 700])
+    monkeypatch.setattr(benchmark, "_read_peak_rss_bytes", lambda: next(readings))
+    monkeypatch.setattr(benchmark, "_OBSERVED_PEAK_RSS_BYTES", 0)
+
+    assert benchmark._peak_rss_bytes() == 900
+    assert benchmark._peak_rss_bytes() == 900
+    assert benchmark._peak_rss_bytes() == 900
+
+
+def test_a_platform_without_a_peak_reading_still_reports_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`None` means "not measured here" and must not become a stale number."""
+
+    from trueai.core import benchmark
+
+    monkeypatch.setattr(benchmark, "_read_peak_rss_bytes", lambda: None)
+    monkeypatch.setattr(benchmark, "_OBSERVED_PEAK_RSS_BYTES", 4096)
+
+    assert benchmark._peak_rss_bytes() is None
+
+
 def test_a_nested_measurement_does_not_inherit_an_earlier_transient_peak() -> None:
     """A spike that happened before the block, and was freed, is not its cost.
 

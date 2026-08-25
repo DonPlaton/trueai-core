@@ -112,13 +112,17 @@ def test_an_applied_report_still_lists_what_it_does_not_cover() -> None:
 
 
 def test_best_effort_records_a_gap_instead_of_raising() -> None:
-    """On a platform without a self-confinement backend, work continues."""
+    """On a platform without a self-confinement backend, work continues.
+
+    The wording differs by platform and the property does not: an unapplied
+    report has to carry a reason and name what is therefore not in place.
+    """
 
     report = confinement_report(ConfinementLevel.BEST_EFFORT)
 
     if not report.applied:
         assert report.reason
-        assert "not established" in " ".join(report.not_enforced)
+        assert report.not_enforced
 
 
 def test_required_refuses_where_best_effort_would_have_degraded() -> None:
@@ -344,24 +348,71 @@ def test_confinement_none_leaves_the_previous_behaviour_intact(
     ], report.diagnostics
 
 
+def test_a_worker_on_a_platform_without_a_backend_refuses_required_confinement() -> None:
+    """The refusal happens in the worker, so the platform is faked in the worker.
+
+    The previous version of this test patched `describe_platform` in the test
+    runner and asserted about a decision made two processes away. It passed
+    anyway: Windows refused `required` unconditionally, and hosted Linux
+    restricts unprivileged user namespaces so the platform really was
+    unavailable. Neither is what the test is named after.
+    """
+
+    with pytest.raises(ConfinementUnavailableError):
+        confinement_report(
+            ConfinementLevel.REQUIRED,
+            pretend_platform={
+                "platform": "imaginary",
+                "mechanism": "none",
+                "available": False,
+                "reason": "No confinement backend for this platform.",
+            },
+        )
+
+
+def test_the_same_platform_degrades_rather_than_refusing_under_best_effort() -> None:
+    report = confinement_report(
+        ConfinementLevel.BEST_EFFORT,
+        pretend_platform={
+            "platform": "imaginary",
+            "mechanism": "none",
+            "available": False,
+            "reason": "No confinement backend for this platform.",
+        },
+    )
+
+    assert report.applied is False
+    assert "No confinement backend" in (report.reason or "")
+    assert "not established" in " ".join(report.not_enforced)
+
+
 def test_required_confinement_reports_rather_than_silently_running(
     install_plugins, artifact: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A plugin the host could not confine must not quietly run unconfined."""
+    """A plugin the host could not confine must not quietly run unconfined.
 
-    from trueai.plugins import confinement as confinement_module
-    from trueai.plugins.confinement import PlatformConfinement
+    Exercised where the host makes the decision: the response comes back saying
+    no confinement was established, and the host refuses the findings rather than
+    accepting output from a worker it failed to confine.
+    """
 
-    monkeypatch.setattr(
-        confinement_module,
-        "describe_platform",
-        lambda: PlatformConfinement(
-            platform="imaginary",
-            mechanism="none",
-            available=False,
-            reason="No confinement backend for this platform.",
-        ),
-    )
+    from trueai.plugins import host as host_module
+
+    original = host_module.IsolatedDetector._run_worker
+
+    def unconfined_response(self, request):  # type: ignore[no-untyped-def]
+        response = original(self, request)
+        return response.model_copy(
+            update={
+                "confinement": ConfinementReport(
+                    mechanism="none",
+                    applied=False,
+                    reason="No confinement backend for this platform.",
+                )
+            }
+        )
+
+    monkeypatch.setattr(host_module.IsolatedDetector, "_run_worker", unconfined_response)
     install_plugins(entry_point("declared", "DECLARED_REGISTRATION"))
     registry = DetectorRegistry()
     registry.discover(
@@ -383,7 +434,6 @@ def test_required_confinement_reports_rather_than_silently_running(
     ]
     assert unconfined, report.diagnostics
     assert not findings, "a plugin the host could not confine must not have run"
-    assert "not imported" in unconfined[0].message
 
 
 def test_the_windows_token_module_states_the_platform_it_needs() -> None:
@@ -443,3 +493,111 @@ def test_no_test_module_confines_the_test_runner() -> None:
         "these modules confine the process running them; "
         f"use tests.support.confinement_report instead: {offenders}"
     )
+
+
+# -- Windows: the report has to be a measurement -------------------------------------
+
+
+def test_the_windows_report_does_not_claim_a_restriction_nobody_applied() -> None:
+    """A process cannot narrow its own token, so it cannot have done this itself.
+
+    Portable on purpose: off Windows the answer is "not measured here", and both
+    answers are the absence of a claim rather than a claim of absence.
+    """
+
+    report = windows_confinement_report(ConfinementLevel.BEST_EFFORT)
+
+    assert report.applied is False
+    assert report.reason
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Restricted tokens are a Windows mechanism")
+def test_the_windows_report_contradicts_a_host_that_did_not_restrict_the_token() -> None:
+    """Claimed and measured are compared, not averaged.
+
+    The old version of this function returned `applied=True` with "privileges are
+    dropped and administrators membership is deny-only" without reading a single
+    token. This asserts the opposite property: told that the token was
+    restricted, in a process whose token plainly is not, the report says so.
+    """
+
+    from trueai.plugins.windows_token import describe_restriction
+
+    if describe_restriction().privileges <= 1:
+        pytest.skip("This process is already running with a narrowed token")
+
+    report = windows_confinement_report(ConfinementLevel.BEST_EFFORT, spawn_time_applied=True)
+
+    assert report.applied is False
+    assert any("still holds" in line for line in report.not_enforced)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Restricted tokens are a Windows mechanism")
+def test_a_restricted_worker_runs_on_a_desktop_of_its_own() -> None:
+    """Windows killed the worker before Python started, and this is why.
+
+    A child created with `lpDesktop = NULL` inherits the creator's desktop and
+    must pass an access check against its window station with its own token. A
+    token whose administrators membership is deny-only fails that check wherever
+    the station grants through that group, and Windows answers
+    STATUS_DLL_INIT_FAILED -- no output, no exit code of its own, and
+    indistinguishable from a plugin that crashed. It happens in exactly the
+    non-interactive sessions a service or scheduled task runs in.
+    """
+
+    import json
+    import tempfile
+
+    from trueai.plugins.windows_token import describe_restriction, spawn_restricted
+
+    host = describe_restriction()
+    output = Path(tempfile.mkdtemp()) / "restriction.json"
+    probe = (
+        "import json,sys;"
+        "from trueai.plugins.windows_token import describe_restriction;"
+        "open(sys.argv[1],'w',encoding='utf-8')"
+        ".write(json.dumps(describe_restriction()._asdict()))"
+    )
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{REPOSITORY_ROOT}{os.pathsep}{existing}" if existing else REPOSITORY_ROOT
+    )
+
+    code = spawn_restricted(
+        [sys.executable, "-c", probe, str(output)], environment=environment, timeout=120
+    )
+
+    assert code == 0
+    child = json.loads(output.read_text(encoding="utf-8"))
+    assert child["privileges"] <= 1, child
+    assert child["privileges"] < host.privileges or host.privileges <= 1
+    assert str(child["desktop"]).startswith("trueai-"), child
+    assert child["desktop"] != host.desktop
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Restricted tokens are a Windows mechanism")
+def test_required_confinement_now_runs_plugins_on_windows(install_plugins, artifact: Path) -> None:
+    """It used to mean "no plugin ever runs here", which nothing said out loud.
+
+    `apply_confinement` took the spawn-time branch and raised under `required`,
+    so a Windows operator asking for confinement got a refusal for every plugin
+    while the host had in fact restricted the token. The worker now measures what
+    it was given and reports it, and the host checks the report.
+    """
+
+    install_plugins(entry_point("declared", "DECLARED_REGISTRATION"))
+    registry = DetectorRegistry()
+    registry.discover(
+        isolation=PluginIsolation.SUBPROCESS,
+        timeout=180.0,
+        search_path=(REPOSITORY_ROOT,),
+        confinement=ConfinementLevel.REQUIRED,
+    )
+
+    report = TrueAIEngine(registry).scan(artifact)
+
+    findings = [
+        finding for finding in report.findings if finding.detector_id == "example.well-behaved.v1"
+    ]
+    assert findings, report.diagnostics

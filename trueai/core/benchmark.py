@@ -224,8 +224,33 @@ def build_corpus(root: Path, file_count: int, *, seed: int = 0, fanout: int = 10
 # -- measurement ----------------------------------------------------------------------
 
 
+#: The largest peak this process has ever reported. Linux is the reason it
+#: exists: since 6.2 the kernel keeps RSS in per-CPU counters and derives VmHWM
+#: as ``max(stored_high_water, approximate_current_rss)``, where the second term
+#: is a deliberately racy read. So two consecutive reads can go *down* by a
+#: fraction of a percent, and a field this module documents as never falling
+#: starts falling. Clamping here keeps the published contract true on every
+#: platform instead of making each caller discover the exception.
+_OBSERVED_PEAK_RSS_BYTES = 0
+
+
 def _peak_rss_bytes() -> int | None:
-    """Return peak resident set size in bytes, or None on an unknown platform."""
+    """Return the peak resident set size in bytes, or None where it is unknown.
+
+    Monotonic for the life of the process, which is what "high-water mark" means
+    and what the reported field promises.
+    """
+
+    global _OBSERVED_PEAK_RSS_BYTES
+    reading = _read_peak_rss_bytes()
+    if reading is None:
+        return None
+    _OBSERVED_PEAK_RSS_BYTES = max(_OBSERVED_PEAK_RSS_BYTES, reading)
+    return _OBSERVED_PEAK_RSS_BYTES
+
+
+def _read_peak_rss_bytes() -> int | None:
+    """Ask the operating system, without smoothing what it says."""
 
     if sys.platform == "win32":
         import ctypes

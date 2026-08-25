@@ -105,6 +105,14 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   item is the part a green run cannot claim on its own: the native confinement checks still report
   `SKIP` on hosted Linux, because unprivileged user namespaces are restricted there, so that control
   needs a container run with `TRUEAI_REQUIRE_CONFINEMENT=1` before the matrix is honestly complete.
+  **Second pass.** The test matrix then reported 78 failures, which were two platform defects and
+  four wrong tests. Plugins did not run on macOS at all, because one refused `rlimit` discarded the
+  other; they did not run in any non-interactive Windows session, because a restricted token cannot
+  attach to the creator's desktop; `--plugin-confinement required` on Windows meant "no plugin ever
+  runs"; and the Windows confinement report claimed a restriction it never measured. All are fixed,
+  and the worker now runs on a desktop of its own. What is still outstanding for this item is the
+  same as before: hosted Linux cannot exercise the mount-namespace control, so a container run with
+  `TRUEAI_REQUIRE_CONFINEMENT=1` is still required before this can be ticked.
 - [ ] `REL-02` (`external`) Configure protected `testpypi` and `pypi` environments plus their
   trusted publishers, then exercise the release workflow against TestPyPI.
 - [ ] `REL-03` (`external`) Attest and sign the wheel, sdist, SBOM, build-input record, and checksums

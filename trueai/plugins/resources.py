@@ -1,4 +1,15 @@
-"""Operating-system resource limits for untrusted plugin helper processes."""
+"""Operating-system resource limits for untrusted plugin helper processes.
+
+Every limit here is installed on its own and reported on its own. Bundling them
+made one platform's refusal of one limit look like a total failure to confine,
+which is how macOS ended up rejecting every plugin at discovery rather than
+running them with a CPU ceiling and no address-space ceiling.
+
+That distinction is the whole design: a control that is in place, a control the
+platform refuses, and a helper that could not be limited at all are three
+different states, and collapsing them either lies about the protection or throws
+away protection that was available.
+"""
 
 from __future__ import annotations
 
@@ -19,35 +30,110 @@ class PluginResourceLimits(BaseModel):
     max_cpu_seconds: int = Field(default=30, ge=1, le=3600)
 
 
+class ResourceLimitReport(BaseModel):
+    """Which limits a helper process actually got, and which it did not.
+
+    Shaped like :class:`~trueai.plugins.confinement.ConfinementReport` on purpose:
+    the two answer the same question about different mechanisms, and an operator
+    reading a scan report should not have to learn two vocabularies for "this
+    control is not in place here".
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mechanism: str
+    #: Limits the kernel accepted, one line each.
+    established: tuple[str, ...] = ()
+    #: Limits this platform refused, with the reason it gave. An empty tuple
+    #: means every requested limit is in place, not that none were requested.
+    not_enforced: tuple[str, ...] = ()
+
+    @property
+    def memory_capped(self) -> bool:
+        """Whether an address-space ceiling is actually in force."""
+
+        return any(line.startswith("address space") for line in self.established)
+
+
+class ResourceLimitsUnavailableError(RuntimeError):
+    """Raised when a helper process could not be limited at all."""
+
+
 _WINDOWS_JOB_HANDLE: Any | None = None
 
 
-def apply_process_resource_limits(limits: PluginResourceLimits) -> None:
-    """Install hard CPU and memory limits before importing a plugin."""
+def apply_process_resource_limits(
+    limits: PluginResourceLimits, *, require_all: bool = False
+) -> ResourceLimitReport:
+    """Install CPU and memory limits before importing a plugin.
 
-    if os.name == "nt":
-        _apply_windows_job_limits(limits)
-    else:
-        _apply_posix_limits(limits)
+    Returns what was installed. Raises :class:`ResourceLimitsUnavailableError`
+    when nothing could be, or when ``require_all`` is set and the platform
+    refused any of it -- the caller that insists on operating-system confinement
+    is the caller that should not proceed unconfined.
+    """
+
+    report = _apply_windows_job_limits(limits) if os.name == "nt" else _apply_posix_limits(limits)
+    if require_all and report.not_enforced:
+        raise ResourceLimitsUnavailableError(
+            "These process limits could not be installed: " + "; ".join(report.not_enforced)
+        )
+    return report
 
 
-def _apply_posix_limits(limits: PluginResourceLimits) -> None:
+#: Requested limit, the ``resource`` constant, and how to say it in a report.
+_POSIX_LIMITS = (
+    ("address space", "RLIMIT_AS", "max_memory_bytes", "bytes"),
+    ("CPU time", "RLIMIT_CPU", "max_cpu_seconds", "seconds"),
+)
+
+
+def _apply_posix_limits(limits: PluginResourceLimits) -> ResourceLimitReport:
+    """Install each rlimit independently and report which of them held."""
+
     try:
         resource: Any = importlib.import_module("resource")
+    except ImportError as exc:  # pragma: no cover - POSIX always has it
+        raise ResourceLimitsUnavailableError(
+            f"The `resource` module is unavailable, so no limit could be installed: {exc}"
+        ) from exc
 
-        resource.setrlimit(
-            resource.RLIMIT_AS,
-            (limits.max_memory_bytes, limits.max_memory_bytes),
+    established: list[str] = []
+    not_enforced: list[str] = []
+    for label, constant, attribute, unit in _POSIX_LIMITS:
+        key = getattr(resource, constant, None)
+        if key is None:  # pragma: no cover - both exist on every supported POSIX
+            not_enforced.append(f"{label}: this platform has no {constant}")
+            continue
+        requested = int(getattr(limits, attribute))
+        try:
+            _, hard = resource.getrlimit(key)
+            # Never ask for more than the hard limit already allows. Raising one
+            # needs privilege the worker must not have, and asking is itself an
+            # EINVAL -- a second, unrelated way to earn the error that made macOS
+            # look like it could not limit anything.
+            target = requested if hard == resource.RLIM_INFINITY else min(requested, hard)
+            # The hard limit comes down with the soft one, so a plugin cannot
+            # raise it back: lowering a hard limit is always permitted, raising
+            # it is not.
+            resource.setrlimit(key, (target, target))
+        except (OSError, ValueError) as exc:
+            not_enforced.append(f"{label}: setrlimit({constant}) was refused ({exc})")
+        else:
+            established.append(f"{label} capped at {target} {unit}")
+
+    if not established:
+        raise ResourceLimitsUnavailableError(
+            "No process limit could be installed: " + "; ".join(not_enforced)
         )
-        resource.setrlimit(
-            resource.RLIMIT_CPU,
-            (limits.max_cpu_seconds, limits.max_cpu_seconds),
-        )
-    except (ImportError, OSError, ValueError) as exc:
-        raise RuntimeError(f"Unable to install POSIX plugin resource limits: {exc}") from exc
+    return ResourceLimitReport(
+        mechanism="posix-rlimit",
+        established=tuple(established),
+        not_enforced=tuple(not_enforced),
+    )
 
 
-def _apply_windows_job_limits(limits: PluginResourceLimits) -> None:
+def _apply_windows_job_limits(limits: PluginResourceLimits) -> ResourceLimitReport:
     """Assign the worker to a Job Object with hard per-process limits."""
 
     if sys.platform != "win32":  # pragma: no cover - the caller checks first
@@ -55,7 +141,7 @@ def _apply_windows_job_limits(limits: PluginResourceLimits) -> None:
         # narrow the body below to Windows. `os.name == "nt"` at the call site
         # reads the same to a human and means nothing to mypy, which is how the
         # Windows branch went unchecked on one platform and misread on the other.
-        raise RuntimeError("Windows job objects are unavailable on this platform.")
+        raise ResourceLimitsUnavailableError("Windows job objects need Windows.")
 
     import ctypes
     from ctypes import wintypes
@@ -112,7 +198,9 @@ def _apply_windows_job_limits(limits: PluginResourceLimits) -> None:
 
     job = kernel32.CreateJobObjectW(None, None)
     if not job:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise ResourceLimitsUnavailableError(
+            f"CreateJobObject failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
     information = _ExtendedLimits()
     information.basic.process_time = limits.max_cpu_seconds * 10_000_000
     information.basic.flags = 0x00000002 | 0x00000100 | 0x00002000
@@ -121,12 +209,23 @@ def _apply_windows_job_limits(limits: PluginResourceLimits) -> None:
         if not kernel32.SetInformationJobObject(
             job, 9, ctypes.byref(information), ctypes.sizeof(information)
         ):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise ResourceLimitsUnavailableError(
+                f"SetInformationJobObject failed: {ctypes.WinError(ctypes.get_last_error())}"
+            )
         if not kernel32.AssignProcessToJobObject(job, kernel32.GetCurrentProcess()):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise ResourceLimitsUnavailableError(
+                f"AssignProcessToJobObject failed: {ctypes.WinError(ctypes.get_last_error())}"
+            )
     except Exception:
         kernel32.CloseHandle(job)
         raise
 
     global _WINDOWS_JOB_HANDLE
     _WINDOWS_JOB_HANDLE = job
+    return ResourceLimitReport(
+        mechanism="windows-job-object",
+        established=(
+            f"address space capped at {limits.max_memory_bytes} bytes",
+            f"CPU time capped at {limits.max_cpu_seconds} seconds",
+        ),
+    )

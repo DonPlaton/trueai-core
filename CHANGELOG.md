@@ -12,6 +12,66 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**Plugins did not work on macOS or on any non-interactive Windows session**
+
+The first hosted run left 78 failures across three platforms. They were not three
+problems; they were two platform defects, one class of test that could never have
+run where it was pointed, and two tests that were simply wrong.
+
+- **No plugin ran on macOS at all.** `setrlimit(RLIMIT_AS, 512MB)` is refused
+  there — the interpreter has already mapped more address space than that before
+  the helper's first line — and both limits were installed inside one `try`, so
+  one refusal discarded the CPU ceiling that *was* available and every plugin was
+  rejected at discovery. Each limit is now installed and reported on its own, the
+  request is clamped to the hard limit already in place rather than exceeding it,
+  and a limit the platform refuses is recorded in a `ResourceLimitReport` instead
+  of dropped. `trueai plugins` prints it, and `--plugin-confinement required`
+  refuses rather than running without one.
+- **No plugin ran in a non-interactive Windows session.** A worker created with
+  `lpDesktop = NULL` inherits the creator's desktop and must pass an access check
+  against its window station using its own token. The restricted token makes
+  `BUILTIN\Administrators` deny-only, so wherever that station's DACL grants
+  through the administrators group — the usual shape outside an interactive
+  session, and how a service or scheduled task runs — Windows destroys the
+  process during DLL initialisation with `STATUS_DLL_INIT_FAILED`. No output, no
+  exit code of its own, and indistinguishable from a plugin that crashed. The
+  worker now gets a desktop of its own, which fixes it and narrows the sandbox:
+  no window enumeration, window messages, or hooks reach the operator's desktop.
+  That status is also reported as a spawn failure rather than returned as an exit
+  code, because the process never ran.
+- **`required` confinement on Windows meant "no plugin ever runs".**
+  `apply_confinement` took the spawn-time branch and raised, for every plugin, on
+  the one platform whose confinement is applied by somebody else. It works now.
+- **The Windows confinement report asserted a restriction without measuring it.**
+  `windows_confinement_report` returned `applied=True` with "privileges are
+  dropped and administrators membership is deny-only" having read no token — and
+  was never in a report at all, because the worker described itself as
+  unconfined. The host now states whether it restricted the token, the worker
+  reads its own token, job membership and desktop, and the two are compared
+  rather than averaged. `WorkerResponse.confinement` was documented as being
+  there "so the host reports the confinement that happened"; the host now reads
+  it, and under `required` refuses findings from a worker that reported none.
+- **A test helper turned a bug into a platform gap.** `create_symlink` swallowed
+  `FileExistsError` along with every other `OSError`, so a call with its two
+  arguments swapped reported as "symlinks are unavailable on this platform". The
+  cache's refusal to delete through a symlink had never run.
+- **A high-water mark that fell.** Linux 6.2 moved RSS accounting to per-CPU
+  counters and derives `VmHWM` as `max(stored_high_water, approximate_rss)`,
+  where the second term is a racy read, so two consecutive samples can descend.
+  The reported peak is clamped to the largest ever observed, which is what the
+  field has always claimed to be.
+- **Seven gates skipped everywhere and were enforced nowhere.** The supply-chain
+  tests walk the whole runtime closure and the built distributions; the test
+  matrix installs `.[dev,pdf]` on purpose and never builds a wheel. They now skip
+  where the prerequisite is genuinely absent, and two CI jobs that *do* provide it
+  turn the skip back into a failure.
+- **A test that patched one process and asserted about another.**
+  `test_required_confinement_reports_rather_than_silently_running` monkeypatched
+  `describe_platform` in the test runner and checked a decision made in the
+  worker. It passed because Windows refused `required` unconditionally and hosted
+  Linux restricts unprivileged user namespaces — two accidents, neither of them
+  the property named in the test.
+
 **Six defects the first run on hosted CI found, five of which only Linux could see**
 
 The suite had only ever run on one developer's Windows machine and in a

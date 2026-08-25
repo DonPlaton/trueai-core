@@ -39,6 +39,10 @@ from scripts.generate_sbom import (  # noqa: E402
     incompleteness,
 )
 from scripts.generate_sbom import main as sbom_main  # noqa: E402
+from tests.support import (  # noqa: E402
+    require_built_distributions,
+    require_release_closure,
+)
 
 TODAY = date(2026, 8, 25)
 
@@ -250,6 +254,8 @@ def test_the_committed_ledger_describes_this_environment() -> None:
     the calendar.
     """
 
+    require_release_closure()
+
     problems = check(load_ledger(LEDGER_PATH), installed=installed_closure(), today=TODAY)
 
     assert problems == [], [str(item) for item in problems]
@@ -262,6 +268,8 @@ def test_the_advisory_review_is_not_overdue() -> None:
     lapse. When this fails, re-read the sources in `security/advisories.toml` and
     move the dates — the fix is doing the review, not editing the test.
     """
+
+    require_release_closure()
 
     problems = check(load_ledger(LEDGER_PATH), installed=installed_closure(), today=date.today())
     stale = [item for item in problems if item.kind == "stale"]
@@ -322,6 +330,8 @@ def test_an_empty_sbom_is_reported_rather_than_passing() -> None:
 
 
 def test_the_real_closure_produces_a_complete_sbom() -> None:
+    require_release_closure()
+
     assert incompleteness(collect(runtime_distribution_names())) == []
 
 
@@ -348,6 +358,8 @@ def test_the_timestamp_can_be_pinned_for_a_reproducible_build() -> None:
 
 
 def test_the_sbom_cli_accepts_a_reproducible_timestamp(tmp_path: Path) -> None:
+    require_release_closure()
+
     output = tmp_path / "sbom.json"
 
     assert sbom_main(["--output", str(output), "--timestamp", "1767225600"]) == 0
@@ -362,6 +374,8 @@ def test_the_sbom_cli_accepts_a_reproducible_timestamp(tmp_path: Path) -> None:
 def test_the_license_gate_runs_without_pip_licenses_installed() -> None:
     """A gate that only runs in one CI provider cannot be run before pushing."""
 
+    require_release_closure()
+
     packages = read_licenses_directly(runtime_distribution_names())
 
     assert packages
@@ -370,6 +384,8 @@ def test_the_license_gate_runs_without_pip_licenses_installed() -> None:
 
 def test_every_installed_license_is_allowlisted_under_either_spelling() -> None:
     """Two readers disagree about which metadata field to believe."""
+
+    require_release_closure()
 
     unexpected = [
         (item["Name"], item["License"])
@@ -406,6 +422,11 @@ def test_every_gate_states_the_question_it_answers() -> None:
 
 @pytest.mark.parametrize("gate", GATES, ids=lambda gate: gate.name)
 def test_each_gate_passes_on_this_working_tree(gate) -> None:
+    if gate.name == "manifest":
+        require_built_distributions()
+    else:
+        require_release_closure()
+
     assert gate.run() == 0
 
 

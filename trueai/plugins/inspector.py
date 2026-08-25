@@ -73,11 +73,15 @@ def main(argv: list[str]) -> int:
         )
         return 1
 
+    from trueai.plugins.confinement import ConfinementLevel
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.resources import apply_process_resource_limits
 
     try:
-        apply_process_resource_limits(request.resource_limits)
+        resource_limits = apply_process_resource_limits(
+            request.resource_limits,
+            require_all=request.confinement == ConfinementLevel.REQUIRED,
+        )
     except Exception as exc:
         _write(
             response_path,
@@ -105,6 +109,7 @@ def main(argv: list[str]) -> int:
             detector_id=manifest.detector_id,
             ok=True,
             manifest=manifest.model_dump(mode="json"),
+            resource_limits=resource_limits,
         )
     except Exception as exc:
         response = InspectionResponse(
@@ -112,6 +117,7 @@ def main(argv: list[str]) -> int:
             ok=False,
             error_code="plugin_inspection_failed",
             error_message=f"{type(exc).__name__}: {exc}"[:4000],
+            resource_limits=resource_limits,
         )
     _write(response_path, response)
     return 0 if response.ok else 1

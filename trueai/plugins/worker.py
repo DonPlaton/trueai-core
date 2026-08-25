@@ -94,12 +94,21 @@ def main(argv: list[str]) -> int:
 
     from trueai.core.artifact import Artifact
     from trueai.core.models import ScanContext
+    from trueai.plugins.confinement import ConfinementLevel
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.loader import load_entry_point
     from trueai.plugins.resources import apply_process_resource_limits
 
     try:
-        apply_process_resource_limits(request.resource_limits)
+        resource_limits = apply_process_resource_limits(
+            request.resource_limits,
+            # A caller that insists on operating-system confinement is the caller
+            # that must not run with half of it. Everywhere else a limit the
+            # platform refuses is reported rather than fatal, because refusing to
+            # scan is a worse answer than scanning with a CPU ceiling and saying
+            # the memory ceiling is missing.
+            require_all=request.confinement == ConfinementLevel.REQUIRED,
+        )
     except Exception as exc:
         return _fail(
             response_path,
@@ -117,6 +126,7 @@ def main(argv: list[str]) -> int:
         confinement = apply_confinement(
             request.grants,
             request.confinement,
+            spawn_time_applied=request.spawn_time_confinement,
             # The response file is how the worker answers the host. A confinement
             # that makes it unwritable produces a crash report instead of a
             # verdict, which is worse than no confinement.
@@ -216,6 +226,7 @@ def main(argv: list[str]) -> int:
             ok=True,
             findings=serialized,
             confinement=confinement,
+            resource_limits=resource_limits,
         ),
     )
     return 0

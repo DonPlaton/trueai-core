@@ -6144,6 +6144,7 @@
       "DiscoveryResult": {
         "abstract_methods": [],
         "attributes": [
+          "containment",
           "decisions",
           "detectors",
           "manifests",
@@ -6502,6 +6503,18 @@
           "write_temporary"
         ]
       },
+      "PluginContainment": {
+        "abstract_methods": [],
+        "attributes": [
+          "detector_id",
+          "established",
+          "mechanism",
+          "not_enforced"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {}
+      },
       "PluginDistribution": {
         "abstract_methods": [],
         "attributes": [
@@ -6724,6 +6737,38 @@
             "required": false
           }
         }
+      },
+      "ResourceLimitReport": {
+        "abstract_methods": [],
+        "attributes": [
+          "memory_capped",
+          "model_config"
+        ],
+        "bases": [
+          "pydantic.main.BaseModel"
+        ],
+        "kind": "class",
+        "methods": {},
+        "model_fields": {
+          "established": {
+            "required": false
+          },
+          "mechanism": {
+            "required": true
+          },
+          "not_enforced": {
+            "required": false
+          }
+        }
+      },
+      "ResourceLimitsUnavailableError": {
+        "abstract_methods": [],
+        "attributes": [],
+        "bases": [
+          "builtins.RuntimeError"
+        ],
+        "kind": "class",
+        "methods": {}
       },
       "SubprocessGrant": {
         "abstract_methods": [],

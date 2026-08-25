@@ -34,6 +34,7 @@ from trueai.plugins.host import (
     ENTRY_POINT_GROUP,
     DiscoveryResult,
     IsolatedDetector,
+    PluginContainment,
     PluginExecutionError,
     PluginHost,
     PluginIsolation,
@@ -48,7 +49,11 @@ from trueai.plugins.manifest import (
     PluginManifest,
     PluginRegistration,
 )
-from trueai.plugins.resources import PluginResourceLimits
+from trueai.plugins.resources import (
+    PluginResourceLimits,
+    ResourceLimitReport,
+    ResourceLimitsUnavailableError,
+)
 
 __all__ = [
     "DEFAULT_CAPABILITIES",
@@ -74,6 +79,7 @@ __all__ = [
     "PlatformConfinement",
     "PluginAllowlist",
     "PluginCapability",
+    "PluginContainment",
     "PluginDistribution",
     "PluginExecutionError",
     "PluginHost",
@@ -82,6 +88,8 @@ __all__ = [
     "PluginRegistration",
     "PluginRejection",
     "PluginResourceLimits",
+    "ResourceLimitReport",
+    "ResourceLimitsUnavailableError",
     "SubprocessGrant",
     "TemporaryOutputGrant",
     "WorkspaceGrant",

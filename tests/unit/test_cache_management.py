@@ -385,7 +385,10 @@ def test_pruning_refuses_a_path_that_became_a_link(tmp_path: Path) -> None:
     outside = tmp_path / "precious.json"
     outside.write_text("do not delete me\n", encoding="utf-8")
     entry.path.unlink()
-    create_symlink(outside, entry.path)
+    # The cache entry becomes the link; `outside` is what it points at. Swapped,
+    # this asked to create a link *at* a file that already exists, and the
+    # FileExistsError read as "this platform has no symlinks".
+    create_symlink(entry.path, outside)
 
     result = cache.prune(unreachable_only=True)
 

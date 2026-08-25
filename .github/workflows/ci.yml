@@ -270,6 +270,14 @@ jobs:
           python -m uv run python scripts/compare_builds.py dist dist-rebuild
       - name: Verify the packaged source manifest
         run: python -m uv run python scripts/check_manifest.py
+      # The manifest gate reads the archives, so it can only run once they exist.
+      # It skips everywhere else, and this variable turns that skip into a
+      # failure here, where `dist/` has just been filled.
+      - name: Run the supply-chain suite against the built distributions
+        env:
+          TRUEAI_REQUIRE_BUILT_DISTRIBUTIONS: "1"
+          TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES: "1"
+        run: python -m uv run python -m pytest tests/unit/test_supply_chain.py -rs
       - name: Record the build inputs an auditor needs
         run: |
           python -m uv run python scripts/record_build_inputs.py \
@@ -315,6 +323,12 @@ jobs:
   supply-chain:
     name: Dependency, license, and SBOM review
     runs-on: ubuntu-latest
+    env:
+      # The test matrix installs `.[dev,pdf]` so that graceful degradation is
+      # covered, which means the tests that walk the *whole* runtime closure skip
+      # there. This is the job that installs all of it, so here the skip is a
+      # failure -- otherwise those gates are never actually run anywhere.
+      TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -353,6 +367,10 @@ jobs:
       # have an SBOM" check while answering none of their questions.
       - name: Check every component carries a version, a license, and a purl
         run: python -m uv run python scripts/generate_sbom.py --check
+      # The gates above run as scripts. This runs the tests *about* the gates,
+      # in the one environment where their prerequisite exists.
+      - name: Run the supply-chain suite against the complete closure
+        run: python -m uv run python -m pytest tests/unit/test_supply_chain.py -rs
       - name: Upload the SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

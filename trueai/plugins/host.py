@@ -70,7 +70,7 @@ from trueai.plugins.protocol import (
     WorkerRequest,
     WorkerResponse,
 )
-from trueai.plugins.resources import PluginResourceLimits
+from trueai.plugins.resources import PluginResourceLimits, ResourceLimitReport
 
 ENTRY_POINT_GROUP = "trueai.detectors"
 
@@ -111,6 +111,22 @@ class PluginRejection:
 
 
 @dataclass(frozen=True, slots=True)
+class PluginContainment:
+    """What the operating system actually granted a plugin's helper process.
+
+    Recorded at discovery, because that is when a helper runs for every plugin
+    and when the answer is the same for all of them. `not_enforced` being
+    non-empty is the interesting case: the plugin still runs, and the control an
+    operator assumed is in place is not.
+    """
+
+    detector_id: str
+    mechanism: str
+    established: tuple[str, ...] = ()
+    not_enforced: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class DiscoveryResult:
     """Detectors the host accepted, plus the ones it refused."""
 
@@ -118,6 +134,9 @@ class DiscoveryResult:
     manifests: tuple[PluginManifest, ...]
     decisions: tuple[CapabilityDecision, ...]
     rejections: tuple[PluginRejection, ...]
+    #: One entry per plugin whose manifest was inspected in a helper process.
+    #: Empty for a plugin whose manifest arrived signed, because no helper ran.
+    containment: tuple[PluginContainment, ...] = ()
 
 
 class IsolatedDetector:
@@ -187,6 +206,7 @@ class IsolatedDetector:
                 granted_capabilities=frozenset(self.decision.granted),
                 grants=self._grants(artifact, digest, context, scratch),
                 confinement=self.confinement,
+                spawn_time_confinement=self._spawn_time_confinement(),
                 resource_limits=self.resource_limits,
                 artifact=WorkerArtifact(
                     artifact_type=artifact.artifact_type,
@@ -201,6 +221,23 @@ class IsolatedDetector:
             )
             response = self._run_worker(request)
             return self._validate(response, artifact, digest, context)
+
+    def _spawn_time_confinement(self) -> bool:
+        """Whether this host will restrict the worker's token when it starts it.
+
+        Decided before the request is written, because the worker has to be told:
+        a process cannot narrow its own token, so on Windows the worker's own
+        report depends on the host admitting what it did.
+        """
+
+        if self.confinement == ConfinementLevel.NONE:
+            return False
+        platform = describe_platform()
+        if not (platform.platform == "windows" and platform.spawn_time_only):
+            return False
+        from trueai.plugins.windows_token import restricted_spawning_available
+
+        return restricted_spawning_available()
 
     @contextlib.contextmanager
     def _scratch(self) -> Iterator[Path | None]:
@@ -392,6 +429,26 @@ class IsolatedDetector:
                 "detector_identity_mismatch",
                 f"The worker answered for detector {response.detector_id!r}.",
             )
+        if self.confinement == ConfinementLevel.REQUIRED and (
+            response.confinement is None or not response.confinement.applied
+        ):
+            # Reached on every platform, including the spawn-time one: there the
+            # worker measures the token the host gave it, so `applied` is a check
+            # of the host's own work rather than a restatement of its intent.
+            # The worker refuses on its own when it cannot confine itself. This is
+            # the host checking the answer rather than assuming it: the operator
+            # asked for confinement, and the report is the only evidence that any
+            # was established.
+            raise PluginExecutionError(
+                "plugin_confinement_unavailable",
+                "The host requires operating-system confinement and the worker did not "
+                "report establishing any: "
+                + (
+                    response.confinement.summary()
+                    if response.confinement is not None
+                    else "no confinement report was returned"
+                ),
+            )
         after = artifact.sha256(context.options.max_file_size)
         if after != digest:
             raise PluginExecutionError(
@@ -471,6 +528,7 @@ class PluginHost:
         manifests: list[PluginManifest] = []
         decisions: list[CapabilityDecision] = []
         rejections: list[PluginRejection] = []
+        containment: list[PluginContainment] = []
         for entry_point in sorted(
             entry_points(group=ENTRY_POINT_GROUP), key=lambda item: item.name
         ):
@@ -492,7 +550,16 @@ class PluginHost:
                 manifest = published.manifest
             else:
                 try:
-                    manifest = self._inspect(entry_point)
+                    manifest, limits = self._inspect(entry_point)
+                    if limits is not None:
+                        containment.append(
+                            PluginContainment(
+                                detector_id=manifest.detector_id,
+                                mechanism=limits.mechanism,
+                                established=limits.established,
+                                not_enforced=limits.not_enforced,
+                            )
+                        )
                 except Exception as exc:
                     rejections.append(
                         PluginRejection(
@@ -563,10 +630,18 @@ class PluginHost:
             manifests=tuple(manifests),
             decisions=tuple(decisions),
             rejections=tuple(rejections),
+            containment=tuple(containment),
         )
 
-    def _inspect(self, entry_point: EntryPoint) -> PluginManifest:
-        """Inspect a plugin manifest without importing the module in this process."""
+    def _inspect(
+        self, entry_point: EntryPoint
+    ) -> tuple[PluginManifest, ResourceLimitReport | None]:
+        """Inspect a plugin manifest without importing the module in this process.
+
+        Returns the limits the helper process actually ran under alongside the
+        manifest, because that is the only moment the host learns what this
+        machine's kernel was willing to enforce.
+        """
 
         workspace = Path(tempfile.mkdtemp(prefix="trueai-plugin-inspection-"))
         request_path = workspace / "request.json"
@@ -576,6 +651,7 @@ class PluginHost:
                 entry_point=entry_point.value,
                 fallback_detector_id=entry_point.name,
                 resource_limits=self.resource_limits,
+                confinement=self.confinement,
             )
             request_path.write_text(request.model_dump_json(), encoding="utf-8")
             environment = dict(os.environ)
@@ -617,7 +693,7 @@ class PluginHost:
             manifest = PluginManifest.model_validate(response.manifest)
             if response.detector_id != manifest.detector_id:
                 raise DetectorRegistrationError("Plugin manifest inspection identity mismatch")
-            return manifest
+            return manifest, response.resource_limits
         finally:
             for path in (request_path, response_path):
                 with contextlib.suppress(OSError):

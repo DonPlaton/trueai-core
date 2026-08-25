@@ -16,7 +16,7 @@ from trueai.core.models import ArtifactType, ScanOptions
 from trueai.plugins.broker import BrokerGrants
 from trueai.plugins.confinement import ConfinementLevel, ConfinementReport
 from trueai.plugins.manifest import PluginCapability
-from trueai.plugins.resources import PluginResourceLimits
+from trueai.plugins.resources import PluginResourceLimits, ResourceLimitReport
 
 PROTOCOL_VERSION: Literal["1"] = "1"
 
@@ -49,6 +49,11 @@ class WorkerRequest(BaseModel):
     #: How hard the host insists on kernel-level confinement. `required` makes the
     #: worker refuse to import the plugin when confinement cannot be established.
     confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT
+    #: Whether the host started this worker under a restricted token. A process
+    #: cannot narrow its own token, so on Windows this is the only way the worker
+    #: can know a restriction was applied -- and it verifies the claim by reading
+    #: the token rather than repeating it.
+    spawn_time_confinement: bool = False
     resource_limits: PluginResourceLimits = PluginResourceLimits()
     artifact: WorkerArtifact
     options: ScanOptions
@@ -67,6 +72,9 @@ class WorkerResponse(BaseModel):
     #: What the worker actually established, so the host reports the confinement
     #: that happened rather than the one it asked for.
     confinement: ConfinementReport | None = None
+    #: Which process limits the kernel accepted. `None` only when the worker
+    #: failed before it got that far.
+    resource_limits: ResourceLimitReport | None = None
     error_code: str | None = None
     error_message: str | None = None
 
@@ -80,6 +88,9 @@ class InspectionRequest(BaseModel):
     entry_point: str
     fallback_detector_id: str
     resource_limits: PluginResourceLimits = PluginResourceLimits()
+    #: Mirrors the worker's own setting. `required` makes the inspector refuse
+    #: rather than import a plugin under limits the platform would not install.
+    confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT
 
 
 class InspectionResponse(BaseModel):
@@ -91,5 +102,8 @@ class InspectionResponse(BaseModel):
     detector_id: str
     ok: bool
     manifest: dict[str, Any] | None = None
+    #: Which process limits the inspector ran under, for the same reason the
+    #: worker reports its own: an unenforced limit has to be visible somewhere.
+    resource_limits: ResourceLimitReport | None = None
     error_code: str | None = None
     error_message: str | None = None

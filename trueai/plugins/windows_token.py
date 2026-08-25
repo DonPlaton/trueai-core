@@ -15,6 +15,17 @@ stop a plugin reading anything the user can read.
 API directly. That is affordable here only because the protocol is already
 file-based: the host writes a request file and reads a response file, and the
 worker's stdout and stderr are discarded. There are no pipes to plumb.
+
+The worker also gets its own window station and desktop. That is not decoration.
+A child created with ``lpDesktop = NULL`` inherits the creator's station and must
+pass an access check against it using its own token; a token with
+``BUILTIN\\Administrators`` deny-only fails that check wherever the station's DACL
+grants through the administrators group, and Windows kills the process during
+DLL initialization with ``STATUS_DLL_INIT_FAILED`` -- before Python starts, with
+no output, which is indistinguishable from a plugin that crashed. It happens in
+exactly the non-interactive sessions a service or a scheduled task runs in. A
+private station also removes the clipboard, window enumeration, and window
+messages to the operator's desktop from what a plugin can reach.
 """
 
 from __future__ import annotations
@@ -32,8 +43,11 @@ if sys.platform != "win32":  # pragma: no cover - the module is Windows-only
 # are still WinDLL, built by the two loaders; only the static type is wider.
 import ctypes
 import os
+import secrets
+import threading
 from ctypes import wintypes
 from pathlib import Path
+from typing import NamedTuple
 
 _TOKEN_DUPLICATE = 0x0002
 _TOKEN_QUERY = 0x0008
@@ -57,9 +71,36 @@ _SECURITY_BUILTIN_DOMAIN_RID = 0x00000020
 _DOMAIN_ALIAS_RID_ADMINS = 0x00000220
 _SECURITY_NT_AUTHORITY = (0, 0, 0, 0, 0, 5)
 
+_TOKEN_USER = 1
+_TOKEN_GROUPS = 2
+_TOKEN_PRIVILEGES = 3
+_SE_GROUP_USE_FOR_DENY_ONLY = 0x00000010
+_DESKTOP_ALL_ACCESS = 0x000F01FF
+_SDDL_REVISION_1 = 1
+_UOI_NAME = 2
+
+#: Windows kills a process during DLL initialisation with this status when a
+#: statically linked DLL's ``DllMain`` returns FALSE. For ``user32``/``gdi32``
+#: that means it could not attach to a window station and desktop, which is what
+#: happens to a restricted token on a station whose DACL grants through a group
+#: the token holds deny-only. The process never ran a single instruction, so this
+#: is a spawn failure and not the worker's exit code.
+STATUS_DLL_INIT_FAILED = 0xC0000142
+
+_STARTF_USESHOWWINDOW = 0x00000001
+_SW_HIDE = 0
+
 
 class RestrictedSpawnError(RuntimeError):
     """Raised when a worker could not be started under a restricted token."""
+
+
+class _SecurityAttributes(ctypes.Structure):
+    _fields_ = (
+        ("nLength", wintypes.DWORD),
+        ("lpSecurityDescriptor", ctypes.c_void_p),
+        ("bInheritHandle", wintypes.BOOL),
+    )
 
 
 class _StartupInfo(ctypes.Structure):
@@ -102,12 +143,20 @@ class _SidAndAttributes(ctypes.Structure):
     _fields_ = (("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD))
 
 
+class _TokenUserInformation(ctypes.Structure):
+    _fields_ = (("User", _SidAndAttributes),)
+
+
 def _kernel32() -> ctypes.CDLL:
     return ctypes.WinDLL("kernel32", use_last_error=True)
 
 
 def _advapi32() -> ctypes.CDLL:
     return ctypes.WinDLL("advapi32", use_last_error=True)
+
+
+def _user32() -> ctypes.CDLL:
+    return ctypes.WinDLL("user32", use_last_error=True)
 
 
 def _declare(kernel32: ctypes.CDLL, advapi32: ctypes.CDLL) -> None:
@@ -163,6 +212,54 @@ def _declare(kernel32: ctypes.CDLL, advapi32: ctypes.CDLL) -> None:
         ctypes.POINTER(_ProcessInformation),
     ]
     advapi32.CreateProcessAsUserW.restype = wintypes.BOOL
+    advapi32.GetTokenInformation.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi32.GetTokenInformation.restype = wintypes.BOOL
+    advapi32.ConvertSidToStringSidW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(wintypes.LPWSTR),
+    ]
+    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
+    advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW.restype = wintypes.BOOL
+
+
+def _declare_station(user32: ctypes.CDLL, kernel32: ctypes.CDLL) -> None:
+    """Pin the window-station and desktop signatures."""
+
+    user32.GetProcessWindowStation.argtypes = []
+    user32.GetProcessWindowStation.restype = wintypes.HANDLE
+    user32.GetUserObjectInformationW.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    user32.GetUserObjectInformationW.restype = wintypes.BOOL
+    user32.CreateDesktopW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+    ]
+    user32.CreateDesktopW.restype = wintypes.HANDLE
+    user32.CloseDesktop.argtypes = [wintypes.HANDLE]
+    user32.CloseDesktop.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
 
 
 def _administrators_sid(advapi32: ctypes.CDLL) -> ctypes.c_void_p:
@@ -210,6 +307,146 @@ def _administrators_sid(advapi32: ctypes.CDLL) -> ctypes.c_void_p:
     return sid
 
 
+def _token_user_sid(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> str:
+    """Return the token's user SID in string form, for use in an SDDL DACL.
+
+    The user SID rather than a group: the private station should be reachable by
+    exactly the account the worker runs as, and by nothing else. Groups are what
+    made the shared station reachable through ``BUILTIN\\Administrators`` in the
+    first place, which is the access the restricted token deliberately gives up.
+    """
+
+    size = wintypes.DWORD()
+    advapi32.GetTokenInformation(token, _TOKEN_USER, None, 0, ctypes.byref(size))
+    if not size.value:
+        raise RestrictedSpawnError(
+            f"GetTokenInformation(TokenUser) failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    buffer = ctypes.create_string_buffer(size.value)
+    if not advapi32.GetTokenInformation(token, _TOKEN_USER, buffer, size.value, ctypes.byref(size)):
+        raise RestrictedSpawnError(
+            f"GetTokenInformation(TokenUser) failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    information = ctypes.cast(buffer, ctypes.POINTER(_TokenUserInformation)).contents
+    text = wintypes.LPWSTR()
+    if not advapi32.ConvertSidToStringSidW(information.User.Sid, ctypes.byref(text)):
+        raise RestrictedSpawnError(
+            f"ConvertSidToStringSid failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    try:
+        return str(text.value)
+    finally:
+        _kernel32().LocalFree(text)
+
+
+def _security_attributes(
+    advapi32: ctypes.CDLL, sid: str
+) -> tuple[_SecurityAttributes, ctypes.c_void_p]:
+    """Build a SECURITY_ATTRIBUTES granting only ``sid`` full access.
+
+    ``D:`` with a single ACE and no inheritance: nothing else on the machine gets
+    a handle to the desktop, including another session of the same account.
+
+    The descriptor is returned alongside because Windows allocated it and Windows
+    has to free it. The kernel copies it into the object being created, so the
+    caller frees it once that call returns.
+    """
+
+    descriptor = ctypes.c_void_p()
+    if not advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        f"D:(A;;GA;;;{sid})", _SDDL_REVISION_1, ctypes.byref(descriptor), None
+    ):
+        raise RestrictedSpawnError(
+            "ConvertStringSecurityDescriptorToSecurityDescriptor failed: "
+            f"{ctypes.WinError(ctypes.get_last_error())}"
+        )
+    attributes = _SecurityAttributes()
+    attributes.nLength = ctypes.sizeof(_SecurityAttributes)
+    attributes.lpSecurityDescriptor = descriptor
+    attributes.bInheritHandle = False
+    return attributes, descriptor
+
+
+#: One alternate desktop per host process, created on first use. Per worker would
+#: leak a kernel object per artifact scanned, and the desktop is not what
+#: separates two workers from each other -- the token and the guards are.
+_DESKTOP_LOCK = threading.Lock()
+_DESKTOP: tuple[str | None, str | None] = (None, None)
+#: Held for the life of the process. A desktop with no open handle and nothing
+#: running on it is destroyed, which would take the next worker's with it.
+_DESKTOP_HANDLES: list[wintypes.HANDLE] = []
+
+
+def _current_station_name(user32: ctypes.CDLL) -> str:
+    """Return the name of the window station this process is attached to."""
+
+    handle = user32.GetProcessWindowStation()
+    if not handle:
+        raise RestrictedSpawnError(
+            f"GetProcessWindowStation failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    size = wintypes.DWORD()
+    user32.GetUserObjectInformationW(handle, _UOI_NAME, None, 0, ctypes.byref(size))
+    buffer = ctypes.create_unicode_buffer(max(size.value // 2 + 1, 64))
+    if not user32.GetUserObjectInformationW(
+        handle, _UOI_NAME, buffer, ctypes.sizeof(buffer), ctypes.byref(size)
+    ):
+        raise RestrictedSpawnError(
+            f"GetUserObjectInformation failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    return buffer.value
+
+
+def _private_desktop(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> str:
+    """Return ``station\\desktop`` for an alternate desktop, creating it once.
+
+    A whole window station would be the stronger isolation and is not available:
+    creating one needs rights an unprivileged account does not have, on every
+    access mask and with or without a security descriptor. A desktop on the
+    current station is what an ordinary process may create, and it is what
+    removes window enumeration, window messages, and hooks between the worker and
+    everything the operator is running.
+
+    Raises :class:`RestrictedSpawnError` when the desktop cannot be created, so
+    the caller decides whether to fall back or refuse. Falling back silently
+    would put the worker on the operator's own desktop while the report still
+    said the plugin was confined.
+    """
+
+    global _DESKTOP
+    with _DESKTOP_LOCK:
+        name, error = _DESKTOP
+        if name is not None:
+            return name
+        if error is not None:
+            raise RestrictedSpawnError(error)
+        user32, kernel32 = _user32(), _kernel32()
+        _declare_station(user32, kernel32)
+        try:
+            station = _current_station_name(user32)
+            attributes, descriptor = _security_attributes(
+                advapi32, _token_user_sid(advapi32, token)
+            )
+        except RestrictedSpawnError as exc:
+            _DESKTOP = (None, str(exc))
+            raise
+        desktop_name = f"trueai-{os.getpid()}-{secrets.token_hex(4)}"
+        try:
+            desktop = user32.CreateDesktopW(
+                desktop_name, None, None, 0, _DESKTOP_ALL_ACCESS, ctypes.byref(attributes)
+            )
+            last_error = ctypes.get_last_error()
+        finally:
+            kernel32.LocalFree(descriptor)
+        if not desktop:
+            message = f"CreateDesktop failed: {ctypes.WinError(last_error)}"
+            _DESKTOP = (None, message)
+            raise RestrictedSpawnError(message)
+        _DESKTOP_HANDLES.append(desktop)
+        _DESKTOP = (f"{station}\\{desktop_name}", None)
+        return _DESKTOP[0] or ""
+
+
 def _environment_block(environment: dict[str, str]) -> ctypes.Array[ctypes.c_wchar]:
     """Build the doubly-null-terminated Unicode environment block CreateProcess wants."""
 
@@ -223,12 +460,17 @@ def spawn_restricted(
     environment: dict[str, str],
     timeout: float,
     working_directory: Path | None = None,
+    isolate_desktop: bool = True,
 ) -> int:
     """Run one worker under a restricted token and return its exit code.
 
     Raises :class:`TimeoutError` when the deadline passes, after terminating the
     process: a worker that outlives its deadline is a hang the host reports, not
     something to wait longer for.
+
+    ``isolate_desktop`` puts the worker on a window station of its own. Leave it
+    on. Turning it off is only for a caller that has decided a shared station is
+    acceptable and has said so somewhere an operator can read.
     """
 
     if os.name != "nt":
@@ -281,10 +523,17 @@ def spawn_restricted(
     startup.cb = ctypes.sizeof(_StartupInfo)
     # The protocol is file-based and plugin output is discarded, so the worker is
     # given no standard handles at all rather than the host's.
-    startup.dwFlags = _STARTF_USESTDHANDLES
+    startup.dwFlags = _STARTF_USESTDHANDLES | _STARTF_USESHOWWINDOW
+    startup.wShowWindow = _SW_HIDE
     startup.hStdInput = None
     startup.hStdOutput = None
     startup.hStdError = None
+    if isolate_desktop:
+        try:
+            startup.lpDesktop = _private_desktop(advapi32, restricted)
+        except RestrictedSpawnError:
+            kernel32.CloseHandle(restricted)
+            raise
 
     information = _ProcessInformation()
     command = " ".join(_quote(item) for item in argv)
@@ -324,6 +573,17 @@ def spawn_restricted(
             raise RestrictedSpawnError(
                 f"GetExitCodeProcess failed: {ctypes.WinError(ctypes.get_last_error())}"
             )
+        if int(code.value) == STATUS_DLL_INIT_FAILED:
+            # Reported as a spawn failure rather than returned as an exit code.
+            # Windows destroyed the process during initialisation, so nothing the
+            # worker was asked to do happened, and calling that "the plugin
+            # crashed" blames the plugin for the host being unable to confine it.
+            raise RestrictedSpawnError(
+                "Windows refused to start the worker under a restricted token "
+                f"(STATUS_DLL_INIT_FAILED, {STATUS_DLL_INIT_FAILED:#x}). The token could not "
+                "attach to a window station or desktop; this happens in non-interactive "
+                "sessions, which is how a service or a scheduled task runs."
+            )
         return int(code.value)
     finally:
         for handle in (information.hThread, information.hProcess, restricted):
@@ -338,6 +598,134 @@ def _quote(argument: str) -> str:
         return argument
     escaped = argument.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
+
+
+class TokenRestriction(NamedTuple):
+    """What this process's own token and desktop actually are, measured.
+
+    Every field is read from the running process. Nothing here is inferred from
+    the fact that a restricted token was requested, because the interesting case
+    is precisely the one where it was requested and something else happened.
+    """
+
+    privileges: int
+    administrators_present: bool
+    administrators_deny_only: bool
+    in_job_object: bool
+    desktop: str | None
+
+
+def describe_restriction() -> TokenRestriction:
+    """Inspect the current process's token, job membership, and desktop."""
+
+    kernel32, advapi32 = _kernel32(), _advapi32()
+    _declare(kernel32, advapi32)
+    user32 = _user32()
+    _declare_station(user32, kernel32)
+    kernel32.IsProcessInJob.argtypes = [
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.BOOL),
+    ]
+    kernel32.IsProcessInJob.restype = wintypes.BOOL
+    user32.GetThreadDesktop.argtypes = [wintypes.DWORD]
+    user32.GetThreadDesktop.restype = wintypes.HANDLE
+    kernel32.GetCurrentThreadId.argtypes = []
+    kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+
+    token = wintypes.HANDLE()
+    if not advapi32.OpenProcessToken(
+        kernel32.GetCurrentProcess(), _TOKEN_QUERY, ctypes.byref(token)
+    ):
+        raise RestrictedSpawnError(
+            f"OpenProcessToken failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    try:
+        privileges = _count_privileges(advapi32, token)
+        present, deny_only = _administrators_state(advapi32, token)
+    finally:
+        kernel32.CloseHandle(token)
+
+    in_job = wintypes.BOOL()
+    if not kernel32.IsProcessInJob(kernel32.GetCurrentProcess(), None, ctypes.byref(in_job)):
+        in_job.value = False
+
+    desktop: str | None = None
+    handle = user32.GetThreadDesktop(kernel32.GetCurrentThreadId())
+    if handle:
+        size = wintypes.DWORD()
+        user32.GetUserObjectInformationW(handle, _UOI_NAME, None, 0, ctypes.byref(size))
+        buffer = ctypes.create_unicode_buffer(max(size.value // 2 + 1, 64))
+        if user32.GetUserObjectInformationW(
+            handle, _UOI_NAME, buffer, ctypes.sizeof(buffer), ctypes.byref(size)
+        ):
+            desktop = buffer.value
+
+    return TokenRestriction(
+        privileges=privileges,
+        administrators_present=present,
+        administrators_deny_only=deny_only,
+        in_job_object=bool(in_job.value),
+        desktop=desktop,
+    )
+
+
+def _count_privileges(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> int:
+    """Return how many privileges the token still holds.
+
+    ``DISABLE_MAX_PRIVILEGE`` removes every one, so zero is the observable
+    signature of the restriction. An ordinary interactive token has several.
+    """
+
+    size = wintypes.DWORD()
+    advapi32.GetTokenInformation(token, _TOKEN_PRIVILEGES, None, 0, ctypes.byref(size))
+    if not size.value:
+        return 0
+    buffer = ctypes.create_string_buffer(size.value)
+    if not advapi32.GetTokenInformation(
+        token, _TOKEN_PRIVILEGES, buffer, size.value, ctypes.byref(size)
+    ):
+        raise RestrictedSpawnError(
+            f"GetTokenInformation(TokenPrivileges) failed: "
+            f"{ctypes.WinError(ctypes.get_last_error())}"
+        )
+    return int(ctypes.cast(buffer, ctypes.POINTER(wintypes.DWORD)).contents.value)
+
+
+def _administrators_state(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> tuple[bool, bool]:
+    """Return whether administrators is in the token, and whether it is deny-only.
+
+    Both matter and they are different answers. On an account that is not an
+    administrator the group is absent, and reporting that as "deny-only" would
+    claim a restriction that was never applied to anything.
+    """
+
+    size = wintypes.DWORD()
+    advapi32.GetTokenInformation(token, _TOKEN_GROUPS, None, 0, ctypes.byref(size))
+    if not size.value:
+        return False, False
+    buffer = ctypes.create_string_buffer(size.value)
+    if not advapi32.GetTokenInformation(
+        token, _TOKEN_GROUPS, buffer, size.value, ctypes.byref(size)
+    ):
+        raise RestrictedSpawnError(
+            f"GetTokenInformation(TokenGroups) failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    advapi32.EqualSid.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    advapi32.EqualSid.restype = wintypes.BOOL
+    count = ctypes.cast(buffer, ctypes.POINTER(wintypes.DWORD)).contents.value
+    offset = ctypes.sizeof(ctypes.c_void_p)  # DWORD plus padding to pointer alignment
+    entries = ctypes.cast(
+        ctypes.byref(buffer, offset), ctypes.POINTER(_SidAndAttributes * count)
+    ).contents
+    administrators = _administrators_sid(advapi32)
+    try:
+        for entry in entries:
+            if advapi32.EqualSid(entry.Sid, administrators):
+                return True, bool(entry.Attributes & _SE_GROUP_USE_FOR_DENY_ONLY)
+    finally:
+        advapi32.FreeSid(administrators)
+    return False, False
 
 
 def restricted_spawning_available() -> bool:
@@ -374,4 +762,11 @@ def restricted_spawning_available() -> bool:
         return False
 
 
-__all__ = ["RestrictedSpawnError", "restricted_spawning_available", "spawn_restricted"]
+__all__ = [
+    "STATUS_DLL_INIT_FAILED",
+    "RestrictedSpawnError",
+    "TokenRestriction",
+    "describe_restriction",
+    "restricted_spawning_available",
+    "spawn_restricted",
+]

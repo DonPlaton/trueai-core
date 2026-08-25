@@ -18,6 +18,7 @@ import pytest
 
 ENFORCEMENT_VARIABLE = "TRUEAI_REQUIRE_PRIVILEGED_TESTS"
 OPTIONAL_DEPENDENCY_VARIABLE = "TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES"
+BUILT_DISTRIBUTION_VARIABLE = "TRUEAI_REQUIRE_BUILT_DISTRIBUTIONS"
 
 
 def privileged_tests_required() -> bool:
@@ -38,10 +39,24 @@ def unavailable_capability(capability: str, reason: object) -> NoReturn:
 
 
 def create_symlink(link: Path, target: Path, *, target_is_directory: bool = False) -> None:
-    """Create a symlink, or skip/fail when the platform forbids it."""
+    """Create ``link`` pointing at ``target``, or skip/fail where the OS forbids it.
 
+    ``FileExistsError`` is deliberately not caught. It does not mean the platform
+    refuses symlinks; it means the caller asked for a link where something
+    already is, which is a mistake in the test. Folding it into the skip is how a
+    security case swapped its two arguments and then reported for months as an
+    unavailable platform capability rather than as a test that never ran.
+    """
+
+    if link.exists() or link.is_symlink():
+        raise FileExistsError(
+            f"{link} already exists, so it cannot become a symlink to {target}. "
+            "create_symlink takes the link first and its target second."
+        )
     try:
         link.symlink_to(target, target_is_directory=target_is_directory)
+    except FileExistsError:
+        raise
     except (OSError, NotImplementedError) as exc:
         unavailable_capability("Symlink creation", exc)
 
@@ -80,22 +95,104 @@ def assert_optional_dependencies(*names: str) -> None:
         )
 
 
+# -- prerequisites the test matrix deliberately does not provide -----------------------
+
+
+def release_closure_problem() -> str | None:
+    """Return why the full runtime closure cannot be walked, or ``None``.
+
+    The license, SBOM, and advisory gates each traverse the installed dependency
+    graph for every runtime extra. The test matrix installs ``.[dev,pdf]`` on
+    purpose, because that is the shape a user gets and the shape the graceful
+    degradation tests need. Widening it to keep these seven tests happy would
+    delete that coverage.
+    """
+
+    import sys
+
+    repository = Path(__file__).resolve().parents[1]
+    if str(repository) not in sys.path:
+        sys.path.insert(0, str(repository))
+    from scripts.check_licenses import runtime_distribution_names
+
+    try:
+        runtime_distribution_names()
+    except RuntimeError as exc:
+        return str(exc)
+    return None
+
+
+def require_release_closure() -> None:
+    """Skip unless every runtime extra is installed, or fail where it must be."""
+
+    problem = release_closure_problem()
+    if problem is None:
+        return
+    message = f"The full runtime closure is not installed: {problem}"
+    if optional_dependencies_required():
+        pytest.fail(
+            f"{message}\n{OPTIONAL_DEPENDENCY_VARIABLE} is set, so this gate must run here."
+        )
+    pytest.skip(message)
+
+
+def built_distributions_required() -> bool:
+    """Return whether an unbuilt ``dist/`` must fail instead of skip."""
+
+    return os.environ.get(BUILT_DISTRIBUTION_VARIABLE, "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def require_built_distributions() -> None:
+    """Skip unless ``dist/`` holds a wheel and an sdist, or fail where it must.
+
+    The manifest gate reads the archives themselves; there is nothing to inspect
+    in a tree that has not been built. That is a missing prerequisite, not a
+    passing check, and the two must not report the same.
+    """
+
+    dist = Path(__file__).resolve().parents[1] / "dist"
+    wheels = list(dist.glob("*.whl")) if dist.is_dir() else []
+    sources = list(dist.glob("*.tar.gz")) if dist.is_dir() else []
+    if wheels and sources:
+        return
+    message = (
+        f"No built distributions in {dist}: the manifest gate inspects the archives, "
+        "so there is nothing for it to answer about."
+    )
+    if built_distributions_required():
+        pytest.fail(f"{message}\n{BUILT_DISTRIBUTION_VARIABLE} is set, so this gate must run here.")
+    pytest.skip(message)
+
+
 # -- confinement has to be applied somewhere it is allowed to win ----------------------
 
 #: Applied in a child, printed as JSON, read back by the parent. Confinement is
 #: one-way by design, so the process that applies it is spent afterwards.
 _CONFINEMENT_PROBE = """
 import json, sys
+from trueai.plugins import confinement as module
 from trueai.plugins.broker import BrokerGrants
 from trueai.plugins.confinement import (
     ConfinementLevel,
     ConfinementUnavailableError,
+    PlatformConfinement,
     apply_confinement,
 )
 
 level = ConfinementLevel(sys.argv[1])
+spawn_time = sys.argv[2] == "1"
+pretend = json.loads(sys.argv[3])
+if pretend:
+    # Patched here, in the process that reads it. A monkeypatch in the test
+    # runner reaches the test runner, and the decision under test is made two
+    # processes away.
+    module.describe_platform = lambda: PlatformConfinement(**pretend)
 try:
-    report = apply_confinement(BrokerGrants(), level)
+    report = apply_confinement(BrokerGrants(), level, spawn_time_applied=spawn_time)
 except ConfinementUnavailableError as exc:
     payload = {"refused": str(exc)}
 else:
@@ -106,7 +203,12 @@ sys.stdout.write(json.dumps(payload))
 """
 
 
-def confinement_report(level: object) -> object:
+def confinement_report(
+    level: object,
+    *,
+    spawn_time_applied: bool = False,
+    pretend_platform: dict[str, object] | None = None,
+) -> object:
     """Apply confinement in a child process and return the report it produced.
 
     Calling ``apply_confinement`` in the test runner confines the test runner.
@@ -133,7 +235,14 @@ def confinement_report(level: object) -> object:
     )
 
     completed = subprocess.run(
-        [sys.executable, "-c", _CONFINEMENT_PROBE, str(getattr(level, "value", level))],
+        [
+            sys.executable,
+            "-c",
+            _CONFINEMENT_PROBE,
+            str(getattr(level, "value", level)),
+            "1" if spawn_time_applied else "0",
+            json.dumps(pretend_platform or {}),
+        ],
         capture_output=True,
         text=True,
         timeout=60,

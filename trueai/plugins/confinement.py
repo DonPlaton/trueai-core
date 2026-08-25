@@ -232,6 +232,8 @@ def apply_confinement(
     grants: BrokerGrants,
     level: ConfinementLevel = ConfinementLevel.BEST_EFFORT,
     writable_paths: tuple[Path, ...] = (),
+    *,
+    spawn_time_applied: bool = False,
 ) -> ConfinementReport:
     """Confine the current process to what the grants allow.
 
@@ -254,11 +256,21 @@ def apply_confinement(
         )
 
     available = describe_platform()
-    if not available.available or available.spawn_time_only:
-        reason = available.reason or (
-            f"{available.mechanism} must be selected when the process is created, "
-            "not applied afterwards."
-        )
+    if available.spawn_time_only:
+        # The restriction belongs to whoever created this process. Reporting it as
+        # "not established" was how Windows workers running under a restricted
+        # token on an isolated desktop described themselves as unconfined.
+        if level == ConfinementLevel.REQUIRED and not spawn_time_applied:
+            raise ConfinementUnavailableError(
+                available.reason
+                or (
+                    f"{available.mechanism} must be selected when the process is created, "
+                    "and the host did not select it for this worker."
+                )
+            )
+        return windows_confinement_report(level, spawn_time_applied=spawn_time_applied)
+    if not available.available:
+        reason = available.reason or f"{available.mechanism} is unavailable on this machine."
         if level == ConfinementLevel.REQUIRED:
             raise ConfinementUnavailableError(reason)
         return ConfinementReport(
@@ -604,12 +616,36 @@ def windows_creation_flags(level: ConfinementLevel) -> int:
     return 0x08000000 | 0x00000200
 
 
-def windows_confinement_report(level: ConfinementLevel) -> ConfinementReport:
-    """Describe what the Windows spawn-time restriction achieves.
+#: True on Windows regardless of what the token looks like. These are properties
+#: of the mechanism, not of one process, and they stay in the report either way --
+#: a gap that disappears when a control is missing would be a strange kind of gap.
+_WINDOWS_GAPS = (
+    "Filesystem isolation. A restricted token does not stop a plugin reading "
+    "or writing anything the user can. AppContainer would; it needs a profile, "
+    "a SID, and ACLs on the artifact and the scratch directory, and it is not "
+    "implemented.",
+    "Network isolation. Windows Firewall rules per AppContainer SID would be the "
+    "mechanism, and they are not implemented either.",
+    "Syscall filtering. There is no Windows equivalent of seccomp available to an "
+    "unprivileged process.",
+)
 
-    A restricted token strips privileges and denies the administrators group. It
-    is not AppContainer: there is no filesystem or network isolation, and saying
-    so is the difference between a control and a claim.
+
+def windows_confinement_report(
+    level: ConfinementLevel, *, spawn_time_applied: bool = False
+) -> ConfinementReport:
+    """Report what the Windows spawn-time restriction achieved, by measuring it.
+
+    A restricted token strips privileges and denies the administrators group, and
+    the worker is put on a desktop of its own. It is not AppContainer: there is no
+    filesystem or network isolation, and saying so is the difference between a
+    control and a claim.
+
+    ``spawn_time_applied`` is what the *host* says it did, because a process
+    cannot restrict its own token and therefore cannot have done this to itself.
+    Everything else here is read out of the running process. The two are compared:
+    a host that claims to have restricted the token and a token that is not
+    restricted is a discrepancy worth failing on, not worth averaging.
     """
 
     if level == ConfinementLevel.NONE:
@@ -619,24 +655,86 @@ def windows_confinement_report(level: ConfinementLevel) -> ConfinementReport:
             reason="The host did not request operating-system confinement.",
             not_enforced=("Everything. Only the Python guards apply.",),
         )
+    if sys.platform != "win32":
+        # Called off Windows only to read the documented gaps, which do not
+        # depend on a process to measure.
+        return ConfinementReport(
+            mechanism="restricted-token",
+            applied=False,
+            reason="Not measured: this is not Windows.",
+            not_enforced=_WINDOWS_GAPS,
+        )
+    if not spawn_time_applied:
+        return ConfinementReport(
+            mechanism="restricted-token",
+            applied=False,
+            reason=(
+                "The host did not start this worker under a restricted token. A process "
+                "cannot narrow its own token, so nothing here could have applied it."
+            ),
+            not_enforced=("The token restriction itself.", *_WINDOWS_GAPS),
+        )
+
+    from trueai.plugins.windows_token import describe_restriction
+
+    try:
+        measured = describe_restriction()
+    except Exception as exc:  # a measurement that failed is not a control that held
+        return ConfinementReport(
+            mechanism="restricted-token",
+            applied=False,
+            reason=f"The host restricted the token and the restriction could not be read: {exc}",
+            not_enforced=("Unverified token restriction.", *_WINDOWS_GAPS),
+        )
+
+    established: list[str] = []
+    not_enforced: list[str] = []
+    # DISABLE_MAX_PRIVILEGE leaves SeChangeNotifyPrivilege and removes the rest,
+    # so one is the floor and anything above it means the token was not narrowed.
+    if measured.privileges <= 1:
+        established.append(
+            f"Privileges dropped: the token holds {measured.privileges}, "
+            "which is the floor DISABLE_MAX_PRIVILEGE leaves."
+        )
+    else:
+        not_enforced.append(
+            f"Privilege removal. The host started this worker under a restricted token "
+            f"and it still holds {measured.privileges} privileges."
+        )
+    if measured.administrators_deny_only:
+        established.append("BUILTIN\\Administrators is deny-only in this token.")
+    elif measured.administrators_present:
+        not_enforced.append(
+            "The administrators group is still usable in this token, so a plugin can "
+            "reach anything granted through it."
+        )
+    else:
+        established.append(
+            "The account is not an administrator, so there was no administrators "
+            "membership to deny."
+        )
+    if measured.in_job_object:
+        established.append("Assigned to a Job Object carrying its CPU and memory limits.")
+    else:
+        not_enforced.append("Job Object limits. This worker is not in a job.")
+    if measured.desktop and measured.desktop.startswith("trueai-"):
+        established.append(
+            f"Running on its own desktop ({measured.desktop}): no window enumeration, "
+            "window messages, or hooks reach the operator's desktop."
+        )
+    else:
+        not_enforced.append(
+            "Desktop isolation. The worker shares a desktop with whatever else is on "
+            f"this window station ({measured.desktop or 'unknown'})."
+        )
+
     return ConfinementReport(
         mechanism="restricted-token",
-        applied=True,
-        established=(
-            "The worker runs with a token whose privileges are dropped and whose "
-            "administrators membership is deny-only.",
-            "The worker is assigned to a Job Object carrying its CPU and memory limits.",
-        ),
-        not_enforced=(
-            "Filesystem isolation. A restricted token does not stop a plugin reading "
-            "or writing anything the user can. AppContainer would; it needs a profile, "
-            "a SID, and ACLs on the artifact and the scratch directory, and it is not "
-            "implemented.",
-            "Network isolation. Windows Firewall rules per AppContainer SID would be the "
-            "mechanism, and they are not implemented either.",
-            "Syscall filtering. There is no Windows equivalent of seccomp available to an "
-            "unprivileged process.",
-        ),
+        # `applied` is the token restriction itself. The other measurements are
+        # reported either way rather than folded into one verdict.
+        applied=measured.privileges <= 1,
+        established=tuple(established),
+        not_enforced=(*not_enforced, *_WINDOWS_GAPS),
     )
 
 

@@ -235,3 +235,53 @@ def test_types_are_checked_for_both_platforms(workflow: Path) -> None:
 
     assert "--platform win32" in content
     assert "--platform linux" in content
+
+
+def _job_with_step(workflow: Path, needle: str) -> dict[str, object]:
+    """Return the job containing a step whose `run` mentions ``needle``."""
+
+    document = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+    for job in document["jobs"].values():
+        for step in job.get("steps", []):
+            if needle in str(step.get("run", "")):
+                return job
+    raise AssertionError(f"No job in {workflow} runs {needle!r}")
+
+
+def test_the_supply_chain_suite_runs_where_the_whole_closure_is_installed() -> None:
+    """Otherwise its gates skip on every runner and are never actually checked.
+
+    The test matrix installs `.[dev,pdf]` deliberately, so the tests that walk
+    the full runtime closure skip there -- correctly, because the prerequisite is
+    genuinely absent. That is only honest if some job supplies the prerequisite
+    and turns the skip back into a failure. For a while none did.
+    """
+
+    workflow = Path(".github/workflows/ci.yml")
+    job = _job_with_step(workflow, "pytest tests/unit/test_supply_chain.py")
+    installs = " ".join(str(step.get("run", "")) for step in job["steps"])
+    environment = {**job.get("env", {})}
+    for step in job["steps"]:
+        if "pytest tests/unit/test_supply_chain.py" in str(step.get("run", "")):
+            environment.update(step.get("env", {}))
+
+    assert "--all-extras" in installs, "the closure has to be installed for the gate to see it"
+    assert environment.get("TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES") == "1"
+
+
+def test_the_manifest_gate_runs_where_the_distributions_have_been_built() -> None:
+    """It reads the archives. An unbuilt tree cannot answer its question."""
+
+    workflow = Path(".github/workflows/ci.yml")
+    document = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+    enforcing = [
+        (job_name, step)
+        for job_name, job in document["jobs"].items()
+        for step in job.get("steps", [])
+        if (step.get("env") or {}).get("TRUEAI_REQUIRE_BUILT_DISTRIBUTIONS") == "1"
+    ]
+
+    assert enforcing, "no job turns the unbuilt-distribution skip back into a check"
+    for job_name, _ in enforcing:
+        builds = " ".join(str(step.get("run", "")) for step in document["jobs"][job_name]["steps"])
+        assert "-m build" in builds, f"{job_name} enforces the gate without building anything"

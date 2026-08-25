@@ -2355,24 +2355,48 @@ def _print_plugins() -> None:
     table.add_column("Detector")
     table.add_column("Version")
     table.add_column("Manifest")
-    table.add_column("Requests")
-    table.add_column("Verdict")
+    table.add_column("Requests", overflow="fold")
+    table.add_column("Verdict", overflow="fold")
+    table.add_column("Confined")
     decisions = {decision.detector_id: decision for decision in result.decisions}
+    containment = {item.detector_id: item for item in result.containment}
     for manifest in result.manifests:
         decision = decisions.get(manifest.detector_id)
+        limits = containment.get(manifest.detector_id)
         table.add_row(
             manifest.detector_id,
             manifest.version,
             "declared" if manifest.declared else "synthesized",
             ", ".join(sorted(item.value for item in manifest.capabilities)),
             "allowed" if decision is None or decision.allowed else "refused",
+            _containment_cell(limits),
         )
     for rejection in result.rejections:
-        table.add_row(rejection.detector_id, "-", "-", "-", f"refused: {rejection.reason}")
+        table.add_row(rejection.detector_id, "-", "-", "-", f"refused: {rejection.reason}", "-")
     if not result.manifests and not result.rejections:
         console.print("No third-party detectors are installed.")
         return
     console.print(table)
+    # Printed in full below the table rather than squeezed into a cell: an
+    # operator who sees "partial" needs the sentence, and a column that elides it
+    # reports a problem while withholding what the problem is.
+    for item in result.containment:
+        for line in item.not_enforced:
+            console.print(f"[yellow]not enforced[/yellow] {item.detector_id}: {line}")
+
+
+def _containment_cell(limits: object) -> str:
+    """Summarize what the operating system granted one plugin's helper process."""
+
+    if limits is None:
+        # No helper ran, because the manifest arrived signed. That is not the
+        # same as "nothing was enforced", and must not read as either verdict.
+        return "not measured"
+    not_enforced = getattr(limits, "not_enforced", ())
+    established = getattr(limits, "established", ())
+    if not_enforced:
+        return f"partial ({len(established)}/{len(established) + len(not_enforced)})"
+    return f"full ({len(established)})"
 
 
 def _print_policies() -> None:
