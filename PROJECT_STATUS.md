@@ -357,7 +357,18 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   where `trueai scan` draws a bar only when stderr is a terminal and Ctrl-C sets the token instead of
   tracing back. A test asserts the core imports no console library or event loop. 26 tests;
   `docs/progress-and-cancellation.md`.
-- [ ] `API-01` Stabilize detector/plugin SDK compatibility and publish minimal third-party examples.
+- [x] `API-01` The API gate covered callers but not *subclasses*: adding an abstract method to
+  `BaseDetector` is an addition for anyone calling it and fatal for every third-party detector that
+  inherited from it, and a method-count comparison called that additive. `trueai/api.py` now records
+  abstractness and classifies a new — or newly — abstract method as breaking, with a guard so a
+  contract published before the field existed does not read as a fresh break (absent data is not
+  evidence the answer was empty). `SDK_CONTRACT` names what an author actually builds against, kept
+  apart from `PUBLIC_MODULES` because the guarantee differs in kind, and a test asserts every entry
+  is reachable through a frozen module. `examples/acme_ticket_detector/` is a real installable
+  package — entry point, capability manifest, registration read before import — and
+  `tests/unit/test_sdk_examples.py` runs it, signs a distribution from it, and **parses its imports**
+  to prove none leaves the public surface, so an example that drifts fails the build. 17 example
+  tests plus 7 compatibility-rule tests; `docs/sdk.md`, `examples/README.md`.
 - [ ] `UI-01` Implement a self-contained, escaped, content-security-policy-compatible HTML reporter.
 - [ ] `UI-02` Build desktop, CI, and IDE adapters around the public schema, including finding
   explanation, remediation preview, integrity evidence, provenance, and certificate views.

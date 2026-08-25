@@ -32,6 +32,25 @@ Anything not listed is internal and may change in any release. That is only a fa
 rule because the list is written down rather than inferred from what happens to be
 importable.
 
+`SDK_CONTRACT` narrows the list to what a third-party *detector author* builds
+against — the classes they subclass, construct, or are handed. It is separate
+because the guarantee differs in kind: those are shapes to build against, not
+names to import and call. See [the SDK guide](sdk.md).
+
+### One rule exists for subclasses, not callers
+
+Adding an abstract method to `BaseDetector` is an addition for anyone calling the
+class and fatal for everyone who inherited from it: every existing detector stops
+being instantiable. A method-count comparison calls that additive, so
+abstractness is recorded in the surface and a new — or newly — abstract method is
+**breaking**. The same reasoning already covers a formerly optional model field
+becoming required.
+
+When the surface itself gains a descriptive field, a contract published before it
+existed carries no value for it. That absence is treated as unknown rather than
+as "none", because assuming the latter would report every already-abstract method
+as newly added and turn a descriptive addition into a fabricated break.
+
 ### Deliberately not yet frozen
 
 `trueai.core.attestation` implements Human Contribution Records and is **not** in

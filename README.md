@@ -286,7 +286,9 @@ Subprocess isolation contains host-state corruption, hangs, and unbounded output
 every returned finding so a plugin cannot forge an identity or impersonate another detector.
 Workers install hard CPU and memory limits before importing third-party code (POSIX rlimits or a
 Windows Job Object). This is still not a filesystem/system-call sandbox. See
-[plugins](docs/plugins.md).
+[plugins](docs/plugins.md). Writing one: [the SDK guide](docs/sdk.md) and a runnable
+[example detector](examples/acme_ticket_detector/) whose imports the test suite checks against
+the frozen public surface.
 
 ## Architecture
 

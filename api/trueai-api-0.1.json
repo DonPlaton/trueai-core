@@ -3,6 +3,7 @@
   "modules": {
     "trueai": {
       "Artifact": {
+        "abstract_methods": [],
         "attributes": [
           "artifact_type",
           "display_path",
@@ -63,6 +64,7 @@
         }
       },
       "ArtifactDiscovery": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -125,6 +127,7 @@
         ]
       },
       "AuditCertificate": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -221,6 +224,7 @@
         }
       },
       "C2PAVerifier": {
+        "abstract_methods": [],
         "attributes": [
           "id"
         ],
@@ -263,6 +267,7 @@
         }
       },
       "CertificateRevocationList": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -309,6 +314,7 @@
         ]
       },
       "CertificateVerification": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -368,6 +374,7 @@
         ]
       },
       "DeliveryVerification": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -398,6 +405,7 @@
         }
       },
       "DiscoveryOptions": {
+        "abstract_methods": [],
         "attributes": [
           "follow_symlinks",
           "max_file_size",
@@ -408,6 +416,7 @@
         "methods": {}
       },
       "EnterprisePolicyBundle": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -455,6 +464,7 @@
         }
       },
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -541,6 +551,7 @@
         ]
       },
       "FindingSelector": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -595,6 +606,7 @@
         ]
       },
       "PolicyBundleControls": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -624,6 +636,7 @@
         }
       },
       "PolicyBundleVerification": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -654,6 +667,7 @@
         }
       },
       "PolicyException": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -684,6 +698,7 @@
         }
       },
       "PolicyProfile": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -740,6 +755,7 @@
         }
       },
       "PolicyStore": {
+        "abstract_methods": [],
         "attributes": [
           "BUILTIN_NAMES"
         ],
@@ -763,6 +779,7 @@
         }
       },
       "PolicySuppression": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -801,6 +818,7 @@
         }
       },
       "ProvenanceVerification": {
+        "abstract_methods": [],
         "attributes": [
           "authenticated",
           "model_config"
@@ -878,6 +896,7 @@
         ]
       },
       "RevocationEntry": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -910,6 +929,7 @@
         }
       },
       "RevocationListVerification": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -950,6 +970,7 @@
         ]
       },
       "ScanOptions": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -1010,6 +1031,7 @@
         }
       },
       "ScanReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -1080,6 +1102,7 @@
         ]
       },
       "TrueAIEngine": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -1523,6 +1546,7 @@
         "type": "str"
       },
       "ApiChange": {
+        "abstract_methods": [],
         "attributes": [
           "breaking",
           "detail",
@@ -1534,6 +1558,10 @@
         "methods": {}
       },
       "PUBLIC_MODULES": {
+        "kind": "value",
+        "type": "tuple"
+      },
+      "SDK_CONTRACT": {
         "kind": "value",
         "type": "tuple"
       },
@@ -1596,6 +1624,7 @@
     },
     "trueai.core.artifact": {
       "Artifact": {
+        "abstract_methods": [],
         "attributes": [
           "artifact_type",
           "display_path",
@@ -1656,6 +1685,7 @@
         }
       },
       "ArtifactDiscovery": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -1693,6 +1723,7 @@
         }
       },
       "ArtifactNotFoundError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -1703,6 +1734,7 @@
         "methods": {}
       },
       "ArtifactTooLargeError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -1738,6 +1770,7 @@
         ]
       },
       "CorruptArtifactError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -1748,6 +1781,7 @@
         "methods": {}
       },
       "DiscoveryIssue": {
+        "abstract_methods": [],
         "attributes": [
           "message",
           "path"
@@ -1757,6 +1791,7 @@
         "methods": {}
       },
       "DiscoveryOptions": {
+        "abstract_methods": [],
         "attributes": [
           "follow_symlinks",
           "max_file_size",
@@ -1767,6 +1802,7 @@
         "methods": {}
       },
       "IgnoreRules": {
+        "abstract_methods": [],
         "attributes": [
           "scopes"
         ],
@@ -1816,6 +1852,7 @@
         }
       },
       "UnsafeArtifactError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -1828,6 +1865,7 @@
     },
     "trueai.core.engine": {
       "Artifact": {
+        "abstract_methods": [],
         "attributes": [
           "artifact_type",
           "display_path",
@@ -1888,6 +1926,7 @@
         }
       },
       "ArtifactDescriptor": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -1915,6 +1954,7 @@
         }
       },
       "ArtifactDiscovery": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -1952,6 +1992,7 @@
         }
       },
       "ArtifactTooLargeError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -1987,6 +2028,7 @@
         ]
       },
       "CachedArtifactResult": {
+        "abstract_methods": [],
         "attributes": [
           "detectors_run",
           "diagnostics",
@@ -1997,6 +2039,7 @@
         "methods": {}
       },
       "Cancellation": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "typing.Protocol"
@@ -2010,6 +2053,7 @@
         }
       },
       "CapabilityPolicy": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2061,6 +2105,7 @@
         ]
       },
       "Detector": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "typing.Protocol"
@@ -2095,6 +2140,7 @@
         }
       },
       "DetectorRegistry": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -2242,6 +2288,7 @@
         }
       },
       "DiscoveryOptions": {
+        "abstract_methods": [],
         "attributes": [
           "follow_symlinks",
           "max_file_size",
@@ -2252,6 +2299,7 @@
         "methods": {}
       },
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2315,6 +2363,7 @@
         }
       },
       "IntegrityReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2369,6 +2418,7 @@
         ]
       },
       "PolicyDecision": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2390,6 +2440,7 @@
         }
       },
       "PolicyEngine": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -2412,6 +2463,7 @@
         }
       },
       "PolicyProfile": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2468,6 +2520,7 @@
         }
       },
       "ProgressChannel": {
+        "abstract_methods": [],
         "attributes": [
           "failure"
         ],
@@ -2507,6 +2560,7 @@
         }
       },
       "ProgressObserver": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "typing.Protocol"
@@ -2515,6 +2569,7 @@
         "methods": {}
       },
       "ScanCache": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -2631,6 +2686,7 @@
         }
       },
       "ScanCancelled": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "trueai.core.errors.TrueAIError"
@@ -2639,6 +2695,7 @@
         "methods": {}
       },
       "ScanContext": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2657,6 +2714,7 @@
         }
       },
       "ScanDiagnostic": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2681,6 +2739,7 @@
         }
       },
       "ScanOptions": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2750,6 +2809,7 @@
         ]
       },
       "ScanReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2810,6 +2870,7 @@
         }
       },
       "ScanSummary": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -2853,6 +2914,7 @@
         ]
       },
       "TrueAIEngine": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -2955,6 +3017,7 @@
         }
       },
       "TrueAIError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -2980,6 +3043,7 @@
     },
     "trueai.core.errors": {
       "ArtifactNotFoundError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -2990,6 +3054,7 @@
         "methods": {}
       },
       "ArtifactTooLargeError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3000,6 +3065,7 @@
         "methods": {}
       },
       "AttestationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3010,6 +3076,7 @@
         "methods": {}
       },
       "CorruptArtifactError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3020,6 +3087,7 @@
         "methods": {}
       },
       "DetectorRegistrationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3030,6 +3098,7 @@
         "methods": {}
       },
       "OptionalDependencyError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3040,6 +3109,7 @@
         "methods": {}
       },
       "PolicyValidationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3050,6 +3120,7 @@
         "methods": {}
       },
       "ProvenanceConfigurationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3060,6 +3131,7 @@
         "methods": {}
       },
       "RemediationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3070,6 +3142,7 @@
         "methods": {}
       },
       "ScanLimitExceededError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3080,6 +3153,7 @@
         "methods": {}
       },
       "TrueAIError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3090,6 +3164,7 @@
         "methods": {}
       },
       "UnsafeArtifactError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3100,6 +3175,7 @@
         "methods": {}
       },
       "UnsupportedArtifactError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -3112,6 +3188,7 @@
     },
     "trueai.core.models": {
       "ArtifactDescriptor": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3185,6 +3262,7 @@
         ]
       },
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3271,6 +3349,7 @@
         ]
       },
       "FindingLocation": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3304,6 +3383,7 @@
         }
       },
       "FrozenModel": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3320,6 +3400,7 @@
         "model_fields": {}
       },
       "IntegrityReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3380,6 +3461,7 @@
         ]
       },
       "PolicyAuditEntry": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3413,6 +3495,7 @@
         }
       },
       "PolicyDecision": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3434,6 +3517,7 @@
         }
       },
       "ProvenanceAssertion": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3464,6 +3548,7 @@
         ]
       },
       "ProvenanceSigner": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3491,6 +3576,7 @@
         }
       },
       "ProvenanceValidationEntry": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3515,6 +3601,7 @@
         }
       },
       "ProvenanceVerification": {
+        "abstract_methods": [],
         "attributes": [
           "authenticated",
           "model_config"
@@ -3592,6 +3679,7 @@
         ]
       },
       "Remediation": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3625,6 +3713,7 @@
         }
       },
       "RemediationPlan": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3655,6 +3744,7 @@
         }
       },
       "RemediationResult": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3697,6 +3787,7 @@
         ]
       },
       "ScanContext": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3715,6 +3806,7 @@
         }
       },
       "ScanDiagnostic": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3739,6 +3831,7 @@
         }
       },
       "ScanOptions": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3799,6 +3892,7 @@
         }
       },
       "ScanReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3859,6 +3953,7 @@
         }
       },
       "ScanSummary": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3929,6 +4024,7 @@
         ]
       },
       "WatermarkVerificationResult": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -3971,6 +4067,7 @@
     },
     "trueai.core.policy": {
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4057,6 +4154,7 @@
         ]
       },
       "FrozenModel": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4084,6 +4182,7 @@
         ]
       },
       "PolicyDecision": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4105,6 +4204,7 @@
         }
       },
       "PolicyEngine": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -4127,6 +4227,7 @@
         }
       },
       "PolicyEvaluation": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4148,6 +4249,7 @@
         }
       },
       "PolicyProfile": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4204,6 +4306,7 @@
         }
       },
       "PolicyStore": {
+        "abstract_methods": [],
         "attributes": [
           "BUILTIN_NAMES"
         ],
@@ -4227,6 +4330,7 @@
         }
       },
       "PolicyValidationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -4264,6 +4368,7 @@
         ]
       },
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4350,6 +4455,7 @@
         ]
       },
       "IntegrityReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4403,6 +4509,7 @@
         ]
       },
       "PolicyProfile": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4471,6 +4578,7 @@
         ]
       },
       "Remediation": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4504,6 +4612,7 @@
         }
       },
       "RemediationError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -4514,6 +4623,7 @@
         "methods": {}
       },
       "RemediationPlan": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4544,6 +4654,7 @@
         }
       },
       "RemediationPlanner": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -4566,6 +4677,7 @@
         }
       },
       "RemediationResult": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4608,6 +4720,7 @@
         ]
       },
       "RemediationService": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -4655,6 +4768,7 @@
         }
       },
       "ScanOptions": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4715,6 +4829,7 @@
         }
       },
       "ScanReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -4813,6 +4928,7 @@
     },
     "trueai.detectors.base": {
       "Artifact": {
+        "abstract_methods": [],
         "attributes": [
           "artifact_type",
           "display_path",
@@ -4898,6 +5014,9 @@
         ]
       },
       "BaseDetector": {
+        "abstract_methods": [
+          "scan"
+        ],
         "attributes": [
           "categories",
           "experimental",
@@ -5027,6 +5146,7 @@
         ]
       },
       "Detector": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "typing.Protocol"
@@ -5073,6 +5193,7 @@
         ]
       },
       "Finding": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5136,6 +5257,7 @@
         }
       },
       "FindingBuffer": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "builtins.list"
@@ -5188,6 +5310,7 @@
         ]
       },
       "FindingLocation": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5233,6 +5356,7 @@
         ]
       },
       "ScanContext": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5251,6 +5375,7 @@
         }
       },
       "ScanLimitExceededError": {
+        "abstract_methods": [],
         "attributes": [
           "code"
         ],
@@ -5311,6 +5436,7 @@
     },
     "trueai.plugins": {
       "ArtifactGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5329,6 +5455,7 @@
         }
       },
       "BrokerGrants": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5368,6 +5495,7 @@
         }
       },
       "CapabilityBroker": {
+        "abstract_methods": [],
         "attributes": [
           "grants",
           "temporary_bytes_written"
@@ -5521,6 +5649,7 @@
         }
       },
       "CapabilityDecision": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5548,6 +5677,7 @@
         }
       },
       "CapabilityDeniedError": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "builtins.RuntimeError"
@@ -5556,6 +5686,7 @@
         "methods": {}
       },
       "CapabilityPolicy": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5607,6 +5738,7 @@
         ]
       },
       "ConfinementReport": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5639,6 +5771,7 @@
         }
       },
       "ConfinementUnavailableError": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "builtins.RuntimeError"
@@ -5659,6 +5792,7 @@
         "type": "float"
       },
       "DiscoveryResult": {
+        "abstract_methods": [],
         "attributes": [
           "decisions",
           "detectors",
@@ -5670,6 +5804,7 @@
         "methods": {}
       },
       "DistributionDecision": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5697,6 +5832,7 @@
         }
       },
       "DistributionPolicy": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5769,6 +5905,7 @@
         }
       },
       "DistributionVerification": {
+        "abstract_methods": [],
         "attributes": [
           "authenticated_publisher",
           "model_config",
@@ -5834,6 +5971,7 @@
         "type": "str"
       },
       "IsolatedDetector": {
+        "abstract_methods": [],
         "attributes": [
           "experimental"
         ],
@@ -5868,6 +6006,7 @@
         }
       },
       "NativeLibraryGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5891,6 +6030,7 @@
         }
       },
       "NetworkGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5911,6 +6051,7 @@
         }
       },
       "PlatformConfinement": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -5938,6 +6079,7 @@
         }
       },
       "PluginAllowlist": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6011,6 +6153,7 @@
         ]
       },
       "PluginDistribution": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6083,6 +6226,7 @@
         }
       },
       "PluginExecutionError": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [
           "trueai.core.errors.DetectorRegistrationError"
@@ -6091,6 +6235,7 @@
         "methods": {}
       },
       "PluginHost": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -6110,6 +6255,7 @@
         ]
       },
       "PluginManifest": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6176,6 +6322,7 @@
         }
       },
       "PluginRegistration": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6199,6 +6346,7 @@
         }
       },
       "PluginRejection": {
+        "abstract_methods": [],
         "attributes": [
           "detector_id",
           "entry_point",
@@ -6209,6 +6357,7 @@
         "methods": {}
       },
       "PluginResourceLimits": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6227,6 +6376,7 @@
         }
       },
       "SubprocessGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6247,6 +6397,7 @@
         }
       },
       "TemporaryOutputGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6265,6 +6416,7 @@
         }
       },
       "WorkspaceGrant": {
+        "abstract_methods": [],
         "attributes": [
           "model_config"
         ],
@@ -6484,6 +6636,7 @@
     },
     "trueai.reporters": {
       "JSONReporter": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -6540,6 +6693,7 @@
         }
       },
       "SARIFReporter": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -6567,6 +6721,7 @@
         }
       },
       "TerminalReporter": {
+        "abstract_methods": [],
         "attributes": [],
         "bases": [],
         "kind": "class",
@@ -6678,6 +6833,7 @@
         "type": "str"
       },
       "SchemaChange": {
+        "abstract_methods": [],
         "attributes": [
           "breaking",
           "detail",

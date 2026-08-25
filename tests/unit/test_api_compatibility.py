@@ -12,6 +12,7 @@ from trueai.api import (
     API_SNAPSHOT_PATH,
     API_VERSION,
     PUBLIC_MODULES,
+    SDK_CONTRACT,
     breaking_api_changes,
     canonical_api_json,
     compare_api_surfaces,
@@ -212,3 +213,116 @@ def test_changing_a_name_from_class_to_callable_is_breaking() -> None:
     violations = breaking_api_changes(published, candidate)
 
     assert [change.kind for change in violations] == ["changed_name_kind"]
+
+
+# -- the SDK rule: abstractness is part of what a subclass depends on ----------------
+
+
+def surface_with(described: dict[str, Any]) -> dict[str, Any]:
+    """Build a one-class surface so a rule can be tested in isolation."""
+
+    return {
+        "api_version": API_VERSION,
+        "modules": {"trueai.detectors.base": {"BaseDetector": described}},
+    }
+
+
+def detector_class(*, methods: dict[str, Any], abstract: list[str]) -> dict[str, Any]:
+    return {
+        "kind": "class",
+        "bases": [],
+        "methods": {name: {"parameters": [], "introspectable": True} for name in methods},
+        "attributes": [],
+        "abstract_methods": abstract,
+    }
+
+
+def test_a_new_abstract_method_is_breaking_even_though_it_is_an_addition() -> None:
+    """Every existing third-party detector stops being instantiable."""
+
+    before = surface_with(detector_class(methods={"scan": {}}, abstract=["scan"]))
+    after = surface_with(
+        detector_class(methods={"scan": {}, "prepare": {}}, abstract=["scan", "prepare"])
+    )
+
+    changes = compare_api_surfaces(before, after)
+
+    assert [change.kind for change in changes] == ["added_abstract_method"]
+    assert changes[0].breaking
+    assert "subclass" in changes[0].detail
+
+
+def test_a_new_concrete_method_is_still_an_addition() -> None:
+    before = surface_with(detector_class(methods={"scan": {}}, abstract=["scan"]))
+    after = surface_with(detector_class(methods={"scan": {}, "helper": {}}, abstract=["scan"]))
+
+    changes = compare_api_surfaces(before, after)
+
+    assert [change.kind for change in changes] == ["added_method"]
+    assert not changes[0].breaking
+
+
+def test_an_existing_method_becoming_abstract_is_breaking() -> None:
+    """Same consequence, arrived at without adding a name."""
+
+    before = surface_with(detector_class(methods={"scan": {}, "supports": {}}, abstract=["scan"]))
+    after = surface_with(
+        detector_class(methods={"scan": {}, "supports": {}}, abstract=["scan", "supports"])
+    )
+
+    changes = breaking_api_changes(before, after)
+
+    assert [change.kind for change in changes] == ["added_abstract_method"]
+
+
+def test_relaxing_a_requirement_on_subclasses_is_not_breaking() -> None:
+    before = surface_with(detector_class(methods={"scan": {}}, abstract=["scan"]))
+    after = surface_with(detector_class(methods={"scan": {}}, abstract=[]))
+
+    changes = compare_api_surfaces(before, after)
+
+    assert [change.kind for change in changes] == ["removed_abstract_method"]
+    assert not changes[0].breaking
+
+
+def test_the_detector_base_class_still_asks_subclasses_for_exactly_one_method() -> None:
+    """A promise the examples and the docs both make; here it is, checked."""
+
+    described = public_api_surface()["modules"]["trueai.detectors.base"]["BaseDetector"]
+
+    assert described["abstract_methods"] == ["scan"]
+
+
+def test_every_sdk_name_is_in_the_frozen_surface() -> None:
+    surface = public_api_surface()["modules"]
+    missing = [
+        f"{module}.{name}"
+        for module, name in SDK_CONTRACT
+        if module not in surface or name not in surface[module]
+    ]
+
+    assert missing == []
+
+
+def test_the_sdk_contract_names_no_module_outside_the_public_list() -> None:
+    assert {module for module, _ in SDK_CONTRACT} <= set(PUBLIC_MODULES)
+
+
+def test_a_contract_published_before_the_field_existed_reports_no_false_break() -> None:
+    """A descriptive addition must not retroactively invent a breaking change.
+
+    The standing hazard whenever a frozen contract gains a field: absent data is
+    not evidence that the answer was empty.
+    """
+
+    older = surface_with(
+        {
+            "kind": "class",
+            "bases": [],
+            "methods": {"scan": {"parameters": [], "introspectable": True}},
+            "attributes": [],
+        }
+    )
+    current = surface_with(detector_class(methods={"scan": {}}, abstract=["scan"]))
+
+    assert breaking_api_changes(older, current) == ()

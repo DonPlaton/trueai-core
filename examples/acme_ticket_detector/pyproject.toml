@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "acme-ticket-detector"
+version = "1.0.0"
+description = "A minimal third-party TrueAI detector"
+requires-python = ">=3.12"
+# Pin the API contract, not just the package. TrueAI's Python surface and its
+# report schema move together on purpose, so a detector pins one pair rather
+# than two independent numbers.
+dependencies = ["trueai-core>=0.1,<0.2"]
+
+# The group TrueAI's plugin host looks in. It is `trueai.plugins.ENTRY_POINT_GROUP`,
+# so a typo here is a plugin that silently never loads.
+[project.entry-points."trueai.detectors"]
+acme-ticket = "acme_ticket_detector:REGISTRATION"
+
+[tool.hatch.build.targets.wheel]
+packages = ["acme_ticket_detector"]

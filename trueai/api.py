@@ -18,6 +18,15 @@ The rules for a single API version are:
 * removing or renaming any of them is breaking;
 * changing a parameter's kind or position, making an optional parameter or model
   field required, or removing an enum member is breaking.
+
+One rule exists because of the *SDK* rather than the API. A third party does not
+only call this package, it subclasses :class:`~trueai.detectors.base.BaseDetector`
+— and adding an abstract method to a class is additive for a caller and fatal for
+a subclass, because every existing detector stops being instantiable. So
+abstractness is recorded and a newly abstract method is breaking, which a
+method-count comparison would have called an addition. :data:`SDK_CONTRACT` names
+what a detector author actually touches, so "the SDK is stable" is something a
+test checks rather than something this file claims.
 """
 
 from __future__ import annotations
@@ -37,6 +46,7 @@ __all__ = [
     "API_SNAPSHOT_PATH",
     "API_VERSION",
     "PUBLIC_MODULES",
+    "SDK_CONTRACT",
     "ApiChange",
     "breaking_api_changes",
     "canonical_api_json",
@@ -71,6 +81,35 @@ PUBLIC_MODULES: tuple[str, ...] = (
 
 #: Parameters whose presence is an implementation detail of instance methods.
 _IMPLICIT_PARAMETERS = frozenset({"self", "cls"})
+
+#: What a third-party detector author implements, constructs, or receives.
+#:
+#: Written down separately from :data:`PUBLIC_MODULES` because the guarantee is
+#: different in kind: these are not names a consumer imports and calls, they are
+#: the shapes an author *builds against*. A test asserts every one of them is
+#: reachable through a public module, so the SDK cannot drift out of the frozen
+#: surface without the build noticing.
+SDK_CONTRACT: tuple[tuple[str, str], ...] = (
+    ("trueai.detectors.base", "Detector"),
+    ("trueai.detectors.base", "BaseDetector"),
+    ("trueai.core.models", "Finding"),
+    ("trueai.core.models", "FindingCategory"),
+    ("trueai.core.models", "FindingLocation"),
+    ("trueai.core.models", "ArtifactType"),
+    ("trueai.core.models", "ConfidenceType"),
+    ("trueai.core.models", "EvidenceType"),
+    ("trueai.core.models", "ProvenanceClass"),
+    ("trueai.core.models", "ScanContext"),
+    ("trueai.core.models", "ScanOptions"),
+    ("trueai.core.models", "Severity"),
+    ("trueai.core.artifact", "Artifact"),
+    ("trueai.core.errors", "TrueAIError"),
+    ("trueai.plugins", "PluginCapability"),
+    ("trueai.plugins", "PluginManifest"),
+    ("trueai.plugins", "PluginRegistration"),
+    ("trueai.plugins", "PluginResourceLimits"),
+    ("trueai.plugins", "ENTRY_POINT_GROUP"),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +234,12 @@ def _describe(value: object) -> dict[str, Any]:
         methods, attributes = _class_members(value)
         described["methods"] = methods
         described["attributes"] = attributes
+        # Recorded because a subclass depends on it and a caller does not: an
+        # abstract method added to a base class is an addition to anyone calling
+        # it and a break for everyone who inherited from it.
+        described["abstract_methods"] = sorted(
+            str(name) for name in getattr(value, "__abstractmethods__", ())
+        )
         return described
     if callable(value):
         return {"kind": "callable", "signature": _signature(value)}
@@ -373,6 +418,13 @@ def _compare_class(
             location, baseline.get("model_fields", {}), candidate.get("model_fields", {})
         )
     )
+    # A surface published before abstractness was recorded says nothing about it.
+    # Treating "absent" as "none were abstract" would report every already-abstract
+    # method as newly added and turn a descriptive addition into a fake break — the
+    # standing hazard whenever a frozen contract gains a field.
+    known = "abstract_methods" in baseline
+    before_abstract = set(baseline.get("abstract_methods", []))
+    after_abstract = set(candidate.get("abstract_methods", [])) if known else set()
     before_methods = baseline.get("methods", {})
     after_methods = candidate.get("methods", {})
     if isinstance(before_methods, Mapping) and isinstance(after_methods, Mapping):
@@ -386,6 +438,10 @@ def _compare_class(
                 )
             )
         for name in sorted(set(after_methods) - set(before_methods)):
+            if name in after_abstract:
+                # Reported here instead of as an addition: every existing
+                # subclass stops being instantiable the moment this lands.
+                continue
             changes.append(
                 ApiChange(
                     kind="added_method",
@@ -398,6 +454,25 @@ def _compare_class(
             changes.extend(
                 _compare_signature(f"{location}.{name}", before_methods[name], after_methods[name])
             )
+    for name in sorted(after_abstract - before_abstract):
+        changes.append(
+            ApiChange(
+                kind="added_abstract_method",
+                location=f"{location}.{name}",
+                detail="every existing subclass would stop being instantiable",
+                breaking=True,
+            )
+        )
+    for name in sorted(before_abstract - after_abstract):
+        changes.append(
+            ApiChange(
+                kind="removed_abstract_method",
+                location=f"{location}.{name}",
+                detail="a requirement on subclasses was relaxed",
+                breaking=False,
+            )
+        )
+
     before_attributes = set(baseline.get("attributes", []))
     after_attributes = set(candidate.get("attributes", []))
     for name in sorted(before_attributes - after_attributes):

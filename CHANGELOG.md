@@ -12,6 +12,32 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A detector SDK that is checked rather than described**
+
+- `examples/acme_ticket_detector/` — a real installable third-party detector
+  package: entry point, capability manifest, and a `PluginRegistration` the host
+  reads before importing anything that could run.
+- `tests/unit/test_sdk_examples.py` runs the example, signs a distribution built
+  from it, and **parses its imports** to prove every one comes from a module in
+  `PUBLIC_MODULES`. An example that drifts out of the frozen surface fails the
+  build — an example that drifts is worse than none, because someone copies it,
+  it works locally, and it breaks on the next upgrade with the gate silent.
+- `trueai.api.SDK_CONTRACT` names what a detector author builds against, kept
+  apart from `PUBLIC_MODULES` because the guarantee differs in kind: these are
+  shapes you subclass and construct, not names you import and call. A test
+  asserts each one is reachable through a frozen module.
+- `docs/sdk.md` and `examples/README.md`.
+
+### Fixed
+
+- The API gate covered callers but not subclasses. Adding an abstract method to
+  `BaseDetector` is an addition for anyone calling the class and fatal for every
+  third-party detector that inherited from it, and a method-count comparison
+  classified it as additive. Abstractness is now recorded in the surface, and a
+  new or newly abstract method is breaking. A guard keeps a contract published
+  before the field existed from reading as a fresh break: absent data is not
+  evidence that the answer was empty.
+
 **Progress and cancellation the core can offer without knowing what a UI is**
 
 - `trueai/core/progress.py`. Progress is one callable taking one frozen
