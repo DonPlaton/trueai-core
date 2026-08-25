@@ -46,6 +46,7 @@ uv sync --extra attestation  # Ed25519-signed audit certificates
 ```console
 trueai scan ./repository
 trueai scan ./repository --jobs 8 --cache          # parallel, and reuse unchanged results
+trueai scan ./repository --no-progress             # no bar; Ctrl-C stops cleanly either way
 trueai scan report.docx --format json --output report.trueai.json
 trueai scan deck.pptx --verbose
 trueai inspect model.xlsx
@@ -305,9 +306,11 @@ The engine has no UI dependency, performs no telemetry, and makes no network req
 normal scanning. Future network verification must pass an explicit `NetworkPolicy` boundary and
 live in a separate adapter.
 
-More detail: [architecture](docs/architecture.md), [detectors](docs/detectors.md), and
+More detail: [architecture](docs/architecture.md), [detectors](docs/detectors.md),
 [benchmarks](docs/benchmarks.md) — measured wall time, memory, cache hit rate, and
-determinism at 10,000 and 100,000 files.
+determinism at 10,000 and 100,000 files — and
+[progress and cancellation](docs/progress-and-cancellation.md), which the engine offers as two
+one-member protocols so no interface library reaches the core.
 
 The current implementation status, differentiators, limitations, and development roadmap are
 maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

@@ -1141,6 +1141,16 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "cache",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "progress",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "cancellation",
+                "required": false
               }
             ]
           },
@@ -1986,6 +1996,19 @@
         "kind": "class",
         "methods": {}
       },
+      "Cancellation": {
+        "attributes": [],
+        "bases": [
+          "typing.Protocol"
+        ],
+        "kind": "class",
+        "methods": {
+          "cancelled": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
       "CapabilityPolicy": {
         "attributes": [
           "model_config"
@@ -2333,6 +2356,10 @@
           "pass"
         ]
       },
+      "NEVER_CANCELLED": {
+        "kind": "value",
+        "type": "_NeverCancelled"
+      },
       "PluginIsolation": {
         "kind": "enum",
         "members": [
@@ -2439,6 +2466,53 @@
             "required": false
           }
         }
+      },
+      "ProgressChannel": {
+        "attributes": [
+          "failure"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "emit": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "phase",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "completed",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "total",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "artifact_path",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "findings",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
+      "ProgressObserver": {
+        "attributes": [],
+        "bases": [
+          "typing.Protocol"
+        ],
+        "kind": "class",
+        "methods": {}
       },
       "ScanCache": {
         "attributes": [],
@@ -2556,6 +2630,14 @@
           }
         }
       },
+      "ScanCancelled": {
+        "attributes": [],
+        "bases": [
+          "trueai.core.errors.TrueAIError"
+        ],
+        "kind": "class",
+        "methods": {}
+      },
       "ScanContext": {
         "attributes": [
           "model_config"
@@ -2657,6 +2739,15 @@
             "required": false
           }
         }
+      },
+      "ScanPhase": {
+        "kind": "enum",
+        "members": [
+          "detection",
+          "discovery",
+          "integrity",
+          "report"
+        ]
       },
       "ScanReport": {
         "attributes": [
@@ -2822,6 +2913,16 @@
               {
                 "kind": "KEYWORD_ONLY",
                 "name": "cache",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "progress",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "cancellation",
                 "required": false
               }
             ]

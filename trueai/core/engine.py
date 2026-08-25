@@ -26,6 +26,14 @@ from trueai.core.models import (
     Severity,
 )
 from trueai.core.policy import PolicyEngine, PolicyProfile
+from trueai.core.progress import (
+    NEVER_CANCELLED,
+    Cancellation,
+    ProgressChannel,
+    ProgressObserver,
+    ScanCancelled,
+    ScanPhase,
+)
 from trueai.core.registry import DetectorRegistry
 from trueai.detectors.base import Detector
 from trueai.plugins.confinement import ConfinementLevel
@@ -81,6 +89,18 @@ class _ArtifactOutcome:
     cache_key: str | None = None
 
 
+def _cancellation_reason(stop: Cancellation) -> str:
+    """Return the reason a token carries, when it carries one.
+
+    Duck-typed on purpose: `Cancellation` is a one-method protocol so an asyncio
+    or trio caller can supply its own object, and requiring a reason as well
+    would make that harder for no gain.
+    """
+
+    reason = getattr(stop, "reason", "")
+    return reason if isinstance(reason, str) else ""
+
+
 class TrueAIEngine:
     """Public scanner API with no UI or network dependency."""
 
@@ -120,6 +140,8 @@ class TrueAIEngine:
         options: ScanOptions | None = None,
         policy: PolicyProfile | None = None,
         cache: ScanCache | None = None,
+        progress: ProgressObserver | None = None,
+        cancellation: Cancellation | None = None,
     ) -> ScanReport:
         """Scan a target recursively and return a versioned report.
 
@@ -128,9 +150,18 @@ class TrueAIEngine:
         the cache back afterwards — hit and rejection counts, for instance,
         which are otherwise invisible because the instance would be created and
         discarded inside this call.
+
+        ``progress`` is called with one :class:`ProgressEvent` at a time, on
+        this thread, in artifact order, even when detectors run in parallel.
+        ``cancellation`` is polled between artifacts and between detectors; when
+        it fires, this raises :class:`ScanCancelled` rather than returning a
+        shorter report, because a shorter report is indistinguishable from a
+        clean one to whoever reads it next.
         """
 
         scan_options = options or ScanOptions()
+        channel = ProgressChannel(progress)
+        stop = cancellation or NEVER_CANCELLED
         discovery = ArtifactDiscovery(
             DiscoveryOptions(
                 max_file_size=scan_options.max_file_size,
@@ -147,6 +178,9 @@ class TrueAIEngine:
             root_path = root_path.parent
         context = ScanContext(options=scan_options, root=root_path)
         diagnostics: list[ScanDiagnostic] = []
+        channel.emit(ScanPhase.DISCOVERY, len(artifacts), len(artifacts))
+        if stop.cancelled():
+            raise ScanCancelled(0, len(artifacts), _cancellation_reason(stop))
 
         if discovery.truncated:
             diagnostics.append(
@@ -199,6 +233,8 @@ class TrueAIEngine:
             options_digest=options_digest,
             detector_ids=detector_ids,
             single_artifact=single_artifact,
+            channel=channel,
+            stop=stop,
         )
 
         findings: list[Finding] = []
@@ -212,6 +248,7 @@ class TrueAIEngine:
                 mutated_artifacts.append(artifact.display_path)
         del budget
 
+        channel.emit(ScanPhase.INTEGRITY, 0, len(artifacts))
         mutated_set = set(mutated_artifacts)
         for artifact, descriptor in zip(artifacts, descriptors, strict=True):
             if descriptor.sha256 is None or artifact.display_path in mutated_set:
@@ -266,6 +303,23 @@ class TrueAIEngine:
             # failure here must never fail a scan that already succeeded.
             with contextlib.suppress(OSError):
                 cache.enforce_budget()
+
+        channel.emit(ScanPhase.INTEGRITY, len(artifacts), len(artifacts))
+        if channel.failure is not None:
+            # A caller's interface raised. Not fatal to a scan, but the caller's
+            # view of it stopped partway, and that belongs in the report rather
+            # than nowhere.
+            diagnostics.append(
+                ScanDiagnostic(
+                    code="progress_observer_failed",
+                    message=(
+                        "Progress reporting stopped after the caller's observer raised "
+                        f"({channel.failure}); the scan completed but its progress events "
+                        "did not."
+                    ),
+                    severity=Severity.MEDIUM,
+                )
+            )
 
         ordered_findings = tuple(sorted(findings, key=self._finding_sort_key))
         decisions: tuple[PolicyDecision, ...] = ()
@@ -342,6 +396,8 @@ class TrueAIEngine:
         options_digest: str,
         detector_ids: tuple[str, ...],
         single_artifact: bool,
+        channel: ProgressChannel,
+        stop: Cancellation,
     ) -> list[_ArtifactOutcome]:
         """Inspect every artifact, sequentially or in parallel, in a stable order."""
 
@@ -354,6 +410,25 @@ class TrueAIEngine:
                 options_digest=options_digest,
                 detector_ids=detector_ids,
                 single_artifact=single_artifact,
+                stop=stop,
+            )
+
+        total = len(artifacts)
+
+        def announce(index: int, outcome: _ArtifactOutcome) -> None:
+            """Report one finished artifact from the assembling thread.
+
+            Called here rather than inside the worker so events arrive in
+            artifact order and one at a time, which is what lets a caller write
+            an observer with no lock in it.
+            """
+
+            channel.emit(
+                ScanPhase.DETECTION,
+                index + 1,
+                total,
+                artifact_path=artifacts[index].display_path,
+                findings=len(outcome.findings),
             )
 
         def charge(index: int, outcome: _ArtifactOutcome) -> None:
@@ -374,10 +449,13 @@ class TrueAIEngine:
             for index in range(len(artifacts)):
                 if budget.exhausted:
                     break
+                if stop.cancelled():
+                    raise ScanCancelled(index, total, _cancellation_reason(stop))
                 outcome = inspect(index)
                 charge(index, outcome)
                 self._store_in_cache(cache, outcome)
                 outcomes.append(outcome)
+                announce(index, outcome)
         else:
             # A bounded submission window keeps results arriving in order while
             # several artifacts are in flight, so the budget is charged in artifact
@@ -395,7 +473,14 @@ class TrueAIEngine:
                     charge(index, outcome)
                     self._store_in_cache(cache, outcome)
                     outcomes.append(outcome)
+                    announce(index, outcome)
                     index += 1
+                    if stop.cancelled():
+                        # Drop what has not started; work already in flight is
+                        # allowed to finish rather than be abandoned mid-write.
+                        for future in pending:
+                            future.cancel()
+                        raise ScanCancelled(index, total, _cancellation_reason(stop))
                     if budget.exhausted:
                         for future in pending:
                             future.cancel()
@@ -418,6 +503,7 @@ class TrueAIEngine:
         options_digest: str,
         detector_ids: tuple[str, ...],
         single_artifact: bool,
+        stop: Cancellation = NEVER_CANCELLED,
     ) -> _ArtifactOutcome:
         """Run every eligible detector against one artifact.
 
@@ -458,6 +544,11 @@ class TrueAIEngine:
         for detector in self._eligible_detectors(options):
             if not detector.supports(artifact):
                 continue
+            # Polled between detectors as well as between artifacts: one large
+            # document can occupy a worker for a long time, and a cancel that
+            # only takes effect at the next file is not a cancel.
+            if stop.cancelled():
+                raise ScanCancelled(0, 1, _cancellation_reason(stop))
             supported = True
             outcome.detectors_run.add(detector.id)
             try:

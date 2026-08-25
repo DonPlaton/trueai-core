@@ -5,8 +5,11 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import signal
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from enum import IntEnum, StrEnum
 from pathlib import Path
@@ -38,6 +41,12 @@ from trueai.core.policy_bundle import (
     policy_bundle_json,
     policy_bundle_schema_json,
     verify_policy_bundle,
+)
+from trueai.core.progress import (
+    CancellationToken,
+    ProgressEvent,
+    ProgressObserver,
+    ScanCancelled,
 )
 from trueai.core.remediation import RemediationPlanner, RemediationService
 from trueai.plugins.confinement import ConfinementLevel
@@ -173,6 +182,13 @@ def scan(
         bool,
         typer.Option("--cache/--no-cache", help="Reuse detector output for unchanged content."),
     ] = False,
+    progress: Annotated[
+        bool,
+        typer.Option(
+            "--progress/--no-progress",
+            help="Show scan progress on a terminal. Off when output is redirected.",
+        ),
+    ] = True,
     cache_dir: Annotated[
         Path | None,
         typer.Option("--cache-dir", help="Cache location. Implies --cache."),
@@ -248,15 +264,25 @@ def scan(
             max_workers=jobs,
             cache_directory=_resolve_cache_directory(path, cache, cache_dir),
         )
-        report = TrueAIEngine.default(
+        engine = TrueAIEngine.default(
             include_experimental=experimental,
             plugin_isolation=plugins,
             plugin_confinement=plugin_confinement,
-        ).scan(
-            path,
-            options=options,
-            policy=policy,
         )
+        with _scan_progress(progress) as (observer, token):
+            try:
+                report = engine.scan(
+                    path,
+                    options=options,
+                    policy=policy,
+                    progress=observer,
+                    cancellation=token,
+                )
+            except ScanCancelled as cancelled:
+                # A cancelled scan produces no report on purpose: a shorter one
+                # reads exactly like a clean one to whoever opens it next.
+                error_console.print(f"[yellow]{escape(str(cancelled))}[/yellow]")
+                raise typer.Exit(code=130) from None
         if bundle is not None:
             assert policy_key is not None
             report = apply_policy_bundle(report, bundle, public_key=policy_key)
@@ -1971,6 +1997,67 @@ def doctor() -> None:
     )
     checks.add_row("Network policy", "PASS", "offline; no telemetry or scan-time requests")
     console.print(checks)
+
+
+@contextmanager
+def _scan_progress(
+    enabled: bool,
+) -> Iterator[tuple[ProgressObserver | None, CancellationToken]]:
+    """Yield a progress observer and a token wired to Ctrl-C.
+
+    Rich lives here and nowhere near the engine: the core emits frozen events
+    and polls a one-method predicate, so a CI run, a desktop client, and this
+    terminal each render them their own way.
+
+    The bar is suppressed when output is redirected, because progress written to
+    a pipe is noise in a log and breaks anything parsing the stream.
+    """
+
+    token = CancellationToken()
+    previous = None
+    try:
+        previous = signal.signal(
+            signal.SIGINT,
+            lambda *_: token.cancel("interrupted at the keyboard"),
+        )
+    except ValueError:
+        # Not the main thread: the scan simply cannot be cancelled that way.
+        previous = None
+
+    if not (enabled and error_console.is_terminal):
+        try:
+            yield None, token
+        finally:
+            if previous is not None:
+                signal.signal(signal.SIGINT, previous)
+        return
+
+    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+
+    bar = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        console=error_console,
+        transient=True,
+    )
+    task = bar.add_task("scanning", total=None)
+
+    def observe(event: ProgressEvent) -> None:
+        bar.update(
+            task,
+            completed=event.completed,
+            total=event.total,
+            description=event.phase.value,
+        )
+
+    try:
+        with bar:
+            yield observe, token
+    finally:
+        if previous is not None:
+            signal.signal(signal.SIGINT, previous)
 
 
 def _default_cache_directory(target: Path) -> Path:

@@ -343,8 +343,20 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   `prune()` and `trueai cache prune` require an explicit rule *and* `--yes`, because a prune that
   defaulted to deleting everything would make a typo destructive, and link safety is re-checked at
   deletion time rather than only at inspection time. 38 tests; `docs/cache.md`.
-- [ ] `SCALE-03` Add engine-level progress and cancellation events without coupling core code to
-  Rich, a desktop UI, or a particular async framework.
+- [x] `SCALE-03` `trueai/core/progress.py`: progress is one callable taking one frozen
+  `ProgressEvent`, cancellation is one `cancelled()` predicate. Not a multi-method observer, because
+  every method is another thing a caller must implement and another place a UI can break a scan; not
+  a `threading.Event` in the signature, because an asyncio or trio caller should supply its own
+  object. Events arrive in artifact order, one at a time, from the assembling thread even under
+  `--jobs 8`, so an observer needs no lock. An observer that raises is dropped and recorded as a
+  `progress_observer_failed` diagnostic rather than aborting a forensic run over a formatting error.
+  A cancelled scan **raises** and carries no findings: a shorter report is indistinguishable from a
+  clean one to whoever opens it next, and a partial result returned through an exception is one
+  somebody eventually treats as a report. The token is polled between detectors as well as between
+  artifacts, since a cancel that waits for the next file is not a cancel. Rich stays in the CLI,
+  where `trueai scan` draws a bar only when stderr is a terminal and Ctrl-C sets the token instead of
+  tracing back. A test asserts the core imports no console library or event loop. 26 tests;
+  `docs/progress-and-cancellation.md`.
 - [ ] `API-01` Stabilize detector/plugin SDK compatibility and publish minimal third-party examples.
 - [ ] `UI-01` Implement a self-contained, escaped, content-security-policy-compatible HTML reporter.
 - [ ] `UI-02` Build desktop, CI, and IDE adapters around the public schema, including finding

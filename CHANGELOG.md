@@ -12,6 +12,37 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Progress and cancellation the core can offer without knowing what a UI is**
+
+- `trueai/core/progress.py`. Progress is one callable taking one frozen
+  `ProgressEvent`; cancellation is one `cancelled()` predicate. A multi-method
+  observer would be one more thing every caller must implement and one more
+  place an interface can break a scan, and putting `threading.Event` in the
+  signature would shut out an asyncio or trio caller.
+- Events arrive **in artifact order and one at a time**, from the thread that
+  assembles the report, even with `--jobs 8`. An observer needs no lock.
+- `fraction` is `None` while the total is unknown. During discovery nothing can
+  honestly report a percentage, and inventing one is worse than an indeterminate
+  bar.
+- An observer that raises is dropped, and the report carries a
+  `progress_observer_failed` diagnostic naming the exception. A formatting bug
+  in an interface must not abort a forensic run — and must not vanish either.
+- **A cancelled scan raises `ScanCancelled`** rather than returning a shorter
+  report, because a shorter report is indistinguishable from a clean one to
+  whoever opens it next. It carries how far the scan got and deliberately no
+  findings: a partial result handed back through an exception is a partial
+  result someone eventually treats as a report. Callers that want partial data
+  collect it from the events, where it is partial by construction.
+- The token is polled between detectors as well as between artifacts. One large
+  document can hold a worker a long time, and a cancel that waits for the next
+  file is not a cancel.
+- `trueai scan --progress/--no-progress`. The bar is drawn only when standard
+  error is a terminal, since progress in a pipe is noise in a log. Ctrl-C sets
+  the token and the run reports how far it got and exits 130 instead of printing
+  a traceback.
+- A test asserts the core imports no console library and no event loop.
+- `docs/progress-and-cancellation.md`.
+
 **A bounded cache with a defined eviction order**
 
 - `ScanCache` takes a `max_bytes` budget, 256 MB by default, and the engine
