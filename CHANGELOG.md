@@ -12,6 +12,36 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A versioned feature contract, so a model can be optional and replaceable**
+
+- `trueai.research.features`. TrueAI computes features, a model elsewhere
+  consumes them, and neither imports the other's dependencies.
+- A `FeatureSet` is named **and ordered**, because a vector is positional: the
+  same names in a different order are a different feature set, and treating them
+  as interchangeable permutes every column. The digest covers version, names, and
+  order together.
+- `score_with()` **refuses** a vector from another feature set, and refuses a
+  model that tags its output with a set it was not handed. The alternative is
+  scoring columns that changed meaning — a confident number with nothing behind
+  it and no symptom until somebody acts on it.
+- `build_vector()` will not pad a missing feature with zero (a zero is a
+  measurement and an absence is not) and will not swallow an extra one (adding a
+  feature changes the contract, so it has to change the version).
+- `try_score(None, …)` returns `None`, meaning **not measured**. Never "clean" —
+  an interface rendering it as an absence of findings is making a claim the
+  function did not.
+- `ModelScore` carries no author, attribution, or provenance class. The fields
+  that would let a caller promote a measurement into a claim about who wrote
+  something are absent, and a test asserts they are.
+- `ModelCard` requires the corpus digest, intended use, and **at least one known
+  limitation** — every model has some, and a card without them is one nobody
+  looked hard at.
+- A test walks every module in the package and fails on any import of `torch`,
+  `tensorflow`, `jax`, `sklearn`, `numpy`, `scipy`, `pandas`, `transformers`,
+  `onnxruntime`, `xgboost`, or `lightgbm`. A second test proves that check can
+  fail, because a guard that cannot fail is not a guard.
+- `docs/models.md`.
+
 **A detector-evaluation protocol that refuses to publish a flattering number**
 
 - `trueai.research.evaluation`. The headline is the **false positive rate**, not

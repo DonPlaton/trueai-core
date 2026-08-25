@@ -432,8 +432,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   code version — a number that cannot be recomputed is an anecdote. `problems()` lists every reason
   a result must not be quoted alone, and a clean run produces none. 37 tests;
   `docs/evaluation-protocol.md`.
-- [ ] `ML-03` Train only optional, replaceable consumers of versioned feature vectors; keep heavy ML
-  dependencies outside the core package.
+- [x] `ML-03` `trueai/research/features.py` makes the arrangement possible: TrueAI computes
+  features, a model elsewhere consumes them, neither imports the other's dependencies. A `FeatureSet`
+  is named *and ordered* — a vector is positional, so the same names reordered are a different set —
+  and its digest covers version, names, and order together. `score_with()` refuses a vector from
+  another feature set, and refuses a model that mislabels its own output; the refusal is the whole
+  point, since the alternative is a confident number over columns that changed meaning with no
+  symptom until someone acts on it. `build_vector()` will not pad a missing feature with zero,
+  because a zero is a measurement and an absence is not, and will not swallow an extra one, because
+  adding a feature changes the contract. `try_score(None, …)` returns `None` meaning *not measured*,
+  never "clean". `ModelScore` carries no author, attribution, or provenance class — the fields that
+  would let a caller promote a measurement into a claim are simply absent, and a test asserts it.
+  `ModelCard` requires at least one known limitation, because every model has some and a card
+  without them is one nobody looked hard at. A test walks every module in the package and fails on
+  any import of torch, tensorflow, jax, sklearn, numpy, scipy, pandas, transformers, onnxruntime,
+  xgboost, or lightgbm, and a second test proves that check can fail. 26 tests; `docs/models.md`.
 - [ ] `ML-04` Add model cards, dataset statements, signed model manifests, versioned thresholds, and
   regression gates before exposing learned scores.
 - [ ] `ML-05` Add longitudinal style comparison as a review aid, never as proof of authorship or as
