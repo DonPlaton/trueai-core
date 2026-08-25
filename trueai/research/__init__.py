@@ -49,6 +49,15 @@ from trueai.research.features import (
     score_with,
     try_score,
 )
+from trueai.research.longitudinal import (
+    ALTERNATIVE_EXPLANATIONS,
+    BaselineDocument,
+    LongitudinalError,
+    ShiftBand,
+    StyleBaseline,
+    StyleComparison,
+    compare,
+)
 from trueai.research.release import (
     DatasetStatement,
     ModelFile,
@@ -67,8 +76,10 @@ from trueai.research.release import (
 )
 
 __all__ = [
+    "ALTERNATIVE_EXPLANATIONS",
     "FEATURE_SET_VERSION",
     "AdmissionDecision",
+    "BaselineDocument",
     "CalibrationBin",
     "CalibrationResult",
     "ConsentRecord",
@@ -89,6 +100,7 @@ __all__ = [
     "GroupResult",
     "LicenseTerms",
     "LicenseUse",
+    "LongitudinalError",
     "ModelCard",
     "ModelFile",
     "ModelManifest",
@@ -102,7 +114,10 @@ __all__ = [
     "ReleaseError",
     "RetentionRule",
     "ScoreModel",
+    "ShiftBand",
     "Split",
+    "StyleBaseline",
+    "StyleComparison",
     "ThresholdSet",
     "admit",
     "admit_all",
@@ -111,6 +126,7 @@ __all__ = [
     "build_vector",
     "calibration",
     "check_regression",
+    "compare",
     "compute_manifest_id",
     "evaluate",
     "may_expose",

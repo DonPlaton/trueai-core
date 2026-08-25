@@ -147,6 +147,59 @@ A first release passes `regression=None`: there is nothing to regress against.
 That is not a way to skip the check on a later one — passing `None` for a
 replacement is a decision somebody makes deliberately, in code that shows it.
 
+## Longitudinal style comparison
+
+`trueai.research.longitudinal` compares a document against a writer's own past.
+It produces **no verdict**. There is no `same_author` field, no probability that
+a document is someone else's, and no score to threshold — a test parses the
+module and asserts that vocabulary is not in it.
+
+The list of things that move a writer's style is long, and almost none of the
+entries are "someone else wrote this": a new topic, a new genre, a co-author, an
+editor, a template, a house style, a translation, a decade of practice, a
+deadline, grief, a different keyboard. `ALTERNATIVE_EXPLANATIONS` travels with
+every comparison rather than living here, because a caveat kept in documentation
+does not travel with the number.
+
+`what_this_is_not()` is the result's other half, meant to be printed beside it.
+
+### A baseline worth comparing to
+
+Three documents from one week describe a mood, not a style. Below eight documents
+or thirty days, the band is `UNDETERMINED` and **no distance is reported at
+all** — a number attached to an insufficient baseline gets quoted without the
+word "insufficient". `describe()` says it is an absence of measurement, not a
+finding of no change.
+
+### Measured against the writer's own variability
+
+Distance is in units of this writer's standard deviation, not an absolute
+threshold. A fixed threshold across writers penalises the consistent ones and
+excuses the erratic.
+
+Three coarse bands — `within_variation`, `notable`, `marked` — because a
+continuous score invites a threshold and a threshold invites the verdict this
+module refuses to produce.
+
+### Genre first
+
+A register change moves style more than most other causes, so a comparison that
+crosses a declared genre boundary is flagged and says so in its own description.
+An undeclared genre is not guessed at.
+
+### Per-feature deltas are not returned by default
+
+"Which feature moved, and by how much" is a recipe for moving it back, and that
+is the one use this project will not make convenient. `include_feature_deltas`
+is available for debugging a detector, and the request is recorded in the result
+so a report can show it was asked for.
+
+This does not prevent anyone from computing the deltas themselves — they have the
+extractor — and claiming otherwise would be a lie. What it does is decline to
+ship a ready-made objective function, and leave a record when somebody asks for
+one anyway. See [safety](safety.md), where optimising an artifact to evade a
+third-party detector is a standing non-goal.
+
 ## Where the heavy dependencies live
 
 Outside this package. A model implementation satisfies the `ScoreModel`

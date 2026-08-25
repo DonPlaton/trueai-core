@@ -462,8 +462,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   ways to look better without being better are closed: the worst subgroup is gated separately, a
   candidate that scores no subgroup when the baseline did is blocked, and coverage falling is
   blocked because abstaining more improves every other number for free. 34 tests; `docs/models.md`.
-- [ ] `ML-05` Add longitudinal style comparison as a review aid, never as proof of authorship or as
-  an optimization target for evading third-party detectors.
+- [x] `ML-05` `trueai/research/longitudinal.py` compares a document against a writer's own past and
+  produces no verdict: no `same_author`, no probability, no score to threshold, and a test parses the
+  module to assert that vocabulary is not in it. The list of things that move a style is long and
+  almost none of the entries are "someone else wrote this", so `ALTERNATIVE_EXPLANATIONS` — topic,
+  genre, co-author, editor, template, translation, practice, deadline — travels with every result
+  rather than living in documentation, and `what_this_is_not()` is meant to be printed beside it.
+  Below eight documents or thirty days the band is `UNDETERMINED` and **no distance is reported at
+  all**, described as an absence of measurement rather than a finding of no change. Distance is in
+  units of the writer's own variability, since a fixed threshold penalises the consistent and excuses
+  the erratic, and the bands are coarse because a continuous score invites a threshold and a
+  threshold invites the verdict. Per-feature deltas are off by default: "which feature moved and by
+  how much" is a recipe for moving it back. The flag exists for debugging a detector and the request
+  is recorded in the result — which does not prevent anyone with the extractor from computing them,
+  and the module says so rather than overclaiming; it declines to ship a ready-made objective
+  function and leaves a record when somebody asks for one. 26 tests; `docs/models.md`.
 
 #### Continuous quality work
 

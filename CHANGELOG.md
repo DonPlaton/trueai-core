@@ -12,6 +12,32 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Longitudinal style comparison, which stays a question**
+
+- `trueai.research.longitudinal` compares a document against a writer's own past
+  and produces **no verdict**: no `same_author` field, no probability, no score
+  to threshold. A test parses the module and asserts that vocabulary is absent.
+- The list of things that move a writer's style is long and almost none of the
+  entries are "someone else wrote this" — topic, genre, co-author, editor,
+  template, translation, practice, a deadline. Those travel with every result,
+  because a caveat kept in documentation does not travel with the number.
+- Below eight documents or thirty days the result is `UNDETERMINED` and **no
+  distance is reported at all**. A number attached to an insufficient baseline
+  gets quoted without the word "insufficient", and the description says it is an
+  absence of measurement rather than a finding of no change.
+- Distance is measured in units of the writer's own variability. A fixed
+  threshold across writers penalises the consistent ones and excuses the erratic.
+  The bands are coarse on purpose: a continuous score invites a threshold, and a
+  threshold invites the verdict this refuses to produce.
+- A comparison crossing a declared genre boundary is flagged, because a register
+  change moves style more than most other causes.
+- **Per-feature deltas are off by default.** "Which feature moved and by how
+  much" is a recipe for moving it back. The flag exists for debugging a detector
+  and the request is recorded in the result. This does not stop anyone with the
+  extractor from computing them, and the module says so instead of overclaiming;
+  what it does is decline to ship a ready-made objective function and leave a
+  record when somebody asks for one.
+
 **A release gate for learned scores**
 
 - `trueai.research.release`. A model that scores text about whether a person
