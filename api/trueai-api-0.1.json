@@ -316,13 +316,19 @@
       "CertificateVerification": {
         "abstract_methods": [],
         "attributes": [
+          "authenticated",
           "model_config"
         ],
         "bases": [
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "unchecked": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
         "model_fields": {
           "artifact_verified": {
             "required": true

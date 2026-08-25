@@ -111,12 +111,21 @@ class TerminalReporter:
             count = confidence_counts[confidence_type]
             if count:
                 summary.add_row(confidence_type.value.upper(), str(count))
+        self.console.print(summary)
+        # Printed under the table rather than as a row in it. Evidence class is a
+        # partition -- every finding has exactly one -- and provenance is an
+        # attribute a finding of any class may also carry. As a row it read as a
+        # fifth class, and the column stopped adding up to the finding count.
         provenance_count = sum(
             1 for item in report.findings if item.provenance_class != ProvenanceClass.NONE
         )
         if provenance_count:
-            summary.add_row("PROVENANCE", str(provenance_count))
-        self.console.print(summary)
+            noun = "finding" if provenance_count == 1 else "findings"
+            verb = "carries" if provenance_count == 1 else "carry"
+            self.console.print(
+                f"  {provenance_count} {noun} above also {verb} a provenance class, "
+                "which is an attribute rather than a fifth evidence class."
+            )
         for finding in report.findings:
             self._finding(finding, verbose=verbose)
         if report.diagnostics:

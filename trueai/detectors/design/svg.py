@@ -28,6 +28,10 @@ from trueai.detectors.documents.opc import local_name, parse_xml
 from trueai.providers import AttributionContext, attribution_rules, is_standalone_attribution
 
 _EDITOR_NAMESPACES = ("inkscape", "sodipodi", "adobe", "serif", "sketch")
+
+#: Elements that carry an SVG metadata block. Nested ones belong to the outermost
+#: block rather than to a finding of their own.
+_METADATA_ELEMENTS = frozenset({"metadata", "rdf", "RDF", "xmpmeta"})
 _GEOMETRY_TAGS = {"path", "rect", "circle", "ellipse", "polygon", "polyline", "line"}
 
 
@@ -70,11 +74,29 @@ class SVGDetector(BaseDetector):
         geometry_counts: Counter[str] = Counter()
         defined_ids: set[str] = set()
         referenced_ids: set[str] = set()
+        # Reported per metadata *block*, not per element. `<metadata><rdf:RDF>…`
+        # is the shape every Inkscape file has, and walking it emitted two
+        # findings with the same title, the same description and the same excerpt
+        # -- a reader sees the tool counting one thing twice.
+        nested_metadata = {
+            id(child)
+            for element in root.iter()
+            if local_name(element.tag) in _METADATA_ELEMENTS
+            for child in element.iter()
+            if child is not element
+        }
         for element in root.iter():
             tag = local_name(element.tag)
-            if tag in {"metadata", "rdf", "RDF", "xmpmeta"}:
+            if tag in _METADATA_ELEMENTS and id(element) not in nested_metadata:
                 serialized_metadata = ElementTree.tostring(element, encoding="utf-8")
                 protected = contains_protected_provenance_marker(serialized_metadata)
+                contained = sorted(
+                    {
+                        local_name(child.tag)
+                        for child in element.iter()
+                        if child is not element and local_name(child.tag) in _METADATA_ELEMENTS
+                    }
+                )
                 findings.append(
                     self.finding(
                         artifact=artifact,
@@ -95,6 +117,10 @@ class SVGDetector(BaseDetector):
                         ),
                         evidence={
                             "element": tag,
+                            # Named rather than dropped: the nested elements are
+                            # part of what this block is, and they used to be
+                            # separate findings.
+                            "nested_metadata_elements": contained,
                             "text_excerpt": "".join(element.itertext())[:160],
                             "protected_provenance_marker": protected,
                         },

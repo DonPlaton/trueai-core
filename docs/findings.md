@@ -13,6 +13,23 @@ optional remediation reference.
 - `PROBABILISTIC`: a calibrated statistical model result. No such model ships in core v0.1.
 - `HEURISTIC`: an interpretable style or structure score. It is never provenance.
 
+## Paths in a report
+
+Every path a report contains is relative, and the root of a directory scan is
+reported as `.`.
+
+That is a deliberate trade and it costs something, so it is written down here
+rather than discovered. Relative paths make two scans of the same corpus compare
+byte for byte, which is what the determinism check and the reproducibility of an
+audit record depend on, and they keep the operator's directory layout — often the
+client's name — out of a document that gets sent to somebody else. What they cost
+is that a report read on its own does not say which directory produced it. A
+consumer that needs to record the target should record it alongside the report,
+where it is their decision to disclose rather than the scanner's.
+
+A single-file scan reports the file's own name for the same reason, and binds it
+by SHA-256, which identifies the bytes without identifying the machine.
+
 ## Provenance classes
 
 - `NONE`: no provenance relationship.

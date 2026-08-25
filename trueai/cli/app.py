@@ -1509,6 +1509,13 @@ def certificates_verify(
             help="Fail unless a current authenticated revocation list was checked.",
         ),
     ] = False,
+    require_full_verification: Annotated[
+        bool,
+        typer.Option(
+            "--require-full-verification",
+            help="Fail unless the signature, the artifact bytes, and revocation were all checked.",
+        ),
+    ] = False,
 ) -> None:
     """Verify content ID, optional issuer signature, and optional artifact binding."""
 
@@ -1531,12 +1538,25 @@ def certificates_verify(
             require_revocation_check=require_revocation_check,
         )
         console.print(f"Certificate: [bold]{certificate.certificate_id}[/bold]")
-        console.print(
-            f"Verification: [{'green' if result.valid else 'red'}]{'VALID' if result.valid else 'INVALID'}[/]"
-        )
+        # Three states, not two. "Nothing that was checked came back false" and
+        # "everything was checked and held" are different results, and a green
+        # VALID on an unsigned certificate nobody compared to a file says the
+        # second while meaning the first.
+        unchecked = result.unchecked()
+        if not result.valid:
+            verdict, colour = "INVALID", "red"
+        elif result.authenticated:
+            verdict, colour = "VALID", "green"
+        else:
+            verdict, colour = "VALID, NOT FULLY CHECKED", "yellow"
+        console.print(f"Verification: [{colour}]{verdict}[/]")
         for explanation in result.explanations:
             console.print(f"- {escape(explanation)}")
-        raise typer.Exit(ExitCode.SUCCESS if result.valid else ExitCode.POLICY_VIOLATION)
+        for clause in unchecked:
+            console.print(f"[yellow]not checked:[/yellow] {escape(clause)}")
+        if not result.valid or (require_full_verification and unchecked):
+            raise typer.Exit(ExitCode.POLICY_VIOLATION)
+        raise typer.Exit(ExitCode.SUCCESS)
     except typer.Exit:
         raise
     except (OSError, TrueAIError, ValueError) as exc:

@@ -10,6 +10,38 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Changed
+
+**Three places the output was accurate line by line and overstated as a whole**
+
+None of these was a wrong value. Each was a headline, a total, or a count that a
+reader is entitled to read one way and that meant another — which for this
+project is the defect, not a presentation preference.
+
+- **`trueai certificates verify` printed `VALID`, in green, over a document
+  nobody signed and nothing was compared to.** The explanations underneath were
+  correct; the word above them is what a reader takes away. `valid` still means
+  "nothing that was checked came back false", and it is now joined by
+  `CertificateVerification.unchecked()` and `.authenticated`, so the headline can
+  say `VALID, NOT FULLY CHECKED` and list what nobody looked at. Revocation is
+  reported but does not qualify the verdict, because a caveat that fires on every
+  verification is read on none of them. `--require-full-verification` turns the
+  caveat into an exit code.
+- **The `Evidence class` table did not add up to the finding count.** Evidence
+  class is a partition and provenance is an attribute a finding of any class may
+  also carry, so `PROVENANCE` as a fifth row made two findings render as three.
+  It is a sentence under the table now.
+- **One SVG metadata block was reported twice.** `<metadata><rdf:RDF>` is the
+  shape every Inkscape file has, and walking every element emitted a finding for
+  the container and another for its child, with the same title, description and
+  excerpt. The outermost block is reported once and names what it contains.
+
+Report paths are also documented now: every path is relative and the root of a
+directory scan is `.`, which is what makes two scans of one corpus compare byte
+for byte and keeps the operator's directory layout out of a document that gets
+sent to somebody else — and costs a report the ability to say, on its own, which
+directory produced it.
+
 ### Security
 
 **Seven regular expressions a file could stall the scanner with**

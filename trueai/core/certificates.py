@@ -204,6 +204,52 @@ class CertificateVerification(FrozenModel):
     revoked: bool | None = None
     explanations: tuple[str, ...]
 
+    def unchecked(self) -> tuple[str, ...]:
+        """Return the checks that did not run, one clause each.
+
+        ``valid`` means nothing that was checked came back false. It does not
+        mean everything was checked, and the difference is the whole point: an
+        unsigned certificate verified without its artifact and without a
+        revocation list is a self-consistent JSON document and nothing more.
+        A reader who sees only ``valid`` is entitled to think otherwise.
+        """
+
+        missing: list[str] = []
+        if not self.signature_present:
+            missing.append("the issuer signature, because the certificate is unsigned")
+        elif self.signature_verified is None:
+            missing.append("the issuer signature, because no public key was supplied")
+        if self.artifact_verified is None:
+            missing.append("the artifact binding, because no artifact was supplied")
+        if not self.revocation_checked:
+            missing.append("revocation, because no authenticated revocation list was checked")
+        return tuple(missing)
+
+    @property
+    def authenticated(self) -> bool:
+        """Whether the issuer was authenticated and the artifact bytes matched.
+
+        The predicate a reader means by "this certificate checks out". Kept apart
+        from ``valid``, which is only "nothing that was checked came back false",
+        and from ``unchecked()``, which lists everything nobody looked at.
+
+        Revocation is deliberately not part of it. It answers a different
+        question -- whether the issuer has since withdrawn a certificate that was
+        and remains correctly signed -- and folding it in would make an
+        unqualified result unreachable for any issuer who has never published a
+        revocation list, which is a caveat that fires every time and is therefore
+        read no times. ``require_revocation_check`` is how a caller who needs it
+        asks.
+        """
+
+        return (
+            self.valid
+            and self.certificate_id_valid
+            and self.signature_present
+            and self.signature_verified is True
+            and self.artifact_verified is True
+        )
+
 
 class RevocationListVerification(FrozenModel):
     """Signature and freshness result for an issuer revocation list."""
