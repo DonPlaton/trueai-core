@@ -12,6 +12,40 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Desktop, CI, and editor adapters over one projection**
+
+- `trueai.adapters` (public): `views.py` derives the five views a surface needs;
+  `ci.py`, `ide.py`, and `desktop.py` format them. `trueai scan -f ci`,
+  `-f ide`, `-f desktop`.
+- `FindingExplanation.does_not_claim` is the reason the projection exists. It is
+  the sentence saying what a finding does **not** establish, it is derivable from
+  the confidence and provenance classes, and it is the first thing an interface
+  drops when short of space. Deriving it centrally means an interface has to
+  actively discard it — and every adapter carries it, including the two formats
+  that only have one line.
+- **The CI formats are injection boundaries.** A newline in a finding description
+  does not malform a workflow annotation, it produces *a second command*, and
+  descriptions come from the artifact under examination. Values are escaped for
+  `%`, CR, and LF; property values also for `:` and `,`. Markdown cells are
+  escaped for pipes and newlines, which otherwise rewrite the table.
+- `CRITICAL` and `HIGH` become error annotations and nothing else does. A job
+  that failed on every `INFO` finding would be switched off within a week.
+- The editor adapter is LSP-shaped with **no LSP dependency**. A missing range is
+  admitted rather than guessed from a byte offset — a squiggle under the wrong
+  text is worse than none because it looks authoritative — every scanned file
+  appears so stale markers can be cleared, and `INFO` never becomes an error.
+- The desktop bundle is versioned so a client can refuse one it cannot read,
+  keeps coverage beside the findings (a client rendering findings alone shows a
+  clean page for a half-read scan), and leaves `remediation` and `certificate`
+  null so "no plan" differs from "an empty plan".
+- `IntegrityEvidence.visible_content_unchanged` is `None`, not `False`, when the
+  logical digests are missing: a check that did not run is not a check that
+  failed.
+- `certificate_view()` reports all six checks separately, so four unknowns cannot
+  hide behind one green tick, and every view restates what a TrueAI certificate
+  never asserts.
+- `docs/integrations.md`.
+
 **A single-file HTML report a hostile artifact cannot turn into a page**
 
 - `trueai/reporters/html.py` and `trueai scan -f html`. One self-contained

@@ -26,7 +26,8 @@ deliberately, so an integrator pins one pair rather than two independent numbers
 | `trueai.core.remediation` | Planning and applying cleanup. |
 | `trueai.detectors.base` | The detector contract third parties implement. |
 | `trueai.plugins` | Capability manifests, host policy, and isolation. |
-| `trueai.reporters` | Terminal, JSON, and SARIF adapters. |
+| `trueai.reporters` | Terminal, JSON, SARIF, and HTML adapters. |
+| `trueai.adapters` | The finding, remediation, integrity, provenance, and certificate views a desktop, CI, or editor integration renders. |
 
 Anything not listed is internal and may change in any release. That is only a fair
 rule because the list is written down rather than inferred from what happens to be

@@ -48,6 +48,8 @@ trueai scan ./repository
 trueai scan ./repository --jobs 8 --cache          # parallel, and reuse unchanged results
 trueai scan ./repository --no-progress             # no bar; Ctrl-C stops cleanly either way
 trueai scan ./repository -f html -o report.html    # one self-contained, script-free file
+trueai scan ./repository -f ci                     # workflow annotations plus a job summary
+trueai scan ./repository -f ide                    # LSP-shaped diagnostics, keyed by file
 trueai scan report.docx --format json --output report.trueai.json
 trueai scan deck.pptx --verbose
 trueai inspect model.xlsx
@@ -287,7 +289,7 @@ Subprocess isolation contains host-state corruption, hangs, and unbounded output
 every returned finding so a plugin cannot forge an identity or impersonate another detector.
 Workers install hard CPU and memory limits before importing third-party code (POSIX rlimits or a
 Windows Job Object). This is still not a filesystem/system-call sandbox. See
-[plugins](docs/plugins.md). Writing one: [the SDK guide](docs/sdk.md) and a runnable
+[plugins](docs/plugins.md). Writing one: [the SDK guide](docs/sdk.md), [integrations](docs/integrations.md), and a runnable
 [example detector](examples/acme_ticket_detector/) whose imports the test suite checks against
 the frozen public surface.
 

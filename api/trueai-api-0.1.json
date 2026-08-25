@@ -1536,6 +1536,343 @@
         }
       }
     },
+    "trueai.adapters": {
+      "BUNDLE_VERSION": {
+        "kind": "value",
+        "type": "str"
+      },
+      "CertificateView": {
+        "abstract_methods": [],
+        "attributes": [
+          "attests_only",
+          "certificate_id",
+          "checks",
+          "expires_at",
+          "explanations",
+          "issued_at",
+          "scan_complete",
+          "scanner",
+          "subject",
+          "valid"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "to_dict": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "FindingExplanation": {
+        "abstract_methods": [],
+        "attributes": [
+          "artifact_path",
+          "category",
+          "claims",
+          "column",
+          "detector_id",
+          "does_not_claim",
+          "evidence_summary",
+          "finding_id",
+          "line",
+          "removable",
+          "severity",
+          "title"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "to_dict": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "IntegrityEvidence": {
+        "abstract_methods": [],
+        "attributes": [
+          "after_sha256",
+          "before_sha256",
+          "explanation",
+          "intentionally_removed",
+          "logical_after_sha256",
+          "logical_before_sha256",
+          "status",
+          "verified",
+          "visible_content_unchanged"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "to_dict": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "RemediationPreview": {
+        "abstract_methods": [],
+        "attributes": [
+          "blocked",
+          "changes_visible_content",
+          "needs_review",
+          "policy",
+          "preserved",
+          "steps"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "to_dict": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "RemediationStep": {
+        "abstract_methods": [],
+        "attributes": [
+          "artifact_path",
+          "changes_visible_content",
+          "description",
+          "finding_ids",
+          "remediation_id",
+          "requires_explicit_opt_in",
+          "safety"
+        ],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "to_dict": {
+            "introspectable": true,
+            "parameters": []
+          }
+        }
+      },
+      "annotation": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "explanation",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "severity",
+              "required": true
+            }
+          ]
+        }
+      },
+      "certificate_view": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "certificate",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "verification",
+              "required": false
+            }
+          ]
+        }
+      },
+      "desktop_bundle": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "plan",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "certificate",
+              "required": false
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "certificate_verification",
+              "required": false
+            }
+          ]
+        }
+      },
+      "diagnostic": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "finding",
+              "required": true
+            }
+          ]
+        }
+      },
+      "diagnostics_by_file": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            }
+          ]
+        }
+      },
+      "explain_finding": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "finding",
+              "required": true
+            }
+          ]
+        }
+      },
+      "explain_findings": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            }
+          ]
+        }
+      },
+      "hover": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "finding_id",
+              "required": true
+            }
+          ]
+        }
+      },
+      "integrity_evidence": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "integrity",
+              "required": true
+            }
+          ]
+        }
+      },
+      "job_summary": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "plan",
+              "required": false
+            }
+          ]
+        }
+      },
+      "lsp_severity": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "severity",
+              "required": true
+            }
+          ]
+        }
+      },
+      "publish_payloads": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            },
+            {
+              "kind": "KEYWORD_ONLY",
+              "name": "root",
+              "required": false
+            }
+          ]
+        }
+      },
+      "remediation_preview": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "plan",
+              "required": true
+            }
+          ]
+        }
+      },
+      "workflow_annotations": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "report",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
     "trueai.api": {
       "API_SNAPSHOT_PATH": {
         "kind": "value",

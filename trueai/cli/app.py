@@ -93,6 +93,12 @@ class OutputFormat(StrEnum):
     JSON = "json"
     SARIF = "sarif"
     HTML = "html"
+    #: GitHub-style workflow annotations plus a Markdown job summary.
+    CI = "ci"
+    #: LSP-shaped diagnostics keyed by file, for an editor extension.
+    IDE = "ide"
+    #: Every desktop view in one versioned bundle.
+    DESKTOP = "desktop"
 
 
 console = Console()
@@ -134,7 +140,11 @@ def scan(
     path: Annotated[Path, typer.Argument(help="File, directory, or Git repository to scan.")],
     output_format: Annotated[
         OutputFormat,
-        typer.Option("--format", "-f", help="terminal, json, sarif, or html"),
+        typer.Option(
+            "--format",
+            "-f",
+            help="terminal, json, sarif, html, ci, ide, or desktop",
+        ),
     ] = OutputFormat.TERMINAL,
     output: Annotated[
         Path | None, typer.Option("--output", "-o", help="Explicit report path.")
@@ -2232,8 +2242,30 @@ def _render_report(
         if emit:
             typer.echo(rendered)
         return rendered
+    if output_format in {OutputFormat.CI, OutputFormat.IDE, OutputFormat.DESKTOP}:
+        rendered = _render_adapter(report, output_format)
+        if emit:
+            typer.echo(rendered)
+        return rendered
     TerminalReporter(console).render(report, verbose=verbose)
     return None
+
+
+def _render_adapter(report: object, output_format: OutputFormat) -> str:
+    """Render one of the interface adapters, all built on the public schema."""
+
+    from trueai.adapters import desktop_bundle, diagnostics_by_file, job_summary
+    from trueai.adapters import workflow_annotations as annotations
+    from trueai.core.models import ScanReport
+
+    assert isinstance(report, ScanReport)
+    if output_format == OutputFormat.CI:
+        # Annotations first so a runner picks them up as it streams, then the
+        # summary a person reads afterwards.
+        return "\n".join([*annotations(report), "", job_summary(report)])
+    if output_format == OutputFormat.IDE:
+        return json.dumps(diagnostics_by_file(report), ensure_ascii=False, indent=2, sort_keys=True)
+    return json.dumps(desktop_bundle(report), ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def _exit_code(report: object) -> ExitCode:

@@ -383,8 +383,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   confidence class with what each class claims stated at the heading, provenance as PROV-04's four
   facets with unanswered styled as unanswered, caveats printed, and diagnostics as a section because
   a scan that could not read something did not find it clean. 33 tests; `docs/html-report.md`.
-- [ ] `UI-02` Build desktop, CI, and IDE adapters around the public schema, including finding
-  explanation, remediation preview, integrity evidence, provenance, and certificate views.
+- [x] `UI-02` `trueai/adapters/` — one projection (`views.py`) and three formatters (`ci.py`,
+  `ide.py`, `desktop.py`), added to `PUBLIC_MODULES`. The part worth centralising is not formatting
+  but `FindingExplanation.does_not_claim`: the sentence saying what a finding does *not* establish,
+  derivable from the confidence and provenance classes and the first thing a short format drops —
+  deriving it centrally means an interface must actively discard it rather than never have had it,
+  and every adapter carries it, including the two that only have one line. Both CI formats are
+  injection boundaries: a newline in a description does not malform a workflow annotation, it forges
+  *a second command*, and a pipe rewrites a Markdown table, so both are escaped. The editor adapter
+  is LSP-shaped without an LSP dependency, admits a missing range instead of guessing one from a byte
+  offset (a squiggle under the wrong text looks authoritative), lists clean files so stale markers
+  can be cleared, and never turns an `INFO` finding into an error. The desktop bundle is versioned,
+  keeps coverage beside the findings, and distinguishes "no plan" from "an empty plan".
+  `IntegrityEvidence.visible_content_unchanged` is `None` rather than `False` when the digests are
+  missing, and `certificate_view` shows all six checks separately so four unknowns cannot hide behind
+  one tick. 49 tests; `docs/integrations.md`.
 
 #### P3 — calibrated research features
 

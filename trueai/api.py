@@ -68,6 +68,7 @@ PUBLIC_MODULES: tuple[str, ...] = (
     "trueai",
     "trueai.api",
     "trueai.schema",
+    "trueai.adapters",
     "trueai.core.artifact",
     "trueai.core.engine",
     "trueai.core.errors",
