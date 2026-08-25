@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import io
-import re
 import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
 from trueai.core.errors import ScanLimitExceededError
+from trueai.core.spans import Delimiter, scan_delimited
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,26 +65,45 @@ def _python_comments(text: str, max_spans: int) -> list[CommentSpan]:
     return comments
 
 
+#: The four comment shapes this fallback recognizes, in no particular order:
+#: `scan_delimited` picks whichever opens first rather than whichever is listed
+#: first. `//` and `/*` cannot open at the same offset, so the order between them
+#: never decides anything.
+_GENERIC_COMMENTS = (
+    Delimiter("//"),
+    Delimiter("#"),
+    Delimiter("/*", "*/"),
+    Delimiter("<!--", "-->"),
+)
+
+
 def _generic_comments(text: str, max_spans: int) -> list[CommentSpan]:
-    pattern = re.compile(r"(?m)//[^\r\n]*|#[^\r\n]*|/\*[\s\S]*?\*/|<!--(?:[\s\S]*?)-->")
+    """Find comments in a language this module has no real lexer for.
+
+    Scanned rather than matched. The regular expression this replaced was
+    quadratic on unterminated comments -- 200,000 `<!--` with no `-->` is 800 kB
+    that never finishes -- because each failed search restarted at the next
+    opener. The regions it reports are the same ones.
+    """
+
     comments: list[CommentSpan] = []
     line = 1
     previous_offset = 0
     line_start = 0
-    for match in pattern.finditer(text):
+    for start, end in scan_delimited(text, _GENERIC_COMMENTS):
         _check_span_budget(comments, max_spans)
-        line_breaks = text.count("\n", previous_offset, match.start())
+        line_breaks = text.count("\n", previous_offset, start)
         if line_breaks:
             line += line_breaks
-            line_start = text.rfind("\n", previous_offset, match.start()) + 1
-        previous_offset = match.start()
+            line_start = text.rfind("\n", previous_offset, start) + 1
+        previous_offset = start
         comments.append(
             CommentSpan(
-                text=match.group(0),
-                start=match.start(),
-                end=match.end(),
+                text=text[start:end],
+                start=start,
+                end=end,
                 line=line,
-                column=match.start() - line_start + 1,
+                column=start - line_start + 1,
                 syntax_verified=False,
             )
         )

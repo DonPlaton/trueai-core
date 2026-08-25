@@ -22,6 +22,7 @@ from trueai.core.models import (
     Severity,
 )
 from trueai.core.provenance import contains_protected_provenance_marker
+from trueai.core.spans import Delimiter, scan_delimited
 from trueai.detectors.base import BaseDetector, FindingBuffer
 from trueai.detectors.documents.opc import local_name, parse_xml
 from trueai.providers import AttributionContext, attribution_rules, is_standalone_attribution
@@ -267,8 +268,13 @@ class SVGDetector(BaseDetector):
         return findings
 
     def _comment_findings(self, artifact: Artifact, text: str) -> Iterable[Finding]:
-        for comment in re.finditer(r"<!--[\s\S]*?-->", text):
-            content = comment.group(0)
+        # Scanned rather than matched: the lazy regular expression this replaced
+        # restarted at every `<!--` when the closing `-->` was absent. The XML
+        # parser rejects that input before it reaches here, so this was defence
+        # behind a working guard -- which is exactly the code that stops being
+        # true first, when somebody reuses the function.
+        for start, end in scan_delimited(text, (Delimiter("<!--", "-->"),)):
+            content = text[start:end]
             protected = contains_protected_provenance_marker(content)
             if re.search(r"(?i)\b(?:generator|created with|exported by)\b", content):
                 yield self.finding(

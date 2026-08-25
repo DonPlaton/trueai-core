@@ -59,7 +59,9 @@ class DesignStyleFeatureExtractor:
             if name in {"margin", "padding", "gap", "row-gap", "column-gap"}:
                 for number in re.findall(r"[-+]?\d+(?:\.\d+)?(?:px|rem|em|%)", value):
                     spacing[number] += 1
-            for color in re.findall(r"#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)", value):
+            # `[^()]` rather than `[^)]`: an unclosed `rgba(` otherwise reads to
+            # the end of the declaration for every `rgba(` before it.
+            for color in re.findall(r"#[0-9a-f]{3,8}\b|rgba?\([^()]*\)|hsla?\([^()]*\)", value):
                 colors[color] += 1
             if "gradient(" in value:
                 gradients += 1
@@ -67,7 +69,9 @@ class DesignStyleFeatureExtractor:
                 shadows[value] += 1
             if name == "font-size":
                 font_sizes[value] += 1
-        path_counts = Counter(re.findall(r"(?is)<path\b[^>]*\bd=['\"]([^'\"]+)['\"]", text))
+        # `[^<>]` rather than `[^>]`: a `<path` with no `>` otherwise reads to the
+        # end of the document, once for every `<path` in it.
+        path_counts = Counter(re.findall(r"(?is)<path\b[^<>]*\bd=['\"]([^'\"\r\n]+)['\"]", text))
         return DesignFeatureVector(
             border_radius_counts=dict(radius),
             spacing_counts=dict(spacing),

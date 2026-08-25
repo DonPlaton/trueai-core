@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 from trueai.core.artifact import Artifact
 from trueai.core.dom_features import FeatureBudget, extract_stylesheet_features
@@ -20,6 +21,66 @@ from trueai.core.models import (
 from trueai.detectors.base import BaseDetector, FindingBuffer
 from trueai.detectors.code.attribution import extract_css_comments
 from trueai.providers import AttributionContext, attribution_rules, is_standalone_attribution
+
+#: What counts as hiding an element. Searched inside one declaration block, so
+#: nothing here can run past the closing brace.
+_HIDING_DECLARATION = re.compile(
+    r"(?is)display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?"
+)
+
+
+#: Deeper than this and the stylesheet is not one. Bounded because the stack is
+#: the only part of this scan whose size the file gets to choose.
+_MAX_BLOCK_NESTING = 4096
+
+
+def _hiding_rules(text: str) -> Iterator[tuple[str, str, int, int]]:
+    r"""Yield ``(selector, declaration, start, end)`` for each rule that hides.
+
+    Braces are matched, then each innermost block is searched. The regular
+    expression this replaced began `([^{}]+)\{`, which reads to the end of the
+    stylesheet from every position not followed by a brace -- 60 kB without one
+    took seventeen seconds, and the growth was quadratic, so the file decided how
+    long the scan lasted.
+
+    Nesting is why this is a stack rather than a delimiter scan: `@media print {
+    .a { display: none } }` pairs the first `{` with the first `}`, and the rule
+    that actually hides something is the inner one.
+    """
+
+    #: `(brace offset, where this block's selector starts, blocks opened so far)`.
+    stack: list[tuple[int, int, int]] = []
+    boundary = 0
+    index = 0
+    opened = 0
+    while True:
+        opening = text.find("{", index)
+        closing = text.find("}", index)
+        if opening < 0 and closing < 0:
+            return
+        if opening >= 0 and (closing < 0 or opening < closing):
+            opened += 1
+            if len(stack) < _MAX_BLOCK_NESTING:
+                stack.append((opening, boundary, opened))
+            index = boundary = opening + 1
+            continue
+        index = boundary = closing + 1
+        if not stack:
+            continue  # a closing brace with nothing open: malformed, and not a rule
+        start, selector_start, opened_before = stack.pop()
+        if opened > opened_before:
+            # Something opened inside this block, so it is a wrapper such as an
+            # at-rule. Counted rather than searched: `"{" in body` would reread
+            # every enclosing block once per nesting level.
+            continue
+        declaration = _HIDING_DECLARATION.search(text[start + 1 : closing])
+        if declaration is not None:
+            yield (
+                text[selector_start:start].strip(),
+                declaration.group(0),
+                selector_start,
+                closing + 1,
+            )
 
 
 class CSSDetector(BaseDetector):
@@ -85,10 +146,7 @@ class CSSDetector(BaseDetector):
                             tags=("css", "comment", "literal", rule.provider),
                         )
                     )
-        for rule_match in re.finditer(
-            r"(?is)([^{}]+)\{[^{}]*(display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?)\s*;?[^{}]*\}",
-            text,
-        ):
+        for selector, declaration, block_start, block_end in _hiding_rules(text):
             findings.append(
                 self.finding(
                     artifact=artifact,
@@ -103,10 +161,10 @@ class CSSDetector(BaseDetector):
                         "not evidence of a watermark or AI provenance."
                     ),
                     evidence={
-                        "selector": rule_match.group(1).strip(),
-                        "declaration": rule_match.group(2),
+                        "selector": selector,
+                        "declaration": declaration,
                     },
-                    location=self._location(text, rule_match.start(), rule_match.end()),
+                    location=self._location(text, block_start, block_end),
                     tags=("css", "hidden", "not-provenance"),
                 )
             )

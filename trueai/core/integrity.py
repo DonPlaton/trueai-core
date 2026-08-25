@@ -15,6 +15,7 @@ from defusedxml.ElementTree import DefusedXMLParser
 
 from trueai.core.errors import CorruptArtifactError
 from trueai.core.models import IntegrityReport, IntegrityStatus
+from trueai.core.spans import Delimiter, scan_delimited
 from trueai.detectors.documents.opc import local_name, parse_xml, parse_xml_preserving_misc
 
 
@@ -233,10 +234,27 @@ _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
 
 _SVG_ROOT_START = re.compile(rb"<(?:(?:[A-Za-z_][\w.-]*):)?svg(?:\s|>)", re.IGNORECASE)
 _SVG_ROOT_END = re.compile(rb"</(?:(?:[A-Za-z_][\w.-]*):)?svg\s*>", re.IGNORECASE)
-_XML_OUTER_MISC = re.compile(
-    rb"<!--[\s\S]*?-->|<\?(?!xml(?:\s|\?>))[\s\S]*?\?>",
-    re.IGNORECASE,
-)
+#: A processing instruction naming the XML declaration itself, which is part of
+#: the document rather than something to carry across a rewrite.
+_XML_DECLARATION = re.compile(rb"<\?xml(?:\s|\?>)", re.IGNORECASE)
+
+
+def _outer_misc(data: bytes) -> tuple[bytes, ...]:
+    """Return comments and processing instructions in an XML prolog or epilog.
+
+    Scanned rather than matched. Two lazy spans looking for `-->` and `?>` cost
+    one full pass each per opener when the closer is absent, and the file
+    chooses how many openers there are.
+    """
+
+    text = data.decode("latin-1")
+    found: list[bytes] = []
+    for start, end in scan_delimited(text, (Delimiter("<!--", "-->"), Delimiter("<?", "?>"))):
+        span = data[start:end]
+        if span.startswith(b"<?") and _XML_DECLARATION.match(span):
+            continue
+        found.append(span)
+    return tuple(found)
 
 
 def svg_outer_misc(data: bytes) -> tuple[tuple[bytes, ...], tuple[bytes, ...]]:
@@ -247,7 +265,7 @@ def svg_outer_misc(data: bytes) -> tuple[tuple[bytes, ...], tuple[bytes, ...]]:
         return (), ()
     tag_end = _xml_tag_end(data, start.start())
     if tag_end is None:
-        return tuple(_XML_OUTER_MISC.findall(data[: start.start()])), ()
+        return _outer_misc(data[: start.start()]), ()
     start_tag = data[start.start() : tag_end + 1]
     if start_tag.rstrip().endswith(b"/>"):
         root_end = tag_end + 1
@@ -256,10 +274,7 @@ def svg_outer_misc(data: bytes) -> tuple[tuple[bytes, ...], tuple[bytes, ...]]:
         for candidate in _SVG_ROOT_END.finditer(data, tag_end + 1):
             closing = candidate
         root_end = closing.end() if closing is not None else len(data)
-    return (
-        tuple(_XML_OUTER_MISC.findall(data[: start.start()])),
-        tuple(_XML_OUTER_MISC.findall(data[root_end:])),
-    )
+    return _outer_misc(data[: start.start()]), _outer_misc(data[root_end:])
 
 
 def _xml_tag_end(data: bytes, start: int) -> int | None:

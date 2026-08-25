@@ -344,7 +344,12 @@ def extract_dom_topology(text: str, budget: FeatureBudget | None = None) -> DomT
 _COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _AT_RULE = re.compile(r"@([a-zA-Z-]+)")
 _ID_SELECTOR = re.compile(r"#[\w-]+")
-_CLASS_SELECTOR = re.compile(r"\.[\w-]+|\[[^\]]*\]|:[a-zA-Z-]+(?:\([^)]*\))?")
+#: The character classes exclude their own opening bracket on purpose. `[^\]]*`
+#: reaches the end of the stylesheet for every `[` that never closes, so `[a[a[a…`
+#: costs one full pass per bracket; excluding `[` stops each attempt at the next
+#: one. It is also what the syntax means: neither attribute selectors nor
+#: functional pseudo-classes nest in CSS.
+_CLASS_SELECTOR = re.compile(r"\.[\w-]+|\[[^\][\r\n]*\]|:[a-zA-Z-]+(?:\([^()\r\n]*\))?")
 _TYPE_SELECTOR = re.compile(r"(?:^|[\s>+~])([a-zA-Z][\w-]*)")
 
 

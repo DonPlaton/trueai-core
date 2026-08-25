@@ -9,7 +9,11 @@ RULES = (
     AttributionRule(
         id="openai.coauthor",
         provider="openai",
-        pattern=r"Co-Authored-By:\s*(?:ChatGPT|OpenAI Codex|Codex)(?:\s[^<\r\n]*)?\s*<[^>]+>",
+        # Same overlapping quantifiers as the Anthropic trailer, same fix.
+        pattern=(
+            r"Co-Authored-By:[ \t]*(?:ChatGPT|OpenAI Codex|Codex)"
+            r"(?:[ \t][^<\r\n]*)?<[^>\r\n]{1,320}>"
+        ),
         contexts=frozenset({Context.TEXT, Context.COMMENT, Context.GIT_COMMIT}),
         confidence=1.0,
         explanation="An explicit OpenAI tool co-author trailer is present.",

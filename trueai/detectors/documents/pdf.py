@@ -275,14 +275,22 @@ class PDFDetector(BaseDetector):
                 )
             return
 
-        direct_info = re.search(rb"/Info\s*<<(.*?)>>", trailer, flags=re.DOTALL)
-        if direct_info is None:
+        # Located rather than matched. `/Info\s*<<(.*?)>>` rescans the whole
+        # trailer for every `/Info <<` that has no `>>` after it, and a trailer
+        # runs to the end of the file when `startxref` is missing -- so a file
+        # can choose both the number of restarts and the length of each.
+        opener = re.search(rb"/Info\s*<<", trailer)
+        if opener is None:
             return
-        for match in _INFO_PATTERN.finditer(direct_info.group(1)):
+        closer = trailer.find(b">>", opener.end())
+        if closer < 0:
+            return
+        inner = trailer[opener.end() : closer]
+        for match in _INFO_PATTERN.finditer(inner):
             yield (
                 match.group(1).decode("ascii"),
                 match.group(2),
-                trailer_start + direct_info.start(1) + match.start(),
+                trailer_start + opener.end() + match.start(),
             )
 
     @staticmethod

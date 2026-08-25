@@ -9,7 +9,10 @@ RULES = (
     AttributionRule(
         id="anthropic.coauthor-claude",
         provider="anthropic",
-        pattern=r"Co-Authored-By:\s*Claude(?:\s[^<\r\n]*)?\s*<[^>]+>",
+        # `[^<\r\n]*` and a following `\s*` both accept a space, so a line of
+        # them can be divided between the two quantifiers in as many ways as it
+        # is long. The first already accepts everything the second did.
+        pattern=r"Co-Authored-By:[ \t]*Claude(?:[ \t][^<\r\n]*)?<[^>\r\n]{1,320}>",
         contexts=frozenset({Context.TEXT, Context.COMMENT, Context.GIT_COMMIT}),
         confidence=1.0,
         explanation="An explicit Claude co-author trailer is present.",

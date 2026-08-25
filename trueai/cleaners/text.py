@@ -143,8 +143,11 @@ class TextCleaner:
                 return [_Span(start, end, raw, "HTML generator metadata")]
             content = evidence.get("content", "")
             pattern = re.compile(
-                r"(?is)<meta\b(?=[^>]*\bname\s*=\s*(['\"]?)generator\1)"
-                r"(?=[^>]*\bcontent\s*=\s*(['\"]?)" + re.escape(str(content)) + r"\2)[^>]*>"
+                # `[^<>]` rather than `[^>]` in all three places. A `<meta` with
+                # no `>` makes each lookahead read to the end of the document,
+                # and there are three of them per candidate tag.
+                r"(?is)<meta\b(?=[^<>]*\bname\s*=\s*(['\"]?)generator\1)"
+                r"(?=[^<>]*\bcontent\s*=\s*(['\"]?)" + re.escape(str(content)) + r"\2)[^<>]*>"
             )
             match = pattern.search(text)
             if match:

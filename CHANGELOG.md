@@ -10,6 +10,49 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Security
+
+**Seven regular expressions a file could stall the scanner with**
+
+Quadratic in the length of the artifact, all of them reachable from
+`trueai scan <file>`, in a tool whose only job is reading files somebody else
+wrote. Measured rather than suspected: 800 kB of `<!--` with no `-->` did not
+finish in a minute, and 60 kB of CSS with no braces took seventeen seconds. Every
+one was inside the default 25 MB file limit at the point where it stopped
+finishing, so the limits that exist to bound a scan did not bound this.
+
+Three shapes, and the same mistake in each: a search that fails is retried from
+the next starting position, and the file chooses how many starting positions
+there are.
+
+- **A lazy span looking for a closing delimiter that is not present.** `<!--…-->`
+  in the fallback comment reader, `<?…?>` in an XML prolog, `/Info <<…>>` in a
+  PDF trailer that runs to the end of the file when `startxref` is missing.
+  Replaced with `trueai.core.spans`, which stops at the first failed search:
+  a closer that is missing after one opener is missing after every later one, so
+  the whole scan becomes forward `find` calls that never reread a byte. The
+  regions reported are the same ones, including that an unterminated comment is
+  still not a comment.
+- **A bracketed group whose contents could contain the bracket that opens it.**
+  `[^\]]*` in the CSS attribute-selector feature, `[^)]*` in the pseudo-class
+  and colour features, `[^>]*` in the `<path>` and `<meta>` scans. Excluding the
+  opener makes a failed attempt stop at the next candidate instead of at the end
+  of the file, and is also what the syntax means: none of these nest.
+- **Two adjacent quantifiers accepting the same character.** `[^<\r\n]*` followed
+  by `\s*` in the Claude and ChatGPT co-author trailers: a run of spaces can be
+  divided between them in as many ways as it is long. The first already accepts
+  what the second did.
+
+The CSS hidden-rule scan was rewritten rather than patched. `([^{}]+)\{` reads
+to the end of a stylesheet from every position not followed by a brace; it now
+matches braces with a bounded stack and searches each innermost block, which also
+fixes a rule inside an `@media` block being reported through a nested-brace
+accident rather than by design.
+
+`tests/unit/test_scanner_complexity.py` scans each hostile shape and fails if it
+takes longer than ten seconds, plus one test that doubles the input and requires
+less than an eightfold increase — a complexity class rather than a benchmark.
+
 ### Fixed
 
 **Plugins did not work on macOS or on any non-interactive Windows session**
