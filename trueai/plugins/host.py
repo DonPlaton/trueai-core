@@ -237,7 +237,8 @@ class IsolatedDetector:
             return False
         from trueai.plugins.windows_token import restricted_spawning_available
 
-        return restricted_spawning_available()
+        available, _ = restricted_spawning_available()
+        return available
 
     @contextlib.contextmanager
     def _scratch(self) -> Iterator[Path | None]:
@@ -381,7 +382,8 @@ class IsolatedDetector:
                 spawn_restricted,
             )
 
-            if restricted_spawning_available():
+            available, reason = restricted_spawning_available()
+            if available:
                 try:
                     return spawn_restricted(argv, environment=environment, timeout=self.timeout)
                 except RestrictedSpawnError as exc:
@@ -393,7 +395,7 @@ class IsolatedDetector:
                 raise ConfinementUnavailableError(
                     "Restricted-token spawning is unavailable on this machine, and the host "
                     "requires operating-system confinement. The worker was not started, so the "
-                    "plugin was not imported."
+                    f"plugin was not imported. {reason}"
                 )
 
         try:

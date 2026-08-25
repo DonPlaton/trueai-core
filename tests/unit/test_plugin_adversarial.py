@@ -135,9 +135,19 @@ def test_the_platform_report_matches_what_this_platform_can_enforce() -> None:
     # In a child. Applying it here would confine the test runner, and there is
     # no way back from a seccomp filter or a read-only mount namespace.
     report = confinement_report(ConfinementLevel.BEST_EFFORT)
-    if report.applied:
-        established = " ".join(report.established)
+    if not report.applied:
+        return
+    established = " ".join(report.established)
+    # Named per platform rather than as one list, because a report that
+    # accepted any wording would accept the wrong one. The Darwin branch used to
+    # pass this assertion only because no macOS worker ever reached it.
+    if available.platform == "linux":
         assert "seccomp" in established or "namespace" in established
+    elif available.platform == "darwin":
+        assert report.mechanism == "sandbox_init"
+        assert "deny by default" in established
+    else:  # pragma: no cover - a platform with a backend nobody has written yet
+        raise AssertionError(f"{available.platform} reports confinement with no stated mechanism")
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows-specific gap")

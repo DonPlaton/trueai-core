@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 import trueai.plugins.host as host_module
-from tests.support import confinement_report
+from tests.support import confinement_report, unavailable_confinement
 from trueai import TrueAIEngine
 from trueai.core.registry import DetectorRegistry
 from trueai.plugins import (
@@ -214,15 +214,53 @@ def test_the_syscall_table_only_covers_architectures_it_pinned() -> None:
 
 def test_the_macos_profile_denies_by_default(tmp_path: Path) -> None:
     from trueai.plugins.broker import TemporaryOutputGrant
-    from trueai.plugins.confinement import _sandbox_profile
+    from trueai.plugins.confinement import _sandbox_profile, _sbpl_literal
 
     profile = _sandbox_profile(
         BrokerGrants(temporary_output=TemporaryOutputGrant(directory=tmp_path))
     )
 
     assert "(deny default)" in profile
-    assert str(tmp_path) in profile
+    # Through the same escaping the profile is built with, not the raw path. On
+    # macOS the two are the same string; on any path containing a backslash they
+    # are not, and a test comparing the raw form asserts an invalid profile.
+    assert _sbpl_literal(tmp_path) in profile
     assert "network-outbound" not in profile
+
+
+def test_the_macos_profile_lets_the_worker_answer_the_host(tmp_path: Path) -> None:
+    """Denying the response file silences the worker, it does not confine the plugin.
+
+    `apply_confinement` has taken `writable_paths` for exactly this since it was
+    written, and the Darwin backend never received them: its signature had no
+    such parameter. The worker died writing its answer, exit 1, stderr discarded
+    by design, and the host reported `plugin_crashed` -- a plugin blamed for the
+    host's own sandbox. It stayed hidden because the address-space limit failed
+    first, so no macOS worker had ever reached the sandbox.
+    """
+
+    from trueai.plugins.confinement import _sandbox_profile, _sbpl_literal
+
+    response_directory = tmp_path / "protocol"
+    response_directory.mkdir()
+
+    profile = _sandbox_profile(BrokerGrants(), (response_directory,))
+
+    assert f'(allow file-write* (subpath "{_sbpl_literal(response_directory)}"))' in profile
+
+
+def test_the_macos_profile_names_the_resolved_path(tmp_path: Path) -> None:
+    """A subpath rule written against a symlink matches nothing.
+
+    On macOS a temporary directory is reached through `/var`, which is a symlink
+    to `/private/var`, and the sandbox matches on the real path. The scratch
+    grant was written unresolved, so `write_temporary` would not have worked
+    there either.
+    """
+
+    from trueai.plugins.confinement import _sbpl_literal
+
+    assert _sbpl_literal(tmp_path) == str(tmp_path.resolve()).replace("\\", "\\\\")
 
 
 def test_the_macos_profile_opens_only_what_a_grant_covers(tmp_path: Path) -> None:
@@ -243,8 +281,9 @@ def test_a_restricted_token_actually_drops_privileges(tmp_path: Path) -> None:
 
     from trueai.plugins.windows_token import restricted_spawning_available, spawn_restricted
 
-    if not restricted_spawning_available():
-        pytest.skip("This machine cannot create a restricted token")
+    available, reason = restricted_spawning_available()
+    if not available:
+        unavailable_confinement("A restricted-token worker", reason)
 
     probe = tmp_path / "probe.py"
     probe.write_text(
@@ -295,8 +334,9 @@ def test_a_restricted_token_actually_drops_privileges(tmp_path: Path) -> None:
 def test_a_restricted_worker_that_overruns_its_deadline_is_terminated(tmp_path: Path) -> None:
     from trueai.plugins.windows_token import restricted_spawning_available, spawn_restricted
 
-    if not restricted_spawning_available():
-        pytest.skip("This machine cannot create a restricted token")
+    available, reason = restricted_spawning_available()
+    if not available:
+        unavailable_confinement("A restricted-token worker", reason)
 
     with pytest.raises(TimeoutError):
         spawn_restricted(
@@ -548,7 +588,15 @@ def test_a_restricted_worker_runs_on_a_desktop_of_its_own() -> None:
     import json
     import tempfile
 
-    from trueai.plugins.windows_token import describe_restriction, spawn_restricted
+    from trueai.plugins.windows_token import (
+        describe_restriction,
+        restricted_spawning_available,
+        spawn_restricted,
+    )
+
+    available, reason = restricted_spawning_available()
+    if not available:
+        unavailable_confinement("A restricted-token worker", reason)
 
     host = describe_restriction()
     output = Path(tempfile.mkdtemp()) / "restriction.json"
@@ -585,6 +633,12 @@ def test_required_confinement_now_runs_plugins_on_windows(install_plugins, artif
     while the host had in fact restricted the token. The worker now measures what
     it was given and reports it, and the host checks the report.
     """
+
+    from trueai.plugins.windows_token import restricted_spawning_available
+
+    available, reason = restricted_spawning_available()
+    if not available:
+        unavailable_confinement("A restricted-token worker", reason)
 
     install_plugins(entry_point("declared", "DECLARED_REGISTRATION"))
     registry = DetectorRegistry()

@@ -283,7 +283,7 @@ def apply_confinement(
     if available.platform == "linux":
         return _apply_linux(grants, level, writable_paths)
     if available.platform == "darwin":
-        return _apply_darwin(grants, level)
+        return _apply_darwin(grants, level, writable_paths)
     raise ConfinementUnavailableError(f"No self-confinement backend for {available.platform}")
 
 
@@ -516,11 +516,17 @@ def _install_seccomp_filter(libc: ctypes.CDLL, denied: list[str]) -> None:
 # -- macOS ---------------------------------------------------------------------------
 
 
-def _sandbox_profile(grants: BrokerGrants) -> str:
+def _sandbox_profile(grants: BrokerGrants, writable_paths: tuple[Path, ...] = ()) -> str:
     """Build an SBPL profile from the grants.
 
     Deny by default, then re-allow exactly what a grant covers. The scratch
-    directory is the only writable location, and it is named rather than implied.
+    directory is the only writable location a *plugin* gets, and it is named
+    rather than implied.
+
+    ``writable_paths`` is separate and smaller: the directory the worker writes
+    its protocol response into. A sandbox that denies it does not confine the
+    plugin, it silences the worker -- the host sees a crash and reports it
+    against the plugin.
     """
 
     capabilities = grants.capabilities()
@@ -533,9 +539,12 @@ def _sandbox_profile(grants: BrokerGrants) -> str:
         "(allow sysctl-read)",
         "(allow file-read* file-read-metadata)",
     ]
+    for path in writable_paths:
+        lines.append(f'(allow file-write* (subpath "{_sbpl_literal(path)}"))')
     if grants.temporary_output is not None:
-        directory = str(grants.temporary_output.directory).replace('"', '\\"')
-        lines.append(f'(allow file-write* (subpath "{directory}"))')
+        lines.append(
+            f'(allow file-write* (subpath "{_sbpl_literal(grants.temporary_output.directory)}"))'
+        )
     if PluginCapability.NETWORK in capabilities:
         lines.append("(allow network-outbound)")
     if PluginCapability.RUN_SUBPROCESS in capabilities:
@@ -543,7 +552,26 @@ def _sandbox_profile(grants: BrokerGrants) -> str:
     return "\n".join(lines)
 
 
-def _apply_darwin(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementReport:
+def _sbpl_literal(path: Path) -> str:
+    """Return a path as an SBPL string literal.
+
+    Resolved because the sandbox matches on the real path: on macOS a temporary
+    directory is reached through `/var`, which is a symlink to `/private/var`,
+    and a subpath rule written with the unresolved form matches nothing.
+    """
+
+    try:
+        resolved = path.resolve()
+    except OSError:  # pragma: no cover - a path that cannot be resolved is used as given
+        resolved = path
+    return str(resolved).replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _apply_darwin(
+    grants: BrokerGrants,
+    level: ConfinementLevel,
+    writable_paths: tuple[Path, ...] = (),
+) -> ConfinementReport:
     """Apply an SBPL sandbox profile to this process.
 
     ``sandbox_init`` has been deprecated by Apple for years while remaining the
@@ -566,7 +594,7 @@ def _apply_darwin(grants: BrokerGrants, level: ConfinementLevel) -> ConfinementR
             ctypes.POINTER(ctypes.c_char_p),
         ]
         result = library.sandbox_init(
-            _sandbox_profile(grants).encode("utf-8"), 0, ctypes.byref(error)
+            _sandbox_profile(grants, writable_paths).encode("utf-8"), 0, ctypes.byref(error)
         )
     except OSError as exc:
         if level == ConfinementLevel.REQUIRED:

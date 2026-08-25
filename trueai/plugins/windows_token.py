@@ -76,6 +76,7 @@ _TOKEN_GROUPS = 2
 _TOKEN_PRIVILEGES = 3
 _SE_GROUP_USE_FOR_DENY_ONLY = 0x00000010
 _DESKTOP_ALL_ACCESS = 0x000F01FF
+_WINSTA_ALL_ACCESS = 0x0000037F
 _SDDL_REVISION_1 = 1
 _UOI_NAME = 2
 
@@ -239,6 +240,17 @@ def _declare_station(user32: ctypes.CDLL, kernel32: ctypes.CDLL) -> None:
 
     user32.GetProcessWindowStation.argtypes = []
     user32.GetProcessWindowStation.restype = wintypes.HANDLE
+    user32.SetProcessWindowStation.argtypes = [wintypes.HANDLE]
+    user32.SetProcessWindowStation.restype = wintypes.BOOL
+    user32.CreateWindowStationW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+    ]
+    user32.CreateWindowStationW.restype = wintypes.HANDLE
+    user32.CloseWindowStation.argtypes = [wintypes.HANDLE]
+    user32.CloseWindowStation.restype = wintypes.BOOL
     user32.GetUserObjectInformationW.argtypes = [
         wintypes.HANDLE,
         ctypes.c_int,
@@ -398,19 +410,28 @@ def _current_station_name(user32: ctypes.CDLL) -> str:
 
 
 def _private_desktop(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> str:
-    """Return ``station\\desktop`` for an alternate desktop, creating it once.
+    """Return ``station\\desktop`` for an isolated desktop, creating it once.
 
-    A whole window station would be the stronger isolation and is not available:
-    creating one needs rights an unprivileged account does not have, on every
-    access mask and with or without a security descriptor. A desktop on the
-    current station is what an ordinary process may create, and it is what
-    removes window enumeration, window messages, and hooks between the worker and
-    everything the operator is running.
+    Two rungs, strongest first.
 
-    Raises :class:`RestrictedSpawnError` when the desktop cannot be created, so
-    the caller decides whether to fall back or refuse. Falling back silently
-    would put the worker on the operator's own desktop while the report still
-    said the plugin was confined.
+    A window station of the worker's own is the real isolation: the child has to
+    pass an access check against the station with its own token, and a station
+    this process created carries a DACL naming the account rather than a group
+    the restricted token holds deny-only. That is the failure a hosted runner
+    hits -- the token is refused the station, and Windows destroys the process
+    during DLL initialisation before it runs an instruction. Creating a station
+    needs rights an ordinary interactive account does not have, so it is
+    attempted and not required.
+
+    Failing that, a desktop on the current station. An unprivileged process may
+    create one, and it removes window enumeration, window messages, and hooks
+    between the worker and everything the operator is running -- but it cannot
+    help a token that is refused the station itself.
+
+    Raises :class:`RestrictedSpawnError` when neither can be created, so the
+    caller decides whether to fall back or refuse. Falling back silently would
+    put the worker on the operator's own desktop while the report still said the
+    plugin was confined.
     """
 
     global _DESKTOP
@@ -423,28 +444,84 @@ def _private_desktop(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> str:
         user32, kernel32 = _user32(), _kernel32()
         _declare_station(user32, kernel32)
         try:
-            station = _current_station_name(user32)
             attributes, descriptor = _security_attributes(
                 advapi32, _token_user_sid(advapi32, token)
             )
         except RestrictedSpawnError as exc:
             _DESKTOP = (None, str(exc))
             raise
-        desktop_name = f"trueai-{os.getpid()}-{secrets.token_hex(4)}"
+        suffix = f"{os.getpid()}-{secrets.token_hex(4)}"
+        resolved: str | RestrictedSpawnError
         try:
-            desktop = user32.CreateDesktopW(
-                desktop_name, None, None, 0, _DESKTOP_ALL_ACCESS, ctypes.byref(attributes)
-            )
-            last_error = ctypes.get_last_error()
+            own = _own_station_and_desktop(user32, attributes, suffix)
+            resolved = own if own is not None else _alternate_desktop(user32, attributes, suffix)
         finally:
             kernel32.LocalFree(descriptor)
-        if not desktop:
-            message = f"CreateDesktop failed: {ctypes.WinError(last_error)}"
-            _DESKTOP = (None, message)
-            raise RestrictedSpawnError(message)
-        _DESKTOP_HANDLES.append(desktop)
-        _DESKTOP = (f"{station}\\{desktop_name}", None)
-        return _DESKTOP[0] or ""
+        if isinstance(resolved, RestrictedSpawnError):
+            _DESKTOP = (None, str(resolved))
+            raise resolved
+        _DESKTOP = (resolved, None)
+        return resolved
+
+
+def _own_station_and_desktop(
+    user32: ctypes.CDLL, attributes: _SecurityAttributes, suffix: str
+) -> str | None:
+    """Create a window station and a desktop on it, or return None if refused.
+
+    ``CreateDesktop`` always creates on the *calling process's* station, so the
+    host stands on the new one for the length of one call and is put back in the
+    ``finally``. The module lock is what keeps another thread from observing the
+    host on the wrong station in between.
+    """
+
+    station_name = f"trueai-{suffix}"
+    station = user32.CreateWindowStationW(
+        station_name, 0, _WINSTA_ALL_ACCESS, ctypes.byref(attributes)
+    )
+    if not station:
+        # Ordinary rather than exceptional: an interactive account is refused
+        # this, on every access mask, with and without a security descriptor.
+        return None
+    previous = user32.GetProcessWindowStation()
+    if not user32.SetProcessWindowStation(station):
+        user32.CloseWindowStation(station)
+        return None
+    try:
+        desktop = user32.CreateDesktopW(
+            "Default", None, None, 0, _DESKTOP_ALL_ACCESS, ctypes.byref(attributes)
+        )
+    finally:
+        user32.SetProcessWindowStation(previous)
+    if not desktop:
+        user32.CloseWindowStation(station)
+        return None
+    # Both handles are held for the life of the process: a station or desktop
+    # with no open handle and nothing running on it is destroyed by the kernel,
+    # which would take the next worker's with it.
+    _DESKTOP_HANDLES.extend([station, desktop])
+    return f"{station_name}\\Default"
+
+
+def _alternate_desktop(
+    user32: ctypes.CDLL, attributes: _SecurityAttributes, suffix: str
+) -> str | RestrictedSpawnError:
+    """Create a desktop on the station this process is already attached to."""
+
+    try:
+        station = _current_station_name(user32)
+    except RestrictedSpawnError as exc:
+        return exc
+    desktop_name = f"trueai-{suffix}"
+    desktop = user32.CreateDesktopW(
+        desktop_name, None, None, 0, _DESKTOP_ALL_ACCESS, ctypes.byref(attributes)
+    )
+    if not desktop:
+        return RestrictedSpawnError(
+            f"CreateDesktop failed: {ctypes.WinError(ctypes.get_last_error())}"
+        )
+    _DESKTOP_HANDLES.append(desktop)
+    return f"{station}\\{desktop_name}"
 
 
 def _environment_block(environment: dict[str, str]) -> ctypes.Array[ctypes.c_wchar]:
@@ -728,38 +805,55 @@ def _administrators_state(advapi32: ctypes.CDLL, token: wintypes.HANDLE) -> tupl
     return False, False
 
 
-def restricted_spawning_available() -> bool:
-    """Return whether a restricted token can actually be created on this machine.
+#: Answered once per host process. The probe starts a real process, so repeating
+#: it per plugin would cost an interpreter launch per artifact scanned.
+_SPAWN_PROBE_LOCK = threading.Lock()
+_SPAWN_PROBE: tuple[bool, str] | None = None
 
-    Probed rather than assumed: creating the token is cheap, and discovering at
-    scan time that the mechanism is unavailable would turn a security posture into
-    a plugin outage.
+
+def restricted_spawning_available() -> tuple[bool, str]:
+    """Return whether a *worker* can actually start under a restricted token.
+
+    Creating the token is the easy half and was all this used to check. The half
+    that fails is the child passing an access check against a window station
+    using that token: Windows destroys it during DLL initialisation with
+    ``STATUS_DLL_INIT_FAILED``, before Python runs, with no output and no exit
+    code of its own. Reported by the host as a crashed plugin, which blames the
+    plugin for something the host could not do.
+
+    So this starts one -- an interpreter that exits immediately -- and caches the
+    answer. A host asking for ``required`` confinement finds out before the scan
+    rather than once per plugin.
     """
 
+    global _SPAWN_PROBE
     if os.name != "nt":
-        return False
+        return False, "Restricted-token spawning is a Windows mechanism."
+    with _SPAWN_PROBE_LOCK:
+        if _SPAWN_PROBE is not None:
+            return _SPAWN_PROBE
+        _SPAWN_PROBE = _probe_restricted_spawn()
+        return _SPAWN_PROBE
+
+
+def _probe_restricted_spawn() -> tuple[bool, str]:
+    """Start and wait for one trivial worker under the real restriction."""
+
+    import sys
+
     try:
-        kernel32, advapi32 = _kernel32(), _advapi32()
-        _declare(kernel32, advapi32)
-        token = wintypes.HANDLE()
-        if not advapi32.OpenProcessToken(
-            kernel32.GetCurrentProcess(),
-            _TOKEN_DUPLICATE | _TOKEN_QUERY | _TOKEN_ASSIGN_PRIMARY,
-            ctypes.byref(token),
-        ):
-            return False
-        restricted = wintypes.HANDLE()
-        try:
-            ok = advapi32.CreateRestrictedToken(
-                token, _DISABLE_MAX_PRIVILEGE, 0, None, 0, None, 0, None, ctypes.byref(restricted)
-            )
-        finally:
-            kernel32.CloseHandle(token)
-        if ok:
-            kernel32.CloseHandle(restricted)
-        return bool(ok)
-    except OSError:
-        return False
+        code = spawn_restricted(
+            [sys.executable, "-I", "-c", "raise SystemExit(0)"],
+            environment=dict(os.environ),
+            timeout=60.0,
+        )
+    except RestrictedSpawnError as exc:
+        return False, str(exc)
+    except (OSError, TimeoutError) as exc:
+        return False, f"The restricted-token probe did not finish: {exc}"
+    if code != 0:
+        return False, f"A worker under a restricted token exited with {code}."
+    return True, "A worker started, ran, and exited under a restricted token."
 
 
 __all__ = [

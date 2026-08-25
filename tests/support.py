@@ -19,6 +19,9 @@ import pytest
 ENFORCEMENT_VARIABLE = "TRUEAI_REQUIRE_PRIVILEGED_TESTS"
 OPTIONAL_DEPENDENCY_VARIABLE = "TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES"
 BUILT_DISTRIBUTION_VARIABLE = "TRUEAI_REQUIRE_BUILT_DISTRIBUTIONS"
+#: Shared with ``scripts/verify_native_plugins.py`` so that "where is this
+#: actually checked" has one answer rather than one per platform.
+CONFINEMENT_VARIABLE = "TRUEAI_REQUIRE_CONFINEMENT"
 
 
 def privileged_tests_required() -> bool:
@@ -93,6 +96,23 @@ def assert_optional_dependencies(*names: str) -> None:
             f"{OPTIONAL_DEPENDENCY_VARIABLE} is set but these modules are missing: "
             + ", ".join(missing)
         )
+
+
+def unavailable_confinement(control: str, reason: object) -> NoReturn:
+    """Skip, or fail where the operating-system control is expected to work.
+
+    Not the same as a failure. A restricted Windows token cannot attach to the
+    window station of a hosted runner's non-interactive session, and a Linux
+    runner refuses the unshare an unprivileged mount namespace needs. Reporting
+    either as a broken control says the confinement is broken, when the truth is
+    that this machine will not offer it -- and only one of those should wake
+    somebody up.
+    """
+
+    message = f"{control} is unavailable on this machine: {reason}"
+    if os.environ.get(CONFINEMENT_VARIABLE, "").strip().lower() in {"1", "true", "yes"}:
+        pytest.fail(f"{message}\n{CONFINEMENT_VARIABLE} is set, so this control must hold here.")
+    pytest.skip(message)
 
 
 # -- prerequisites the test matrix deliberately does not provide -----------------------
