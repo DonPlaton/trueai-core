@@ -5261,6 +5261,19 @@
             }
           ]
         }
+      },
+      "kind_for": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "remediation_id",
+              "required": true
+            }
+          ]
+        }
       }
     },
     "trueai.detectors.base": {

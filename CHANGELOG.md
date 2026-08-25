@@ -12,6 +12,35 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A catalogue of everything TrueAI can remove**
+
+- `trueai/core/remediation_catalog.py` declares all twenty removal operations:
+  what each takes out, which format it applies to, its safety class, and **why
+  that class and not the neighbouring one**.
+- Two gates in `tests/unit/test_remediation_catalog.py`. The catalogue and the
+  code must name the same operations in **both directions**, so a new removable
+  field cannot ship uncatalogued and a stale entry cannot survive a removal. And
+  every catalogued operation must be named by a test, which is what stops a
+  removable field shipping without a regression fixture.
+- `tests/unit/test_removable_field_fixtures.py` — the six fixtures that second
+  gate demanded. The suite already exercised those paths; what it could not do
+  was answer "which removable fields have a fixture", so it could not notice one
+  shipping without.
+
+### Fixed
+
+- Remediation safety was decided by a **prefix match on the identifier**, so
+  `odf.remove-metadata-field` was classified as a content change for as long as
+  ODF support existed — not because anybody decided ODF metadata was content, but
+  because `"odf."` was never added to a tuple. `meta.xml` is a separate part
+  exactly like `docProps`, so removing a field from it cannot change what a
+  reader sees; it is now `safe_metadata`, declared with that reason. It happened
+  to fail safe, which is why nothing noticed. **This is a behaviour change**: ODF
+  metadata removal no longer requires review under policies that gate on
+  `predictable_content`.
+- The planner now asks the catalogue, falling back to the strictest class for an
+  unknown identifier rather than guessing from a prefix.
+
 **Advisory tracking that fails when nobody has looked**
 
 - `security/advisories.toml` and `scripts/check_advisories.py`. `pip-audit`

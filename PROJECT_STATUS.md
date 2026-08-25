@@ -515,7 +515,19 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   gate that quietly does nothing reports success either way — which surfaced three spelling variants
   the two readers disagree on. All four run together in `check_supply_chain.py`, in CI, and at
   release. 34 tests; `docs/supply-chain.md`.
-- [ ] `QA-03` Maintain synthetic regression fixtures for every bug and every new removable field.
+- [x] `QA-03` `trueai/core/remediation_catalog.py` declares all twenty removal operations — what
+  each takes out, its safety class, and **why that class and not the neighbouring one**. Writing it
+  found a real bug: safety was a prefix match on the identifier, so `odf.remove-metadata-field` was
+  classified as a content change for as long as ODF support existed, not by decision but because
+  `"odf."` was never added to a tuple. `meta.xml` is a separate part exactly like `docProps`, so it
+  is now `safe_metadata` with that sentence attached; it happened to fail safe, which is why nothing
+  noticed. Two gates: the catalogue and the code must name the same operations **in both
+  directions**, and every catalogued operation must be named by a test. The second found six
+  operations the suite exercised without naming, so the coverage question was unanswerable —
+  `tests/unit/test_removable_field_fixtures.py` now pins each specifically: planned, applied, and
+  through the integrity gate. An uncatalogued identifier falls back to the strictest class in the
+  planner and raises in `safety_for`, since a planner is not the place to fail a scan but a caller
+  that can handle the error should not be handed a guess. 47 tests; `docs/findings.md`.
 - [ ] `QA-04` Keep documentation, schemas, CLI help, the Codex skill, and this backlog aligned with
   demonstrated behavior.
 - [ ] `QA-05` Define support and disclosure processes for security reports, plugin incidents, trust

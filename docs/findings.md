@@ -52,3 +52,50 @@ only the minimum material required to explain and safely re-identify the observa
 
 Finding IDs are SHA-256-derived fingerprints over detector ID, artifact path, category, provider,
 evidence, and location. They are stable for identical evidence but are not global content IDs.
+
+## What TrueAI can remove
+
+`trueai/core/remediation_catalog.py` declares every removal operation: what it
+takes out, which format it applies to, its safety class, and **why that class
+and not the neighbouring one**.
+
+Until it existed, safety was a prefix match on the identifier:
+
+```python
+if remediation_id.startswith(("docx.", "pptx.", "xlsx.", "pdf.", "image.", "media.")):
+    return RemediationSafety.SAFE_METADATA
+```
+
+That works right up until somebody adds a format and does not add its prefix.
+`odf.remove-metadata-field` was classified `predictable_content` for as long as
+ODF support existed — not because anybody decided ODF metadata was content, but
+because `"odf."` was never added to a tuple. `meta.xml` is a separate part
+exactly like `docProps`, so removing a field from it cannot change what a reader
+sees, and it is now `safe_metadata` with that sentence attached. It happened to
+fail safe, which is why nothing noticed; the next such accident might not.
+
+The `why` field is what forces the comparison. Writing "meta.xml is a separate
+part, exactly like docProps" is what makes a wrong classification visible.
+
+### Every operation needs a fixture
+
+Two gates in `tests/unit/test_remediation_catalog.py`:
+
+- the catalogue and the code must name the same operations **in both
+  directions**, so a new removable field cannot ship uncatalogued and a stale
+  entry cannot survive a removal;
+- every catalogued operation must be named by a test, which is what stops a
+  removable field shipping without a regression fixture.
+
+The second gate found six operations the suite exercised without naming —
+`docx.remove-custom-property`, `xlsx.remove-metadata-field`,
+`xlsx.remove-custom-property`, `pptx.remove-metadata-field`,
+`svg.remove-generator-comment`, `html.remove-attribution-comment`. A privacy-run
+over a workbook removes metadata whether or not any test says so; what was
+missing was the ability to *answer the question*.
+`tests/unit/test_removable_field_fixtures.py` pins each one specifically: that it
+is planned, that it is applied, and that the integrity gate agrees.
+
+An identifier the catalogue does not know falls back to the strictest class in
+the planner — a planner is not the place to fail a scan — while `safety_for()`
+raises, because a caller that can handle the error should not be handed a guess.

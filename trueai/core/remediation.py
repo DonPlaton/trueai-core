@@ -29,6 +29,7 @@ from trueai.core.models import (
     Severity,
 )
 from trueai.core.policy import PolicyProfile
+from trueai.core.remediation_catalog import kind_for
 
 _PROTECTED_CATEGORIES = {
     FindingCategory.C2PA_PROVENANCE,
@@ -114,11 +115,22 @@ class RemediationPlanner:
 
     @staticmethod
     def _safety(remediation_id: str) -> RemediationSafety:
-        if remediation_id.startswith(("docx.", "pptx.", "xlsx.", "pdf.", "image.", "media.")):
-            return RemediationSafety.SAFE_METADATA
-        if remediation_id.startswith("git."):
-            return RemediationSafety.DESTRUCTIVE
-        return RemediationSafety.PREDICTABLE_CONTENT
+        """Return the declared safety class for an operation.
+
+        This used to match on the identifier's prefix, which classified
+        `odf.remove-metadata-field` as a content change for as long as ODF
+        support existed — not because anybody decided ODF metadata was content,
+        but because "odf." was never added to a tuple. The catalogue states each
+        one with a reason instead.
+
+        An uncatalogued identifier falls back to the most restrictive class
+        rather than raising: a planner is not the place to fail a scan, and
+        treating an unknown operation as content-changing is the safe reading.
+        A test forbids the case from arising.
+        """
+
+        entry = kind_for(remediation_id)
+        return entry.safety if entry is not None else RemediationSafety.PREDICTABLE_CONTENT
 
 
 class RemediationService:
