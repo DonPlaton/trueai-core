@@ -417,8 +417,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   imbalanced quietly. Retention needs a stated deletion method, and indefinite has to be chosen
   rather than defaulted into. Nothing here is imported by a detector, a cleaner, or the engine.
   45 tests; `docs/research-data.md`.
-- [ ] `ML-02` Publish a detector-evaluation protocol covering false positives, calibration, domain
-  shift, subgroup analysis, abstention, and reproducibility.
+- [x] `ML-02` `trueai/research/evaluation.py` is the protocol as runnable code, not a description
+  of one. The headline is the **false positive rate**, not accuracy: accuracy averages the harm of
+  telling someone their human-written document was machine-generated together with the harmless kind
+  of mistake, so `summary()` emits no accuracy figure and a test asserts it. Every rate carries a
+  Wilson interval — the normal approximation gives zero width at a rate of zero, exactly where a
+  small sample needs one — and a rate under 30 samples is marked unreliable, because printing "0.0%"
+  for a group of five reads like a measurement. Subgroup analysis reports the worst rate among groups
+  *large enough to score* (otherwise a five-sample group with one mistake becomes the headline) and
+  flags a gap over 5 points: a detector at 3% overall and 15% on second-language writing is not a 3%
+  detector. Domain spread is reported because one aggregate hides what a new deployment will meet.
+  Coverage travels with every metric, since a detector allowed to abstain reaches any figure by
+  answering only the easy cases. `ProtocolRecord` requires corpus digest, model, threshold, seed, and
+  code version — a number that cannot be recomputed is an anecdote. `problems()` lists every reason
+  a result must not be quoted alone, and a clean run produces none. 37 tests;
+  `docs/evaluation-protocol.md`.
 - [ ] `ML-03` Train only optional, replaceable consumers of versioned feature vectors; keep heavy ML
   dependencies outside the core package.
 - [ ] `ML-04` Add model cards, dataset statements, signed model manifests, versioned thresholds, and

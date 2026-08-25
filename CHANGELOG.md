@@ -12,6 +12,38 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A detector-evaluation protocol that refuses to publish a flattering number**
+
+- `trueai.research.evaluation`. The headline is the **false positive rate**, not
+  accuracy — accuracy averages the harm of telling someone their human-written
+  document was machine-generated together with the harmless kind of mistake, and
+  reports one number that hides it. `summary()` emits no accuracy figure at all.
+- A rate quoted without its operating point is not a measurement, so the
+  threshold is required and appears in the summary.
+- Every rate carries a 95% **Wilson** interval. The normal approximation gives a
+  zero-width interval at a rate of zero, which is exactly where a small sample
+  most needs one. A rate over fewer than 30 samples is marked unreliable —
+  printing "0.0%" for a group of five is worse than printing nothing.
+- **Subgroups.** `worst_subgroup()` reports the worst rate among groups large
+  enough to score, and a gap of more than 5 points above the overall rate is a
+  problem. A detector at 3% overall and 15% on second-language writing is not a
+  3% detector; it is a tool that penalises non-native speakers.
+- **Domain shift.** Per-domain rates plus the best-to-worst spread, because one
+  aggregate hides what a new deployment will meet.
+- **Abstention.** Coverage travels with every metric and an abstention never
+  counts as a correct answer. A detector allowed to say "I do not know" can reach
+  any figure by answering only the easy cases.
+- **Calibration.** Expected calibration error over a reliability diagram; a score
+  of 0.9 should be wrong about one time in ten, and an uncalibrated score is a
+  number wearing a probability's clothes.
+- **Reproducibility.** `ProtocolRecord` requires the corpus digest, model
+  identifier, threshold, seed, code version, and an offset-bearing timestamp. A
+  number that cannot be recomputed is an anecdote.
+- `problems()` lists every reason a result must not be quoted alone, and a clean
+  evaluation produces none — a checker that always complains is one people learn
+  to ignore.
+- `docs/evaluation-protocol.md`.
+
 **Corpus governance as code, before there is a corpus**
 
 - `trueai.research.corpus`. Five rules — consent, licensing, domain balance,
