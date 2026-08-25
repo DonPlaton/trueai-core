@@ -74,8 +74,8 @@ repository that issued it:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify trueai_core-0.1.0-py3-none-any.whl --repo OWNER/REPOSITORY
-gh attestation verify trueai_core-0.1.0.tar.gz --repo OWNER/REPOSITORY
+gh attestation verify trueai_core-0.1.0-py3-none-any.whl --repo DonPlaton/trueai-core
+gh attestation verify trueai_core-0.1.0.tar.gz --repo DonPlaton/trueai-core
 ```
 
 The release also carries Sigstore bundles for independent identity verification:
@@ -83,7 +83,7 @@ The release also carries Sigstore bundles for independent identity verification:
 ```bash
 python -m pip install sigstore
 sigstore verify identity trueai_core-0.1.0-py3-none-any.whl \
-  --cert-identity "https://github.com/OWNER/REPOSITORY/.github/workflows/release.yml@refs/tags/v0.1.0" \
+  --cert-identity "https://github.com/DonPlaton/trueai-core/.github/workflows/release.yml@refs/tags/v0.1.0" \
   --cert-oidc-issuer "https://token.actions.githubusercontent.com"
 ```
 

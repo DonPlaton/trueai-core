@@ -63,7 +63,7 @@ class SARIFReporter:
                         "driver": {
                             "name": "TrueAI Core",
                             "version": report.package_version,
-                            "informationUri": "https://github.com/trueai-core/trueai-core",
+                            "informationUri": "https://github.com/DonPlaton/trueai-core",
                             "rules": list(rules.values()),
                         }
                     },

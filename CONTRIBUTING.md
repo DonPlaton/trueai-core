@@ -7,7 +7,7 @@ and unsupported AI-authorship claims.
 ## Development setup
 
 ```console
-git clone https://github.com/trueai-core/trueai-core.git
+git clone https://github.com/DonPlaton/trueai-core.git
 cd trueai-core
 uv sync --all-extras
 uv run pytest

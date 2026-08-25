@@ -63,9 +63,9 @@ release = [
 trueai = "trueai.cli.app:main"
 
 [project.urls]
-Documentation = "https://github.com/trueai-core/trueai-core#readme"
-Issues = "https://github.com/trueai-core/trueai-core/issues"
-Source = "https://github.com/trueai-core/trueai-core"
+Documentation = "https://github.com/DonPlaton/trueai-core#readme"
+Issues = "https://github.com/DonPlaton/trueai-core/issues"
+Source = "https://github.com/DonPlaton/trueai-core"
 
 # The wheel carries only what the runtime needs. Tests, fixtures, and release
 # tooling are development inputs and must not reach an installed environment.
