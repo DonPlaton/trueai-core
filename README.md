@@ -208,6 +208,11 @@ timing, edit lists, indexes, encryption state, rendering geometry, and provenanc
 same-length `free` padding, so nothing moves and no offset needs correcting; the file keeps its
 size, and a container carrying a C2PA manifest is refused outright.
 
+OpenDocument packages are inspected and cleaned on the same ZIP safety layer as Office Open XML.
+Legacy binary Office (`.doc`, `.xls`, `.ppt`) is identified and reported as *not inspected* rather
+than skipped, because a silent skip reads like a clean result; see
+[ODF and legacy Office](docs/odf-and-legacy-office.md).
+
 See [safety](docs/safety.md) and [finding semantics](docs/findings.md).
 
 ## Policies

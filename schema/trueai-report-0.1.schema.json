@@ -68,6 +68,8 @@
         "docx",
         "pptx",
         "xlsx",
+        "odf",
+        "legacy_office",
         "pdf",
         "png",
         "jpeg",

@@ -176,8 +176,17 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   and *retained* bytes; exhaustion returns partial measurements with `complete=False` rather than
   raising. Findings are `STRUCTURAL_SIGNAL`/`INFO`/`ProvenanceClass.NONE` and say in words that
   they are not evidence of authorship.
-- [ ] `FMT-06` Evaluate ODF and legacy binary Office support; proceed only with maintained parsers,
-  hostile-input tests, and a format-specific integrity proof.
+- [x] `FMT-06` Evaluated both against the three conditions; the reasoning is in
+  `docs/odf-and-legacy-office.md`. **ODF proceeds**: it is a ZIP package, so `zipfile`, `defusedxml`,
+  and the entire OPC hostile-input layer apply unchanged, and the integrity proof is a comparison
+  (`content.xml` byte-identical, every entry but `meta.xml` unchanged, `mimetype` still first and
+  stored). Detection and cleanup are implemented, with macro storage listed but never parsed.
+  **Legacy binary Office does not**: nothing maintained writes CFB, and an integrity proof would
+  have to reason about interleaved sector chains rather than separable entries. It is identified as
+  `ArtifactType.LEGACY_OFFICE` and reported as not inspected, because a file silently skipped looks
+  exactly like a file that was clean. Writing the ODF registry entry surfaced a real gap: `VIDEO`
+  had no cleaner, so the MP4 and WebM cleanup from `FMT-02`/`FMT-03` was unreachable through the
+  pipeline.
 
 #### P1 — enterprise trust and certificate infrastructure
 

@@ -57,6 +57,19 @@ _OOXML_MARKERS: tuple[tuple[bytes, ArtifactType, str], ...] = (
     ),
 )
 _OOXML_CONTENT_TYPES_PART = b"[Content_Types].xml"
+
+# OpenDocument packages declare their own type in an uncompressed `mimetype`
+# entry that the specification requires to come first. Reading it is how the
+# family is decided; the file name is attacker-controlled.
+_ODF_MIMETYPE_PREFIX = b"application/vnd.oasis.opendocument."
+_ODF_MARKER = b"mimetype"
+_ODF_SUFFIXES = frozenset({".odt", ".ods", ".odp", ".odg", ".odf", ".ott", ".ots", ".otp"})
+
+# Compound File Binary header. Legacy Word, Excel, and PowerPoint all start with
+# it, as do a few unrelated formats, so the signature identifies the container
+# rather than the application.
+_CFB_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+_LEGACY_OFFICE_SUFFIXES = frozenset({".doc", ".xls", ".ppt", ".dot", ".xlt", ".pot"})
 _OOXML_BY_SUFFIX: dict[str, tuple[ArtifactType, str]] = {
     ".docx": (ArtifactType.DOCX, _OOXML_MARKERS[0][2]),
     ".docm": (ArtifactType.DOCX, "application/vnd.ms-word.document.macroEnabled.12"),
@@ -514,7 +527,18 @@ class ArtifactDiscovery:
             if suffix in {".weba", ".mka"}:
                 return ArtifactType.AUDIO, "audio/webm"
             return ArtifactType.VIDEO, "video/webm"
+        if head.startswith(_CFB_SIGNATURE):
+            # Identified, not parsed. See docs/legacy-office.md for why cleanup
+            # is refused; naming the format is what stops a skip from reading as
+            # a clean result.
+            return ArtifactType.LEGACY_OFFICE, "application/x-ole-storage"
         if head.startswith(_ZIP_SIGNATURES):
+            # The ODF mimetype entry is stored uncompressed and required to be
+            # first, so the declared type is in the opening bytes and needs no
+            # archive expansion to read.
+            declared = ArtifactDiscovery._sniff_odf_mimetype(head)
+            if declared is not None:
+                return ArtifactType.ODF, declared
             known = _OOXML_BY_SUFFIX.get(suffix)
             if known is not None:
                 return known
@@ -522,6 +546,8 @@ class ArtifactDiscovery:
                 sniffed = ArtifactDiscovery._sniff_ooxml(path)
                 if sniffed is not None:
                     return sniffed
+            if suffix in _ODF_SUFFIXES:
+                return ArtifactType.ODF, "application/vnd.oasis.opendocument.text"
 
         if head.startswith((b"\xff\xfe", b"\xfe\xff")):
             if suffix in _MARKDOWN_EXTENSIONS:
@@ -549,6 +575,32 @@ class ArtifactDiscovery:
         if suffix in _TEXT_EXTENSIONS or ArtifactDiscovery._is_probably_text(head):
             return ArtifactType.TEXT, "text/plain"
         return ArtifactType.UNKNOWN, None
+
+    @staticmethod
+    def _sniff_odf_mimetype(head: bytes) -> str | None:
+        """Return an ODF media type read from the opening bytes, or None.
+
+        The specification requires the `mimetype` entry to be first and stored
+        without compression, so its value sits in plain bytes near the start of
+        the file. Reading it there means the archive is never opened during type
+        identification, and a hostile package cannot be inflated by being looked
+        at.
+        """
+
+        marker = head.find(_ODF_MARKER)
+        if marker < 0:
+            return None
+        window = head[marker : marker + 256]
+        start = window.find(_ODF_MIMETYPE_PREFIX)
+        if start < 0:
+            return None
+        value = bytearray()
+        for byte in window[start:]:
+            if byte in b"\x00\r\nPK" or byte < 0x20:
+                break
+            value.append(byte)
+        declared = bytes(value).decode("ascii", "replace")
+        return declared or None
 
     @staticmethod
     def _sniff_ooxml(path: Path) -> tuple[ArtifactType, str] | None:

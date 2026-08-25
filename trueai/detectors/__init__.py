@@ -29,6 +29,7 @@ def create_default_registry(
     from trueai.detectors.design.raster import RasterMetadataDetector
     from trueai.detectors.design.svg import SVGDetector
     from trueai.detectors.documents.docx import DOCXDetector
+    from trueai.detectors.documents.odf import OpenDocumentDetector
     from trueai.detectors.documents.pdf import PDFDetector
     from trueai.detectors.documents.pptx import PPTXDetector
     from trueai.detectors.documents.xlsx import XLSXDetector
@@ -52,6 +53,7 @@ def create_default_registry(
         HTMLDetector(),
         CSSDetector(),
         DOCXDetector(),
+        OpenDocumentDetector(),
         PPTXDetector(),
         XLSXDetector(),
         PDFDetector(),

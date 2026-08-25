@@ -4,6 +4,7 @@ from trueai.cleaners.base import Cleaner, CleanerOutcome
 from trueai.cleaners.git import GitCleaner
 from trueai.cleaners.image import ImageMetadataCleaner
 from trueai.cleaners.media import MediaMetadataCleaner
+from trueai.cleaners.odf import OpenDocumentCleaner
 from trueai.cleaners.ooxml import DOCXCleaner, OfficeOpenXmlCleaner, PPTXCleaner, XLSXCleaner
 from trueai.cleaners.pdf import PDFCleaner
 from trueai.cleaners.svg import SVGCleaner
@@ -34,11 +35,22 @@ def cleaner_for(artifact_type: ArtifactType) -> Cleaner:
         return ImageMetadataCleaner()
     if artifact_type == ArtifactType.PDF:
         return PDFCleaner()
-    if artifact_type == ArtifactType.AUDIO:
+    if artifact_type == ArtifactType.ODF:
+        return OpenDocumentCleaner()
+    if artifact_type in {ArtifactType.AUDIO, ArtifactType.VIDEO}:
+        # Video was missing here while the ISO-BMFF and EBML branches were being
+        # written, so a plan that selected MP4 or WebM metadata failed with "no
+        # cleaner supports video" rather than running the cleanup that existed.
         return MediaMetadataCleaner()
     if artifact_type == ArtifactType.GIT_REPOSITORY:
         return GitCleaner()
     raise ValueError(f"No cleaner supports {artifact_type.value}")
 
 
-__all__ = ["Cleaner", "CleanerOutcome", "OfficeOpenXmlCleaner", "cleaner_for"]
+__all__ = [
+    "Cleaner",
+    "CleanerOutcome",
+    "OfficeOpenXmlCleaner",
+    "OpenDocumentCleaner",
+    "cleaner_for",
+]

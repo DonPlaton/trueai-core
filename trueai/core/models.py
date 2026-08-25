@@ -29,6 +29,13 @@ class ArtifactType(StrEnum):
     DOCX = "docx"
     PPTX = "pptx"
     XLSX = "xlsx"
+    #: OpenDocument text, spreadsheet, presentation, and their templates. One
+    #: type rather than three, because unlike OOXML they share one content part
+    #: and one metadata part; the subtype is read from the package's mimetype.
+    ODF = "odf"
+    #: Compound File Binary: .doc, .xls, .ppt. Identified so a reader learns the
+    #: file was not inspected, rather than a skip being mistaken for a clean scan.
+    LEGACY_OFFICE = "legacy_office"
     PDF = "pdf"
     PNG = "png"
     JPEG = "jpeg"

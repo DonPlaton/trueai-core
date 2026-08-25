@@ -12,6 +12,43 @@ change is called out explicitly and governed by
 
 ### Added
 
+**OpenDocument inspection and cleanup**
+
+- `ArtifactType.ODF` covers OpenDocument text, spreadsheets, presentations, and
+  their templates. One type rather than three, because unlike OOXML they share a
+  single content part and a single metadata part; the subtype is read from the
+  package's `mimetype` entry and reported per finding as `document_kind`.
+- Identification reads that entry from the file's opening bytes. The
+  specification requires it to be first and stored uncompressed, so the archive is
+  never opened during type identification and a hostile package cannot be inflated
+  by being looked at. The file name is not consulted first: an extension is
+  attacker-controlled, the package's own declaration is not.
+- Detection reports `meta.xml` fields including `meta:user-defined` under its
+  declared name, marks provenance-bearing values unremovable, and **lists macro
+  storage without parsing or executing it**.
+- Cleanup removes selected fields and proves the result: `content.xml`
+  byte-identical, every entry but `meta.xml` unchanged, and the `mimetype` entry
+  still first and still stored uncompressed. A package that loses either mimetype
+  property stops being recognised by readers, which would be a cleanup that broke
+  the file while leaving its content intact.
+- `ArtifactType.LEGACY_OFFICE` identifies `.doc`, `.xls`, and `.ppt` by their
+  Compound File Binary header and reports them as not inspected. `FMT-06`
+  evaluated the format and declined: nothing maintained writes CFB, and an
+  integrity proof would have to reason about interleaved sector chains rather than
+  separable entries. A file silently skipped looks exactly like a file that was
+  clean, so the format is named instead.
+- `docs/odf-and-legacy-office.md` records both decisions and what would change
+  them.
+
+### Fixed
+
+- `cleaner_for` had no entry for `ArtifactType.VIDEO`, so the ISO-BMFF and EBML
+  cleanup added in `FMT-02` and `FMT-03` was unreachable through the remediation
+  pipeline — a plan selecting MP4 or WebM metadata failed with "no cleaner
+  supports video". Those cleanups were tested by calling the cleaner directly,
+  which is why the gap survived. A test now asserts every artifact type with a
+  cleanup resolves.
+
 **HTML topology and stylesheet feature measurements**
 
 - `trueai/core/dom_features.py` measures document and stylesheet shape: depth and
