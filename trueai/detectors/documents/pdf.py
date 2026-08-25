@@ -1,4 +1,17 @@
-"""Bounded passive PDF metadata inspection without rendering content."""
+"""Bounded passive PDF metadata inspection without rendering content.
+
+Two readers, tried in that order. :mod:`trueai.core.pdf_objects` walks the
+cross-reference table or stream, follows `/Prev` through incremental updates, and
+reads object streams — which is the only way to see inside a PDF written since
+1.5, where `/Info` is compressed and the word `trailer` never appears. The
+original lexical scan stays as the fallback for documents the graph cannot model
+within its budget, because a file that defeats the parser should still yield
+whatever a regular expression can honestly find.
+
+Which reader produced a finding is recorded in its evidence. "Nothing found" and
+"nothing found because the parser gave up" are different statements, and a
+detector that renders them identically is telling the reader something false.
+"""
 
 from __future__ import annotations
 
@@ -18,8 +31,28 @@ from trueai.core.models import (
     ScanContext,
     Severity,
 )
+from trueai.core.pdf_objects import (
+    Budget,
+    Name,
+    PdfLimitExceeded,
+    PdfStructureError,
+    model_pdf,
+)
 from trueai.core.provenance import contains_protected_provenance_marker
 from trueai.detectors.base import BaseDetector, FindingBuffer
+
+#: Info keys worth reporting. Anything else in the dictionary is a producer's
+#: private extension, and guessing at its meaning would be inventing evidence.
+_REPORTED_INFO_KEYS = (
+    "Author",
+    "Creator",
+    "Producer",
+    "CreationDate",
+    "ModDate",
+    "Title",
+    "Subject",
+    "Keywords",
+)
 
 _INFO_PATTERN = re.compile(
     rb"/(Author|Creator|Producer|CreationDate|ModDate|Title|Subject|Keywords)\s*"
@@ -48,8 +81,9 @@ class PDFDetector(BaseDetector):
         if b"%%EOF" not in data[-4096:]:
             raise CorruptArtifactError("PDF end-of-file marker is missing from the bounded tail")
         findings = FindingBuffer(context.options.max_findings, self.id)
-        for field, raw_value, byte_offset in self._info_entries(data):
-            value = self._decode_pdf_value(raw_value)
+        graph = self._object_graph_entries(data, context)
+        for field, value, byte_offset, source in graph or self._lexical_entries(data):
+            del source
             protected = contains_protected_provenance_marker(value)
             if field == "Author":
                 category = FindingCategory.PERSONAL_METADATA
@@ -72,7 +106,11 @@ class PDFDetector(BaseDetector):
                         "A literal Info dictionary entry is present. Full object validation and "
                         "cleanup require the optional pikepdf adapter."
                     ),
-                    evidence={"field": field, "value": value},
+                    evidence={
+                        "field": field,
+                        "value": value,
+                        "reader": "object-graph" if graph is not None else "lexical",
+                    },
                     location=FindingLocation(byte_offset=byte_offset),
                     removable=not protected,
                     remediation_id=None if protected else "pdf.remove-metadata-field",
@@ -157,6 +195,51 @@ class PDFDetector(BaseDetector):
                 )
             )
         return findings
+
+    def _object_graph_entries(
+        self, data: bytes, context: ScanContext
+    ) -> list[tuple[str, str, int, str]] | None:
+        """Read Info through the object graph, or return None if it could not.
+
+        Returning ``None`` rather than an empty list is the point: an empty list
+        means "this document has no Info", and ``None`` means "the graph could
+        not be walked, so ask the fallback".
+        """
+
+        budget = Budget(max_stream_bytes=min(context.options.max_file_size, 16 * 1024 * 1024))
+        try:
+            model = model_pdf(data, budget)
+        except (PdfStructureError, PdfLimitExceeded):
+            return None
+        if not model.modelled:
+            return None
+        entries: list[tuple[str, str, int, str]] = []
+        for key in _REPORTED_INFO_KEYS:
+            raw = model.info.get(key)
+            if raw is None:
+                continue
+            entries.append((key, self._render_object_value(raw), 0, "object-graph"))
+        return entries
+
+    @staticmethod
+    def _render_object_value(value: object) -> str:
+        """Render one Info value without pretending unknown bytes are text."""
+
+        if isinstance(value, bytes):
+            if value.startswith((b"\xfe\xff", b"\xff\xfe")):
+                return value.decode("utf-16", errors="replace").strip()
+            return value.decode("utf-8", errors="replace").strip()
+        if isinstance(value, Name):
+            return str(value)
+        return str(value)
+
+    def _lexical_entries(self, data: bytes) -> list[tuple[str, str, int, str]]:
+        """The original regular-expression reader, kept for documents the graph refuses."""
+
+        return [
+            (field, self._decode_pdf_value(raw), offset, "lexical")
+            for field, raw, offset in self._info_entries(data)
+        ]
 
     @staticmethod
     def _info_entries(data: bytes) -> Iterator[tuple[str, bytes, int]]:

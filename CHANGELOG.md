@@ -12,6 +12,32 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Bounded PDF object graph**
+
+- `trueai/core/pdf_objects.py` walks the cross-reference table or stream, follows
+  `/Prev` through incremental updates and `/XRefStm` through hybrid files, and
+  reads object streams.
+- This closes a real coverage hole. Since PDF 1.5 a producer may put the
+  cross-reference table in a stream — so `trailer` appears nowhere — and put
+  `/Info` inside a compressed object stream, so `/Author` is never plain text.
+  Against those files the lexical scanner reported nothing, and reporting nothing
+  looks exactly like finding nothing. Tests assert the premise directly.
+- Bomb-safe by construction: `inflate_bounded` passes the cap **into** the
+  decompressor rather than decompressing and then checking the size. The inflated
+  budget is charged per document, so a file cannot spend a little on each of ten
+  thousand streams.
+- Six budgets, and two exception types. `PdfStructureError` means malformed;
+  `PdfLimitExceeded` means the file is trying to exhaust the parser. Only one of
+  those is an attack.
+- Signature fields and the byte ranges they cover, encryption, and XMP packets are
+  modelled, so a cleaner can refuse rather than discover the problem afterwards.
+- Filters other than Flate and ASCIIHex are reported as present-and-undecoded
+  rather than decoded by guesswork. An inspector that pretends to have read a
+  stream reports absence as evidence.
+- The PDF detector tries the graph first and falls back to the lexical scan, and
+  each finding records which reader produced it in `evidence["reader"]`.
+- `docs/pdf-object-graph.md`.
+
 **EBML/WebM invariants and cleanup**
 
 - `trueai/core/ebml.py` specifies six invariants — tracks, clusters, cues,

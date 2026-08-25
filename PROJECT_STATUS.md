@@ -159,8 +159,14 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   passes the invariants before it is written, and a document carrying a provenance attachment is
   refused. `void_element` is exact by construction and tested from 2 bytes to 5 MB, because the
   substitution depends on it.
-- [ ] `FMT-04` Expand PDF inspection from bounded lexical coverage to a deeper bounded object-graph
-  model without enabling decompression bombs or weakening signature/provenance preservation.
+- [x] `FMT-04` `trueai/core/pdf_objects.py` walks cross-reference tables *and* streams, `/Prev`
+  chains, and object streams — closing a real coverage hole: a PDF 1.5+ file has no `trailer`
+  keyword and no plain-text `/Info`, so the lexical scanner reported nothing, which looks exactly
+  like finding nothing. Bomb-safe by construction: `inflate_bounded` passes the cap *into* the
+  decompressor, and the inflated budget is charged per document rather than per stream. Signature
+  byte ranges, encryption, and XMP are modelled so a cleaner can refuse. Undecodable filters are
+  reported as present-and-undecoded rather than guessed at. The detector tries the graph, falls
+  back to the lexical scan, and records which reader spoke in each finding's evidence.
 - [ ] `FMT-05` Add richer HTML DOM topology and stylesheet feature extraction with parser-event and
   memory budgets.
 - [ ] `FMT-06` Evaluate ODF and legacy binary Office support; proceed only with maintained parsers,
