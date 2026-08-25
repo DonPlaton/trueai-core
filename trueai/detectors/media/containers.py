@@ -28,6 +28,11 @@ class MediaMetadataEntry:
     byte_offset: int
     raw_identifier: str
     remediation_safe: bool = False
+    #: The byte range of the whole box or chunk a cleaner would remove, when the
+    #: container has one. A cleaner that re-derived this by parsing again could
+    #: disagree with what the detector reported, and the two disagreeing is how a
+    #: surgical edit stops being surgical.
+    removable_range: tuple[int, int] | None = None
 
 
 class ParserBudget:
@@ -691,6 +696,11 @@ def _parse_iso_item_list(
                         value=value,
                         byte_offset=value_start,
                         raw_identifier=_fourcc(item.type),
+                        # The whole item goes, not just the value: an ilst item
+                        # with its data box removed is a malformed item rather
+                        # than an absent one.
+                        remediation_safe=True,
+                        removable_range=(item.start, item.end),
                     )
                 )
     return entries
@@ -719,6 +729,8 @@ def _parse_legacy_iso_field(
                     value=value,
                     byte_offset=value_start,
                     raw_identifier=_fourcc(box.type),
+                    remediation_safe=True,
+                    removable_range=(box.start, box.end),
                 )
             )
     if entries:
@@ -738,6 +750,8 @@ def _parse_legacy_iso_field(
             value=value,
             byte_offset=box.payload_start,
             raw_identifier=_fourcc(box.type),
+            remediation_safe=True,
+            removable_range=(box.start, box.end),
         )
     ]
 

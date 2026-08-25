@@ -144,8 +144,14 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   leaves the offsets stale fails, and a byte comparison gets both backwards. Indeterminate counts
   as unsafe. The cleaner still refuses ISO-BMFF; two tests pin that refusal and that the invariants
   are satisfiable by a correct edit, so `FMT-02` has something it can actually pass.
-- [ ] `FMT-02` Implement surgical MP4/MOV/M4A metadata cleanup only after `FMT-01`, with positive,
-  refusal, malformed, signed-provenance, and large-container tests.
+- [x] `FMT-02` The selected box is overwritten in place with a same-length zero-filled `free` box,
+  so no chunk offset needs correcting — the bug class `FMT-01` exists to catch is avoided by not
+  creating the situation that causes it. The file keeps its length, which is stated rather than
+  hidden. Every result still passes `verify_iso_bmff_invariants` before it is written. Writing the
+  signed-provenance test found a real gap: a C2PA box is identified by a binary UUID and its
+  payload need not contain the letters `c2pa`, so the byte-marker scan the other formats rely on
+  missed it; the ISO-BMFF branch now refuses structurally. Positive, refusal, malformed,
+  signed-provenance, and large-container tests all present.
 - [ ] `FMT-03` Specify equivalent EBML/WebM track, cluster, cue, timing, and provenance invariants,
   then implement cleanup only when those invariants pass.
 - [ ] `FMT-04` Expand PDF inspection from bounded lexical coverage to a deeper bounded object-graph

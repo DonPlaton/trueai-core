@@ -93,13 +93,57 @@ descended on a guess about its layout. `stsd` gets a special case: it carries a
 version word and an entry count before its children, and walking from the payload
 start would misread both.
 
-## Status
+## The cleanup that passes through it
 
-`FMT-01` delivers the specification and the verifier. The cleaner still refuses
-ISO-BMFF — `parse_media_metadata` marks no MP4 entry `remediation_safe`, and
-`MediaCleaner` raises "supports only WAV, MP3, and FLAC audio containers". Two
-tests pin that: one asserts the refusal is still in place, and one asserts the
-invariants are *satisfiable* by a correct edit, because a specification nothing
-can pass is a refusal wearing a gate's clothes.
+`FMT-02` implements removal, and it does so by **not moving anything**.
 
-`FMT-02` is the implementation that has to pass through it.
+The obvious implementation cuts the metadata box out and rewrites every `stco`
+and `co64` entry by the number of bytes that disappeared before it. That is
+where the bug class above lives. Instead, the selected box is overwritten in
+place with a zero-filled `free` box of exactly the same length:
+
+```
+before:  ... [udta [©nam "Original title"]] [mdat ...]
+after:   ... [free 0000000000000000000000] [mdat ...]
+```
+
+`free` is the format's own "ignore this" padding, understood by every demuxer.
+The metadata is gone — the payload is zeroed, not merely relabelled — the file
+length is unchanged, and **no offset needs correcting because nothing moved**. A
+whole category of corruption is avoided by not creating the situation that
+causes it.
+
+The cost is honest and stated: the file does not get smaller. The bytes become
+padding rather than disappearing. For a delivery pipeline that cares whether the
+client can read the shooting location that is the right trade; for one that cares
+about file size it is not.
+
+The result still goes through `verify_iso_bmff_invariants` before it is accepted,
+because "nothing moved" is a claim about the implementation and the gate is what
+turns it into a checked fact. A wrong length or a clobbered neighbour fails there
+rather than shipping.
+
+### What the cleaner refuses
+
+| Refusal | Why |
+|---|---|
+| A container carrying a C2PA or XMP provenance box | A manifest binds byte ranges of the file it lives in, so *any* edit invalidates it — including one that leaves the manifest box untouched |
+| A metadata value that names a provenance system | Refused a layer earlier: the detector reports the field but assigns it no remediation id |
+| An `ftyp` brand outside the known set | An unrecognised brand may put something other than padding where a `free` box is expected |
+| Overlapping selections | The second would overwrite padding the first wrote, which is not the edit either described |
+| An entry with no removable box range | A range the cleaner re-derived could disagree with the one the detector reported, and two disagreeing is how a surgical edit stops being surgical |
+| Any invariant not held, including indeterminate | The gate runs before the write, so a refused edit leaves no output file |
+
+The provenance refusal is **structural, not lexical**. Writing the test found
+that the byte-marker scan the other formats rely on does not catch a C2PA box: it
+is identified by a binary UUID, and a manifest payload need not contain the
+letters `c2pa` anywhere. The ISO-BMFF branch asks the model for
+`provenance_boxes` instead.
+
+### The removable unit is the whole box
+
+An `ilst` item with its `data` box removed is a malformed item, not an absent
+one, so `MediaMetadataEntry.removable_range` names the enclosing box and the
+cleaner uses that range rather than re-deriving one. The detector and the cleaner
+agreeing about which bytes are the metadata is the difference between a surgical
+edit and a hopeful one.

@@ -204,8 +204,9 @@ is real but explicit: default scanning reports markers; `trueai verify` or
 Cleanup is gated on format-specific integrity proofs. MP4/MOV/M4A have an executable
 specification of what an edit must not change — sample bytes reached through the chunk offsets,
 timing, edit lists, indexes, encryption state, rendering geometry, and provenance — in
-[ISO-BMFF invariants](docs/iso-bmff-invariants.md). The cleaner refuses those containers until an
-edit can pass it.
+[ISO-BMFF invariants](docs/iso-bmff-invariants.md). Cleanup replaces the selected box with
+same-length `free` padding, so nothing moves and no offset needs correcting; the file keeps its
+size, and a container carrying a C2PA manifest is refused outright.
 
 See [safety](docs/safety.md) and [finding semantics](docs/findings.md).
 

@@ -1,15 +1,44 @@
-"""Surgical WAV, MP3, and FLAC metadata cleanup with stream-byte invariants."""
+"""Surgical WAV, MP3, FLAC, and ISO-BMFF metadata cleanup with format invariants.
+
+The ISO-BMFF branch works differently from the other three, on purpose.
+
+In WAV, MP3, and FLAC a metadata chunk can be cut out and the remaining bytes
+close up behind it, because nothing in those formats records where the audio
+starts. MP4 does: `stco` and `co64` hold absolute file offsets, so shortening
+anything before `mdat` moves every sample while leaving a file that still parses
+and still reports the right duration.
+
+Rather than remove bytes and rewrite every offset — which is where that class of
+bug lives — the ISO-BMFF branch overwrites the selected box in place with a
+zero-filled `free` box of exactly the same length. `free` is the format's own
+"ignore this" padding, understood by every demuxer. The metadata is gone, the
+file length is unchanged, and **no offset needs correcting because nothing
+moved**. A whole category of corruption is avoided by not creating the situation
+that causes it.
+
+The cost is honest and stated: the file does not get smaller. The bytes become
+padding rather than disappearing. For a delivery pipeline that cares whether the
+client can read the shooting location, that is the right trade; for one that
+cares about file size it is not, and `FMT-02` does not pretend otherwise.
+
+Either way the result is checked against the executable invariants in
+:mod:`trueai.core.iso_bmff` before it is accepted, so a mistake in the
+substitution — a wrong length, a clobbered neighbour — fails the gate instead of
+shipping.
+"""
 
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal
 
 from trueai.cleaners.base import CleanerOutcome
 from trueai.core.errors import CorruptArtifactError, RemediationError
 from trueai.core.integrity import sha256_bytes
+from trueai.core.iso_bmff import IsoBmffError, model_iso_bmff, verify_iso_bmff_invariants
 from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
 from trueai.detectors.media.containers import MediaMetadataEntry, parse_media_metadata
@@ -29,6 +58,28 @@ _BEXT_FIELDS = {
     "origination_time": (330, 8),
 }
 _WAVE_WHOLE_CHUNK_METADATA = frozenset({b"iXML", b"_PMX", b"XMP "})
+
+#: Every ISO base media brand this cleaner will touch. A file whose `ftyp` is not
+#: here is refused rather than guessed at, because an unrecognised brand may put
+#: something other than padding where a `free` box is expected.
+_ISO_BRANDS = frozenset(
+    {
+        b"isom",
+        b"iso2",
+        b"iso4",
+        b"iso5",
+        b"iso6",
+        b"mp41",
+        b"mp42",
+        b"avc1",
+        b"M4A ",
+        b"M4V ",
+        b"qt  ",
+        b"3gp4",
+        b"3gp5",
+        b"3g2a",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,9 +178,11 @@ class MediaMetadataCleaner:
             after = self._clean_mp3(before, selections)
             logical_before = self._mp3_audio_material(before)
             format_label = "MP3"
+        elif _looks_like_iso_bmff(before):
+            return self._clean_iso_bmff(before, destination, selections, available, limits)
         else:
             raise RemediationError(
-                "Media cleanup currently supports only WAV, MP3, and FLAC audio containers"
+                "Media cleanup currently supports WAV, MP3, FLAC, and ISO base media containers"
             )
         if after == before:
             raise RemediationError("Selected media metadata produced no byte change")
@@ -159,6 +212,98 @@ class MediaMetadataCleaner:
             after_sha256=sha256_bytes(emitted),
             logical_before_sha256=sha256_bytes(logical_before),
             logical_after_sha256=sha256_bytes(logical_after),
+            intentionally_removed=changed,
+        )
+        return CleanerOutcome(changed_fields=changed, integrity=integrity)
+
+    def _clean_iso_bmff(
+        self,
+        before: bytes,
+        destination: Path,
+        selections: frozenset[_Selection],
+        available: dict[_Selection, MediaMetadataEntry],
+        limits: ScanOptions,
+    ) -> CleanerOutcome:
+        """Overwrite the selected boxes with padding, then prove nothing else moved."""
+
+        # A C2PA manifest binds byte ranges of the file it lives in, so *any*
+        # change invalidates it — including one that leaves the manifest box
+        # untouched. The substring scan over the raw bytes does not catch this:
+        # the box is identified by a binary UUID, and a manifest payload need
+        # not contain the letters "c2pa" anywhere. Structural detection is the
+        # only kind that works here.
+        try:
+            provenance = model_iso_bmff(before).provenance_boxes
+        except IsoBmffError as exc:
+            raise RemediationError(f"ISO-BMFF container could not be modelled: {exc}") from exc
+        if provenance:
+            raise RemediationError(
+                "Refusing ISO-BMFF cleanup: the container carries a signed provenance box, "
+                "and it binds byte ranges that any edit would invalidate"
+            )
+
+        ranges: list[tuple[int, int]] = []
+        for selection in sorted(selections, key=lambda item: item.byte_offset):
+            entry = available[selection]
+            if entry.removable_range is None:
+                raise RemediationError(
+                    f"{selection.label} has no removable box range; refusing to guess one"
+                )
+            start, end = entry.removable_range
+            if start < 0 or end > len(before) or end - start < _FREE_BOX_HEADER:
+                raise RemediationError(
+                    f"{selection.label} names an unusable byte range {start}..{end}"
+                )
+            ranges.append((start, end))
+
+        for (first_start, first_end), (second_start, _) in pairwise(ranges):
+            if second_start < first_end:
+                # Two selections covering the same bytes would have the second
+                # overwrite padding the first already wrote, which is not the
+                # edit either of them described.
+                raise RemediationError(
+                    f"Selected ISO-BMFF boxes overlap at {first_start}..{first_end}"
+                )
+
+        buffer = bytearray(before)
+        for start, end in ranges:
+            # A free box of exactly the same length: same file, same offsets, and
+            # the payload zeroed so the metadata is gone rather than hidden.
+            buffer[start : start + 4] = (end - start).to_bytes(4, "big")
+            buffer[start + 4 : start + 8] = b"free"
+            buffer[start + 8 : end] = b"\x00" * (end - start - _FREE_BOX_HEADER)
+        after = bytes(buffer)
+
+        if after == before:
+            raise RemediationError("Selected media metadata produced no byte change")
+
+        try:
+            report = verify_iso_bmff_invariants(before, after)
+        except IsoBmffError as exc:
+            raise RemediationError(f"ISO-BMFF invariants could not be evaluated: {exc}") from exc
+        if not report.safe_to_apply():
+            raise RemediationError(f"ISO-BMFF invariants refused the edit: {report.explain()}")
+
+        destination.write_bytes(after)
+        emitted = self._read_bounded(destination, limits.max_file_size)
+        if emitted != after:
+            raise RemediationError("The written ISO-BMFF output differs from the planned edit")
+
+        changed = tuple(sorted(item.label for item in selections))
+        integrity = IntegrityReport(
+            status=IntegrityStatus.PASS,
+            explanation=(
+                "The ISO base media output replaces only the selected metadata boxes with "
+                "same-length free padding, so every sample offset still resolves to identical "
+                "bytes. All seven container invariants held: " + report.explain()
+            ),
+            before_sha256=sha256_bytes(before),
+            after_sha256=sha256_bytes(emitted),
+            # The logical material is the sample bytes reached through the offset
+            # tables, which is the thing that must not change. Hashing mdat would
+            # answer a different and less useful question.
+            logical_before_sha256=_iso_sample_digest(before),
+            logical_after_sha256=_iso_sample_digest(emitted),
             intentionally_removed=changed,
         )
         return CleanerOutcome(changed_fields=changed, integrity=integrity)
@@ -556,3 +701,26 @@ class MediaMetadataCleaner:
 
 
 __all__ = ["MediaMetadataCleaner"]
+
+
+_FREE_BOX_HEADER = 8
+
+
+def _looks_like_iso_bmff(data: bytes) -> bool:
+    """Return whether the buffer starts with an ftyp box carrying a known brand."""
+
+    if len(data) < 16 or data[4:8] != b"ftyp":
+        return False
+    return data[8:12] in _ISO_BRANDS
+
+
+def _iso_sample_digest(data: bytes) -> bytes:
+    """Hash every track's samples, reached through the offset tables.
+
+    Returned as bytes so it flows into the same ``sha256_bytes`` the other
+    formats use, keeping one meaning for the logical-material fields.
+    """
+
+    model = model_iso_bmff(data)
+    joined = b"".join(track.sample_digest(data).encode("ascii") for track in model.tracks)
+    return joined

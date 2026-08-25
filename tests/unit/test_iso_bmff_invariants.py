@@ -498,12 +498,13 @@ def test_a_box_budget_that_runs_out_is_refused() -> None:
 # -- the gate is specified, and not yet wired to a cleaner ---------------------------
 
 
-def test_mp4_metadata_is_reported_but_not_removable_yet(tmp_path) -> None:
-    """FMT-01 specifies the gate; FMT-02 is what may pass through it.
+def test_removable_iso_entries_carry_the_box_they_would_remove(tmp_path) -> None:
+    """FMT-01 specified the gate; FMT-02 passes through it.
 
-    Pinning the refusal here makes the change visible when the cleaner starts
-    editing MP4: this test is the one that has to be rewritten, deliberately,
-    rather than a silent behaviour shift.
+    This test was written under FMT-01 asserting the opposite, so the change
+    would be a deliberate rewrite rather than a silent behaviour shift. What it
+    now pins is that a removable entry names the *whole box*: removing only a
+    value would leave a malformed item rather than an absent one.
     """
 
     from trueai.detectors.media.containers import parse_media_metadata
@@ -515,9 +516,11 @@ def test_mp4_metadata_is_reported_but_not_removable_yet(tmp_path) -> None:
 
     titles = [entry for entry in entries if "Original title" in entry.value]
     assert titles, "the fixture's udta title should be detected"
-    assert not any(entry.remediation_safe for entry in titles), (
-        "no ISO-BMFF entry may be marked removable until the invariants gate the edit"
-    )
+    for entry in titles:
+        assert entry.remediation_safe
+        assert entry.removable_range is not None
+        start, end = entry.removable_range
+        assert start < entry.byte_offset < end, "the range must enclose the value it describes"
 
 
 def test_the_invariants_would_pass_a_correct_future_cleanup() -> None:

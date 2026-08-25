@@ -12,6 +12,29 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Surgical ISO-BMFF metadata cleanup**
+
+- MP4, MOV, and M4A metadata can now be removed. The selected box is overwritten
+  in place with a zero-filled `free` box of exactly the same length, so the file
+  keeps its length and **no chunk offset needs correcting** — the failure mode
+  `FMT-01` specifies is avoided by not creating the situation that causes it.
+- The cost is stated rather than hidden: the file does not get smaller. The
+  metadata bytes become padding.
+- Every result is checked against the seven invariants before it is written, so
+  "nothing moved" is a verified fact rather than a claim about the implementation.
+  A refused edit leaves no output file.
+- A container carrying a C2PA or XMP provenance box is refused outright: a
+  manifest binds byte ranges of the file it lives in, so any edit invalidates it.
+  This check is structural, through the box UUID, because the byte-marker scan the
+  other formats rely on does not catch a C2PA box whose payload never spells
+  `c2pa`.
+- Also refused: unknown `ftyp` brands, overlapping selections, and entries with no
+  removable box range. `MediaMetadataEntry.removable_range` names the whole
+  enclosing box, because an `ilst` item with its `data` box removed is a malformed
+  item rather than an absent one.
+- The integrity report's logical digest is the sample bytes reached through the
+  offset tables, not the `mdat` box, which would answer a different question.
+
 **Executable MP4/MOV/M4A invariants**
 
 - `trueai/core/iso_bmff.py` models an ISO base media file structurally: the box
