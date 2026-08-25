@@ -124,11 +124,20 @@ def test_cli_help_scan_json_and_catalogs(tmp_path: Path) -> None:
 
 
 def test_cli_doctor_renders_optional_extra_name_literally() -> None:
+    """Whichever extra is missing, its name has to survive Rich's markup parser.
+
+    The square brackets are style syntax, so an unescaped `trueai-core[pdf]`
+    would be read as a tag and vanish. The test used to name `[pdf]` specifically
+    and passed only where pdf happened to be the missing one: on a runner with
+    the pdf extra installed and c2pa absent, `OPTIONAL` appeared for a different
+    row and the assertion looked for a string nothing had any reason to print.
+    """
+
     result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 0
     if "OPTIONAL" in result.stdout:
-        assert "trueai-core[pdf]" in result.stdout
+        assert "trueai-core[" in result.stdout
 
 
 def test_cli_dry_run_does_not_write_output(tmp_path: Path) -> None:
