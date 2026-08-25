@@ -480,8 +480,22 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### Continuous quality work
 
-- [ ] `QA-01` Expand property-based and coverage-guided fuzzing for ZIP/OPC, XML, PDF, image, media,
-  Git, cache, policy-bundle, certificate, and report parsing boundaries.
+- [x] `QA-01` `scripts/fuzz_parsers.py` covers all ten boundaries, coverage-guided through
+  `sys.monitoring` with no native dependency and reproducible from a seed. Each target declares what
+  a parser may do — refuse — and what must hold when it does not: a validated OPC package names no
+  escaping member, an XML part never resolves an external entity, every box and element sits inside
+  its input, a damaged cache entry is a miss rather than an exception or a half-decoded result, a
+  loaded report's counts match its findings, an accepted Git alternates file contains no path leaving
+  the repository. An undeclared exception is a finding too — a parser may refuse, it may not
+  surprise. The guidance claim is stated as a **measurement rather than an assertion**: guided loses
+  at 3,000 inputs (601 vs 664 lines) and wins at 12,000 (739 vs 709) and 60,000 (757 vs 727), so
+  `--no-coverage` stays a real option and half of all mutations still start from a pristine seed,
+  because mutating a mutation drifts away from anything a length-prefixed parser will accept. Seeds
+  are real artifacts from the fixture builders — a genuine MP4 with a resolved sample table, a WebM
+  with tracks and clusters, classic *and* cross-reference-stream PDFs, a signed bundle, an issued
+  certificate — worth roughly double the coverage where it matters (PDF went 153 → 348 lines).
+  `--self-check` and 28 tests prove the harness can fail, and a short pass of every boundary runs in
+  the suite. 25,000 inputs across all ten: no findings. `docs/fuzzing.md`.
 - [ ] `QA-02` Track parser and dependency advisories, regenerate SBOMs, and re-run license and
   vulnerability gates for every release.
 - [ ] `QA-03` Maintain synthetic regression fixtures for every bug and every new removable field.

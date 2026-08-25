@@ -12,6 +12,39 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Coverage-guided fuzzing of every parsing boundary**
+
+- `scripts/fuzz_parsers.py` covers ZIP/OPC, XML, PDF, ISO-BMFF, EBML, Git object
+  scope, cache entries, policy bundles, certificates, and reports. Seeded and
+  replayable: a failure prints the seed, the target, and the input.
+- Coverage guidance uses `sys.monitoring` — no native dependency, and the whole
+  run reproduces from a seed.
+- **Each target declares what it may do and what must hold anyway.** A parser is
+  allowed to refuse; it is not allowed to raise a `TypeError` from an unguarded
+  attribute access, an `IndexError` from an unchecked slice, or a
+  `RecursionError` from an unbounded structure. An exception the target did not
+  declare is a finding too: a parser may refuse, it may not surprise.
+- The invariants are the point. A validated OPC package names no escaping member;
+  an XML part never resolves an external entity; every box and element sits
+  inside its input; a damaged cache entry is a miss rather than an exception or a
+  half-decoded result; a loaded report's counts match its findings; an accepted
+  Git alternates file contains no path leaving the repository.
+- **The guidance claim is a measurement, not an assertion.** Guided loses at
+  3,000 inputs (601 vs 664 lines) and wins at 12,000 (739 vs 709) and 60,000
+  (757 vs 727), so `--no-coverage` stays a real option and half of all mutations
+  start from a pristine seed even when guided — mutating a mutation of a mutation
+  drifts away from anything a length-prefixed parser will accept.
+- Seeds are real artifacts from the fixture builders rather than stubs: a genuine
+  MP4 with a resolved sample table, a WebM with tracks and clusters, both a
+  classic and a cross-reference-stream PDF, a signed policy bundle, an issued
+  certificate, a rendered report. The PDF target went from 153 to 348 lines when
+  it stopped starting from a stub.
+- `--self-check` proves the harness reports a broken invariant and an unguarded
+  error and does not report a clean target. A short pass of every boundary runs
+  in the test suite, so a regression fails the build rather than waiting for a
+  nightly job.
+- `docs/fuzzing.md`.
+
 **Longitudinal style comparison, which stays a question**
 
 - `trueai.research.longitudinal` compares a document against a writer's own past
