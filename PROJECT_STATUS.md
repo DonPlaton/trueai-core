@@ -401,8 +401,22 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P3 — calibrated research features
 
-- [ ] `ML-01` Define consent, licensing, domain balance, contamination control, and retention rules
-  before collecting any labelled corpus.
+- [x] `ML-01` `trueai/research/corpus.py` states the five rules as constructors that refuse rather
+  than guidance that advises — governance written as prose gets read once and then contradicted by
+  whoever is actually collecting the data. A `CorpusManifest` cannot exist without a `CorpusPolicy`,
+  which is the ordering the whole module is for. **Consent is not a license:** the person who hands
+  over a document is frequently not the person who owns it, so a sample needs a `ConsentRecord`
+  *and* `LicenseTerms`, and both refusals are reported together. Consent names purposes, expires,
+  and carries a withdrawal contact, because consent nobody can revoke is not consent; withdrawal
+  reaches backwards and names every sample already collected under it, without silently dropping
+  rows — deleting the record while the bytes remain is worse than not deleting. Contamination is
+  compared by **content digest, never path** (a renamed copy is the same document, and scoring it is
+  a memory test), enforced at admission, again across a batch so two copies cannot slip past each
+  other, and again in the audit. Domain targets are written in advance and must sum to 1; imbalance
+  is reported but does not block, since a corpus can be imbalanced on purpose but must not be
+  imbalanced quietly. Retention needs a stated deletion method, and indefinite has to be chosen
+  rather than defaulted into. Nothing here is imported by a detector, a cleaner, or the engine.
+  45 tests; `docs/research-data.md`.
 - [ ] `ML-02` Publish a detector-evaluation protocol covering false positives, calibration, domain
   shift, subgroup analysis, abstention, and reproducibility.
 - [ ] `ML-03` Train only optional, replaceable consumers of versioned feature vectors; keep heavy ML

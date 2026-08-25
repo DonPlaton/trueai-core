@@ -12,6 +12,39 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Corpus governance as code, before there is a corpus**
+
+- `trueai.research.corpus`. Five rules — consent, licensing, domain balance,
+  contamination control, retention — written as constructors that refuse rather
+  than guidance that advises. A `CorpusManifest` cannot be built without a
+  `CorpusPolicy`: collected first and governed afterwards is the order this
+  prevents. No default policy ships, for the same reason no default trust store
+  does.
+- **Consent is not a license.** The person who hands over a document is
+  frequently not the person who owns it, so a sample needs a `ConsentRecord`
+  *and* `LicenseTerms` and either one missing refuses it. Both refusals are
+  reported together rather than one submission at a time.
+- Consent is scoped to named purposes, expires, and records a
+  `withdrawal_contact` — consent nobody can revoke is not consent. A policy names
+  exactly one purpose, so a narrow grant cannot authorise a broad use.
+- **Withdrawal reaches backwards.** `withdraw_consent()` returns every sample
+  collected under the consent, and the audit reports the corpus unusable until
+  they are gone. It does not drop the rows: deleting the record while the bytes
+  remain is worse than not deleting.
+- **Contamination is compared by content digest, never by path.** The same
+  document under two names in two splits is one document, and an evaluation over
+  it is a memory test. Enforced at admission, across a batch so two copies cannot
+  slip past each other, and again in the audit. `holdout_only_sources` keeps a
+  source out of training so a model cannot learn a shortcut and be scored on it.
+- Domain targets are written in advance and must sum to 1; a sample in an
+  unplanned domain is refused rather than absorbed. Imbalance is reported and
+  does not block — a corpus can be imbalanced on purpose, but not quietly.
+- Retention requires a stated deletion method, and indefinite retention has to be
+  written rather than arrived at by nobody choosing.
+- `CorpusManifest.digest()` is order-independent, so a published result can cite
+  the exact corpus and two people can compare numbers.
+- `docs/research-data.md`.
+
 **Desktop, CI, and editor adapters over one projection**
 
 - `trueai.adapters` (public): `views.py` derives the five views a surface needs;
