@@ -17,22 +17,53 @@ from trueai.core.models import (
     IntegrityStatus,
     ProvenanceClass,
     ProvenanceVerification,
-    ProvenanceVerificationStatus,
     RemediationPlan,
     RemediationResult,
     ScanReport,
     Severity,
     ValidationOutcome,
 )
+from trueai.core.provenance_view import (
+    FacetRow,
+    MarkerPresence,
+    ProvenanceFacets,
+    ProviderVerification,
+    SignatureState,
+    SignerTrust,
+    facets_for_report,
+    facets_from_verification,
+)
 
-_VERIFICATION_STYLE = {
-    ProvenanceVerificationStatus.TRUSTED: "bold green",
-    ProvenanceVerificationStatus.VALID: "yellow",
-    ProvenanceVerificationStatus.INVALID: "bold red",
-    ProvenanceVerificationStatus.NO_MANIFEST: "dim",
-    ProvenanceVerificationStatus.UNSUPPORTED_CONTAINER: "dim",
-    ProvenanceVerificationStatus.VERIFIER_UNAVAILABLE: "dim",
+#: A settled negative and an unanswered question must not look alike. Dim reads
+#: as "nothing to see"; an unanswered question is something to see, so it is
+#: yellow. Anything not listed falls back to yellow rather than to dim, because
+#: an unrecognised answer is by definition not a result.
+_FACET_STYLE = {
+    MarkerPresence.PRESENT.value: "bold cyan",
+    MarkerPresence.ABSENT.value: "dim",
+    SignatureState.VALID.value: "bold green",
+    SignatureState.INVALID.value: "bold red",
+    SignatureState.NO_SIGNATURE.value: "dim",
+    SignerTrust.TRUSTED.value: "bold green",
+    SignerTrust.NOT_TRUSTED.value: "yellow",
+    SignerTrust.NOT_APPLICABLE.value: "dim",
+    ProviderVerification.VERIFIED.value: "bold green",
+    ProviderVerification.NOT_VERIFIED.value: "dim",
+    ProviderVerification.NOT_SUPPORTED.value: "dim",
 }
+
+
+def _facet_style(row: FacetRow) -> str:
+    """Return the style for one answer, defaulting an unknown one to yellow."""
+
+    return "yellow" if row.unknown else _FACET_STYLE.get(row.answer, "yellow")
+
+
+def _facet_text(row: FacetRow) -> Text:
+    """Render one facet answer in a style that matches what it actually says."""
+
+    return Text(row.answer.replace("_", " ").upper(), style=_facet_style(row))
+
 
 _SEVERITY_STYLE = {
     Severity.INFO: "dim cyan",
@@ -96,31 +127,25 @@ class TerminalReporter:
                     f"{diagnostic.severity.value.upper()}[/] {_safe(diagnostic.message)}"
                 )
         if report.provenance_verifications:
-            verification = Table(
-                title="Authenticated provenance verification",
-                show_lines=False,
-            )
+            # Four columns rather than one status, because a marker existing, its
+            # signature verifying, its signer being trusted, and a provider
+            # adapter confirming a watermark are four separate findings. One
+            # column forces a reader to guess which of them a green badge means.
+            verification = Table(title="Provenance", show_lines=False)
             verification.add_column("Artifact")
-            verification.add_column("Status")
-            verification.add_column("Signer")
-            verification.add_column("Explanation")
-            for result in report.provenance_verifications:
-                signer = (
-                    result.signer.common_name
-                    if result.signer is not None and result.signer.common_name
-                    else "-"
-                )
+            verification.add_column("Marker")
+            verification.add_column("Signature")
+            verification.add_column("Signer trust")
+            verification.add_column("Provider")
+            faceted = facets_for_report(report)
+            for facets in faceted:
                 verification.add_row(
-                    _safe(result.artifact_path),
-                    Text(
-                        result.status.value.upper(),
-                        style=_VERIFICATION_STYLE[result.status],
-                    ),
-                    _safe(signer),
-                    _safe(result.explanation),
+                    _safe(facets.artifact_path),
+                    *(_facet_text(row) for row in facets.rows()),
                 )
             self.console.print()
             self.console.print(verification)
+            self._render_unknowns(faceted)
         integrity_style = {
             IntegrityStatus.PASS: "green",
             IntegrityStatus.FAIL: "red",
@@ -170,12 +195,32 @@ class TerminalReporter:
             lines.insert(1, f"Backup: {_safe(result.backup_path)}")
         self.console.print(Panel("\n".join(lines), title=title, border_style="bright_cyan"))
 
+    def _render_unknowns(self, faceted: tuple[ProvenanceFacets, ...]) -> None:
+        """Name what was not determined, so silence is not read as absence."""
+
+        undetermined = [(item, item.unknowns()) for item in faceted]
+        if not any(rows for _, rows in undetermined):
+            return
+        self.console.print("\n[bold]Not determined[/bold]")
+        for facets, rows in undetermined:
+            for row in rows:
+                self.console.print(
+                    f"[yellow]{_safe(facets.artifact_path)}[/] — "
+                    f"{_safe(row.question)} {_safe(row.detail)}"
+                )
+
     def render_verification(self, result: ProvenanceVerification) -> None:
         """Print an authenticated provenance result without overstating it."""
 
-        style = _VERIFICATION_STYLE[result.status]
-        lines = [
-            f"[{style}]{result.status.value.replace('_', ' ').upper()}[/]",
+        facets = facets_from_verification(result)
+        lines = [_safe(facets.headline()), ""]
+        for row in facets.rows():
+            answer = row.answer.replace("_", " ").upper()
+            lines.append(
+                f"{_safe(row.question)} [{_facet_style(row)}]{answer}[/] — {_safe(row.detail)}"
+            )
+        lines += [
+            "",
             _safe(result.explanation),
             "",
             f"Artifact: {_safe(result.artifact_path)}",
@@ -204,6 +249,8 @@ class TerminalReporter:
         if result.remote_manifest_url:
             fetched = "fetched" if result.remote_manifests_allowed else "not fetched"
             lines.append(f"Remote manifest: {_safe(result.remote_manifest_url)} ({fetched})")
+        for caveat in facets.caveats():
+            lines += ["", _safe(caveat)]
         self.console.print(
             Panel("\n".join(lines), title="Provenance verification", border_style="bright_cyan")
         )

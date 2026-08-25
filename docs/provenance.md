@@ -60,6 +60,50 @@ with provenance from new bytes.
 nothing for a certificate to chain to, so a correctly signed asset from an unknown
 signer is exactly as unverified as its signer is unknown.
 
+## Four questions, not one badge
+
+A status is a single value, and a single value is what an interface turns into a
+single badge. `trueai/core/provenance_view.py` splits every verification into
+four answers that stand on their own, because they are four separate findings:
+
+| Question | Answers |
+|---|---|
+| Is a provenance marker present? | `present` · `absent` · **`not_examined`** |
+| Does its signature verify? | `valid` · `invalid` · **`unchecked`** · `no_signature` |
+| Is the signer one you trust? | `trusted` · `not_trusted` · **`no_anchors_configured`** · **`not_established`** · `not_applicable` |
+| Did a provider adapter verify a watermark? | `verified` · `not_verified` · **`unavailable`** · `not_supported` · **`not_attempted`** |
+
+The bold answers mean *this was not determined*. They are collected in
+`UNKNOWN_ANSWERS`, and an interface must not style them the way it styles a
+negative result — `NO_MANIFEST` and `VERIFIER_UNAVAILABLE` were both "not green"
+in a single-status view, which made "this artifact carries no provenance"
+indistinguishable from "we were unable to look". One is a result and the other
+is a hole in the scan.
+
+Three of the distinctions matter enough to name:
+
+- **`not_examined` is not `absent`.** Nothing follows from an unexamined
+  artifact, including "no provenance".
+- **`no_anchors_configured` is not `not_trusted`.** The first is a property of
+  the scan; rendering it as the second blames an artifact for a missing
+  configuration.
+- **`not_established` is not `not_trusted`.** When a signature fails, the signer
+  identity it carries proves nothing — asking whether that identity is trusted
+  invites reading the answer as though the signature had held.
+
+`establishes_provenance` is true only when all three C2PA facets line up. The
+provider facet cannot contribute: a watermark says which tool produced
+something, it carries no signed chain, and letting it raise that flag would be
+exactly the conflation this exists to prevent.
+
+`caveats()` states the ways a positive-looking facet is weaker than it looks,
+and `headline()` returns the one sentence that is safe to put at the top — it
+claims a verified trusted chain if and only if `establishes_provenance` does.
+
+The facets are a projection, not report content. Everything is derived from
+`ScanReport`, and adding derived state to a frozen schema would create a second
+source of truth that can disagree with the first.
+
 ## Trust anchors are an operator decision
 
 `--trust-anchors` accepts a PEM bundle path or the PEM text itself. TrueAI ships no

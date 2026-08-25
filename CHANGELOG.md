@@ -12,6 +12,40 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Provenance as four questions instead of one badge**
+
+- `trueai/core/provenance_view.py`. A verification status is a single value, and
+  a single value is what an interface turns into a single badge. Marker
+  presence, signature validity, signer trust, and provider verification are four
+  separate findings and are now four separate answers.
+- **The failure this fixes is erasure, not exaggeration.** `no_manifest` and
+  `verifier_unavailable` were both "not green", so "this artifact carries no
+  provenance" rendered identically to "we were unable to look". One is a result;
+  the other is a hole in the scan.
+- Every facet can answer *not determined* without that reading as *no*.
+  `UNKNOWN_ANSWERS` collects those answers so an interface can style them apart
+  from a negative result.
+- `not_examined` is not `absent`; `no_anchors_configured` is not `not_trusted`
+  (the first is a property of the scan, not of the artifact); `not_established`
+  is not `not_trusted` (a signature that failed makes the identity it carries
+  meaningless).
+- `establishes_provenance` requires all three C2PA facets. The provider facet
+  cannot contribute — a watermark says which tool produced something and carries
+  no signed chain.
+- `caveats()` states how a positive-looking facet is weaker than it looks, and
+  `headline()` claims a verified trusted chain if and only if
+  `establishes_provenance` does.
+- A projection, not report content: derived from `ScanReport`, so the frozen
+  schema keeps one source of truth.
+
+### Changed
+
+- The terminal reporter shows Marker / Signature / Signer trust / Provider as
+  four columns instead of one status, and lists every undetermined question
+  under "Not determined" so silence is not read as absence. Unknown answers are
+  styled apart from negatives, and an unrecognised answer defaults to the
+  unknown style rather than the settled one.
+
 **Managed trust stores: distribution, rotation, and offline updates**
 
 - `trueai/core/trust_store.py`. A `TrustProfile` answers "whose key is this" for

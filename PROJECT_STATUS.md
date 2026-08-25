@@ -298,8 +298,17 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   splits an unreadable key file, the wrong key for this store, and a genuinely broken signature into
   three distinct refusals, so a typed path does not send an operator hunting an attacker.
   63 tests; `docs/trust-store.md`.
-- [ ] `PROV-04` Present marker, signature validity, signer trust, and provider-verification status as
-  separate concepts in future HTML/desktop interfaces.
+- [x] `PROV-04` `trueai/core/provenance_view.py` splits every verification into four answers that
+  stand on their own, each able to say *not determined* without that reading as *no*. The failure
+  this fixes is erasure rather than exaggeration: `no_manifest` and `verifier_unavailable` were both
+  "not green" in a single-status view, so "carries no provenance" looked exactly like "we were
+  unable to look". `not_examined` is not `absent`, `no_anchors_configured` is not `not_trusted` (the
+  first is a property of the scan, not the artifact), and `not_established` is not `not_trusted`
+  (a failed signature makes its signer identity meaningless). `establishes_provenance` needs all
+  three C2PA facets; a provider watermark cannot contribute, because it carries no signed chain.
+  The terminal reporter now renders four columns instead of one status and names every undetermined
+  question under "Not determined"; the model is interface-agnostic, so the HTML and desktop work in
+  `UI-01`/`UI-02` consumes the same projection. 35 tests; `docs/provenance.md`.
 
 #### P2 — repository scale and public interfaces
 
