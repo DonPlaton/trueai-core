@@ -12,6 +12,31 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Executable MP4/MOV/M4A invariants**
+
+- `trueai/core/iso_bmff.py` models an ISO base media file structurally: the box
+  tree, and each track's sample layout resolved through `stsc`, `stsz`, and the
+  chunk offsets to absolute byte ranges.
+- Seven invariants — samples, timing, edit lists, indexes, encryption state,
+  rendering-critical metadata, protected provenance — each reported separately.
+  There is no single `valid` field: "the samples moved" and "the provenance box
+  was dropped" need different remedies.
+- The samples invariant hashes the bytes the tables point at rather than the
+  `mdat` box, because `stco` stores absolute file offsets. Removing a byte before
+  `mdat` without correcting them leaves a file that parses, reports the right
+  duration, has a byte-identical `mdat`, and plays garbage. A test asserts a byte
+  comparison would have missed exactly that.
+- `indeterminate` counts as unsafe. An edit whose effect cannot be checked is an
+  edit that must not be applied.
+- Parsing is bounded: depth 16, 100,000 boxes, four million sample entries, with
+  the declared count checked before anything is allocated against it. A box
+  claiming more bytes than remain is a refusal, not a short slice.
+- `docs/iso-bmff-invariants.md` explains why this format needs a structural gate
+  where WAV and FLAC did not.
+- The media cleaner still refuses ISO-BMFF. Two tests pin the refusal and the
+  satisfiability of the invariants, so `FMT-02` implements against a
+  specification that something can actually pass.
+
 **Continuous fuzzing of the plugin trust boundary**
 
 - `scripts/fuzz_plugins.py` fuzzes the worker protocol, the manifest and

@@ -137,8 +137,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P1 — artifact coverage and integrity
 
-- [ ] `FMT-01` Specify executable MP4/MOV/M4A invariants for samples, timing, edit lists, indexes,
-  encryption state, rendering-critical metadata, and protected provenance.
+- [x] `FMT-01` `trueai/core/iso_bmff.py` is the specification, written as code: seven invariants
+  over samples, timing, edit lists, indexes, encryption state, rendering-critical metadata, and
+  protected provenance. The samples invariant hashes the bytes the tables *point at*, because
+  `stco` holds absolute file offsets — an edit that relocates `mdat` correctly passes, and one that
+  leaves the offsets stale fails, and a byte comparison gets both backwards. Indeterminate counts
+  as unsafe. The cleaner still refuses ISO-BMFF; two tests pin that refusal and that the invariants
+  are satisfiable by a correct edit, so `FMT-02` has something it can actually pass.
 - [ ] `FMT-02` Implement surgical MP4/MOV/M4A metadata cleanup only after `FMT-01`, with positive,
   refusal, malformed, signed-provenance, and large-container tests.
 - [ ] `FMT-03` Specify equivalent EBML/WebM track, cluster, cue, timing, and provenance invariants,
