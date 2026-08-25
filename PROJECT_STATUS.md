@@ -167,8 +167,15 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   byte ranges, encryption, and XMP are modelled so a cleaner can refuse. Undecodable filters are
   reported as present-and-undecoded rather than guessed at. The detector tries the graph, falls
   back to the lexical scan, and records which reader spoke in each finding's evidence.
-- [ ] `FMT-05` Add richer HTML DOM topology and stylesheet feature extraction with parser-event and
-  memory budgets.
+- [x] `FMT-05` `trueai/core/dom_features.py` measures HTML tree shape (depth and tag histograms,
+  wrapper-only elements, duplicate ids, class tokens, text vs markup characters reported separately
+  so the reader picks the ratio) and stylesheet shape (rules, selectors, declarations, specificity
+  histogram using the cascade's own definition, `!important` density, duplicate selectors). Every
+  output is a count: no thresholds, no scores, no verdicts, and two tests enforce that by rejecting
+  any evidence key that reads like a judgement. Budgets cover nodes, depth, parser events, rules,
+  and *retained* bytes; exhaustion returns partial measurements with `complete=False` rather than
+  raising. Findings are `STRUCTURAL_SIGNAL`/`INFO`/`ProvenanceClass.NONE` and say in words that
+  they are not evidence of authorship.
 - [ ] `FMT-06` Evaluate ODF and legacy binary Office support; proceed only with maintained parsers,
   hostile-input tests, and a format-specific integrity proof.
 

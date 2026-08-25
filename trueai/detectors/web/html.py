@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 
 from trueai.core.artifact import Artifact
+from trueai.core.dom_features import FeatureBudget, extract_dom_topology
 from trueai.core.errors import ScanLimitExceededError
 from trueai.core.models import (
     ArtifactType,
@@ -94,6 +95,9 @@ class HTMLDetector(BaseDetector):
                 f"HTML event limit {context.options.max_parser_events} was exceeded"
             )
         findings = FindingBuffer(context.options.max_findings, self.id)
+        topology_finding = self._topology_finding(artifact, text, context)
+        if topology_finding is not None:
+            findings.append(topology_finding)
         line_offsets = self._line_offsets(text, {event.line for event in parser.events})
         for event in parser.events:
             location = FindingLocation(line=event.line, column=event.column)
@@ -253,6 +257,45 @@ class HTMLDetector(BaseDetector):
                     provenance_class=ProvenanceClass.ATTRIBUTION,
                     tags=("html", "comment", "literal", rule.provider),
                 )
+
+    def _topology_finding(
+        self, artifact: Artifact, text: str, context: ScanContext
+    ) -> Finding | None:
+        """Report the document's shape as measurements, and only as measurements.
+
+        Counts, not conclusions. Nesting depth and wrapper density are facts about
+        a tree; what they imply about who built it is not something this project
+        will pretend to know, so the finding carries no removal, no severity above
+        informational, and provenance class NONE.
+        """
+
+        budget = FeatureBudget(max_events=context.options.max_parser_events)
+        topology = extract_dom_topology(text, budget)
+        if topology.elements == 0:
+            return None
+        evidence = topology.as_evidence()
+        return self.finding(
+            artifact=artifact,
+            category=FindingCategory.STRUCTURAL_SIGNAL,
+            confidence=1.0,
+            # A count is observed, not estimated. Calling it heuristic would
+            # understate it; calling it provenance would overstate it by far more.
+            confidence_type=ConfidenceType.DETERMINISTIC,
+            severity=Severity.INFO,
+            evidence_type=EvidenceType.STRUCTURAL,
+            title="HTML document topology",
+            description=(
+                f"The document contains {topology.elements} element(s) nested up to "
+                f"{topology.max_depth} deep. These are measurements of document shape. "
+                "They are not evidence of authorship, and no threshold here converts "
+                "them into one."
+                + ("" if topology.complete else f" Measurement stopped: {topology.truncated_by}.")
+            ),
+            evidence=evidence,
+            removable=False,
+            provenance_class=ProvenanceClass.NONE,
+            tags=("html", "topology", "measurement"),
+        )
 
     @staticmethod
     def _line_offsets(text: str, requested_lines: set[int]) -> dict[int, int]:

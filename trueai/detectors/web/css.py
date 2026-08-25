@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from trueai.core.artifact import Artifact
+from trueai.core.dom_features import FeatureBudget, extract_stylesheet_features
 from trueai.core.models import (
     ArtifactType,
     ConfidenceType,
@@ -37,6 +38,9 @@ class CSSDetector(BaseDetector):
     def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
         text = artifact.read_text(context.options.max_file_size)
         findings = FindingBuffer(context.options.max_findings, self.id)
+        features_finding = self._features_finding(artifact, text, context)
+        if features_finding is not None:
+            findings.append(features_finding)
         for comment in extract_css_comments(text, context.options.max_parser_events):
             for rule in attribution_rules():
                 if AttributionContext.COMMENT not in rule.contexts:
@@ -133,4 +137,38 @@ class CSSDetector(BaseDetector):
             column=start - last_newline,
             offset=start,
             end_offset=end,
+        )
+
+    def _features_finding(
+        self, artifact: Artifact, text: str, context: ScanContext
+    ) -> Finding | None:
+        """Report the stylesheet's shape as measurements.
+
+        A stylesheet with a thousand `!important` declarations is a stylesheet
+        with a thousand `!important` declarations. This finding says that and
+        stops.
+        """
+
+        budget = FeatureBudget(max_events=context.options.max_parser_events)
+        features = extract_stylesheet_features(text, budget)
+        if features.rules == 0:
+            return None
+        return self.finding(
+            artifact=artifact,
+            category=FindingCategory.STRUCTURAL_SIGNAL,
+            confidence=1.0,
+            confidence_type=ConfidenceType.DETERMINISTIC,
+            severity=Severity.INFO,
+            evidence_type=EvidenceType.STRUCTURAL,
+            title="Stylesheet feature summary",
+            description=(
+                f"The stylesheet declares {features.rules} rule(s), {features.selectors} "
+                f"selector(s), and {features.declarations} declaration(s). These are "
+                "measurements of stylesheet shape, not evidence of authorship."
+                + ("" if features.complete else f" Measurement stopped: {features.truncated_by}.")
+            ),
+            evidence=features.as_evidence(),
+            removable=False,
+            provenance_class=ProvenanceClass.NONE,
+            tags=("css", "features", "measurement"),
         )

@@ -12,6 +12,36 @@ change is called out explicitly and governed by
 
 ### Added
 
+**HTML topology and stylesheet feature measurements**
+
+- `trueai/core/dom_features.py` measures document and stylesheet shape: depth and
+  tag histograms, wrapper-only elements, duplicate ids, class tokens, inline
+  styles, external references, and — for stylesheets — rules, selectors,
+  declarations, a specificity histogram, `!important` density, vendor prefixes,
+  custom properties, and duplicate selectors.
+- Everything is a **count**. No thresholds, no scores, no verdicts. A structural
+  signal presented as provenance is the error this project exists to avoid, and
+  the module is built so it cannot make it. Two tests enforce the boundary by
+  rejecting any evidence key that reads like a judgement and any value that is not
+  a number or a boolean.
+- Text and markup characters are reported separately rather than as a ratio, so a
+  reader computes whichever ratio they want. Script and stylesheet bodies count as
+  markup: otherwise a page with one large bundle looks text-heavy.
+- Specificity uses the cascade's own `(id, class, type)` definition, not an
+  approximation.
+- The CSS parser matches braces by depth. Finding the next `}` breaks on
+  `@media screen { .a { color: red } }`, where `.a { color` then parses as a
+  declaration — a parser reporting nonsense with total confidence. The tests
+  caught it.
+- Budgets cover nodes, depth, parser events, rules, and *retained* bytes.
+  Exhaustion returns partial measurements with `complete=False` rather than
+  raising, because "as far as N elements, it looks like this" beats an exception
+  as long as the partiality is impossible to miss.
+- The HTML and CSS detectors report these as `STRUCTURAL_SIGNAL` findings at
+  severity `INFO` with `ProvenanceClass.NONE`, whose descriptions say in words
+  that they are not evidence of authorship.
+- `docs/dom-features.md`.
+
 **Bounded PDF object graph**
 
 - `trueai/core/pdf_objects.py` walks the cross-reference table or stream, follows
