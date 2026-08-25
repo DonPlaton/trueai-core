@@ -68,6 +68,21 @@ The three unchecked `P0` items are all `external`: they need hosted GitHub Actio
 configured PyPI trusted publisher, and release signing from hosted CI. Nothing in the repository
 can complete them, and a local run must not be presented as having done so.
 
+**Every backlog item that can be completed from this repository is complete.** Four remain, all
+`external` and all for the same reason — they need something the repository does not contain:
+
+| Item | What it needs that a working tree cannot supply |
+|---|---|
+| `REL-01` | Hosted Linux, macOS, and Windows runners for the full matrix. |
+| `REL-02` | A configured PyPI trusted publisher and a protected environment. |
+| `REL-03` | Release signing and provenance attestation from hosted CI. |
+| `PROC-12` | Design partners who have consented to a pilot, and who will disagree with the rubric. |
+
+The gates each of them would run — licenses, advisories, SBOM completeness, the packaged manifest,
+the schema and API snapshots, reproducible rebuild, the documentation check — all run locally and
+all pass. What cannot be done locally is running them *somewhere that counts*, and claiming
+otherwise would be the kind of overstatement this project spends most of its code refusing to make.
+
 ### Known remaining backlog
 
 This is the source of truth for all known unfinished work as of the status date. An unchecked item
@@ -266,9 +281,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   because an export that silently drops the evidence status turns "alice declared she originated
   this" into "alice originated this". DSSE signatures are made fresh over the PAE: record
   signatures cover different bytes and are never copied in.
-- [ ] `PROC-12` Run consented design-partner pilots in research, software delivery, creative
-  services, and education; publish the rubric, disagreements, false interpretations, and revision
-  history before presenting contribution profiles as a stable product feature.
+- [ ] `PROC-12` (`external`) Run consented design-partner pilots in research, software delivery,
+  creative services, and education; publish the rubric, disagreements, false interpretations, and
+  revision history before presenting contribution profiles as a stable product feature. Nothing in
+  the repository can complete this: it needs organizations who have agreed to take part, and the
+  whole point of the item is that the rubric is argued with by people who did not write it. The
+  attestation schema stays out of the frozen API surface until they have — see
+  [API compatibility](docs/api-compatibility.md).
 
 #### P2 — provenance adapters and trust presentation
 
@@ -543,8 +562,17 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   regression: a heredoc turned `\b` into a literal backspace, so the pattern matched nothing and the
   option check skipped every line while reporting success; a test now pins the word boundary.
   16 tests; `CONTRIBUTING.md`.
-- [ ] `QA-05` Define support and disclosure processes for security reports, plugin incidents, trust
-  store compromise, certificate revocation, and release rollback.
+- [x] `QA-05` `docs/incident-response.md`, linked from `SECURITY.md`. Five processes kept separate
+  because they have different blast radii and different people to tell — collapsing them means the
+  narrow ones get the heavy process and the heavy ones get the narrow one. All five share a second
+  half that is the one usually left out: **what already-issued evidence is worth**. A forensic
+  tool's reports stay in circulation after the failure that produced them, and somebody may be
+  relying on one. They also share a discipline about not *overstating*: "discard all reports" when
+  one detector was affected, or "provenance verification was broken" when only signer trust was
+  wrong, teaches people to discount the next advisory, and precision here is what keeps the channel
+  usable. Each process names mechanisms that exist and tests assert they do — a runbook telling
+  somebody to revoke a thing the tool cannot revoke is worse than none, because it is read at three
+  in the morning. 23 tests.
 
 #### Explicit non-goals
 

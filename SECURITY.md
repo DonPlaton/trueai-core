@@ -10,6 +10,28 @@ minimal synthetic reproducer, impact, and suggested mitigation if known.
 No bounty or response-time guarantee exists during the pre-release phase. Maintainers will
 acknowledge valid reports and coordinate disclosure when contact information is available.
 
+## Support and disclosure processes
+
+Five things go wrong differently, and collapsing them into one procedure means
+the narrow ones get the heavy process and the heavy ones get the narrow one:
+
+| Incident | Process |
+|---|---|
+| A vulnerability report | [Incident response §1](docs/incident-response.md) |
+| A plugin that mutated artifacts or exceeded its manifest | [§2](docs/incident-response.md) |
+| A compromised trust-store anchor | [§3](docs/incident-response.md) |
+| Certificate misissuance or issuer key compromise | [§4](docs/incident-response.md) |
+| A release that has to be rolled back | [§5](docs/incident-response.md) |
+
+All five share a second half that is easy to leave out: **saying what
+already-issued evidence is worth**. A forensic tool's reports stay in
+circulation after the failure that produced them, and somebody may be relying on
+one.
+
+They also share a discipline about *not* overstating: "discard all reports" when
+one detector was affected, or "provenance verification was broken" when only
+signer trust was wrong, teaches people to discount the next advisory.
+
 ## Security model
 
 TrueAI treats every artifact as hostile:

@@ -12,6 +12,27 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Incident response for five things that go wrong differently**
+
+- `docs/incident-response.md`, linked from `SECURITY.md`: a vulnerability report,
+  a plugin incident, a trust-store compromise, certificate misissuance or key
+  compromise, and a release rollback. Kept separate because they have different
+  blast radii and different people to tell — one combined procedure gives the
+  narrow incidents the heavy process and the heavy ones the narrow process.
+- Every process shares a second half that is the one usually left out: **saying
+  what already-issued evidence is worth**. A forensic tool's reports stay in
+  circulation after the failure that produced them, and somebody may be relying
+  on one.
+- And a discipline about not overstating. "Discard all reports" when one detector
+  was affected, or "provenance verification was broken" when only *signer trust*
+  was wrong, teaches people to discount the next advisory. Precision here is not
+  a courtesy; it is what keeps the channel usable.
+- Each process names mechanisms that exist — `DistributionRevocation`, the
+  one-sequence-at-a-time trust-store rule, `trueai certificates revoke`, the
+  `detector_mutation` and `plugin_rejected` diagnostic codes — and tests assert
+  each one is real. A runbook telling somebody to revoke a thing the tool cannot
+  revoke is worse than no runbook, because it is read at three in the morning.
+
 **A documentation gate**
 
 - `scripts/check_docs.py` fails when a document names a command, an option, or a
