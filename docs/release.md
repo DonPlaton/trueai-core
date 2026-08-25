@@ -42,7 +42,7 @@ git push origin v0.1.0
 | `adversarial` | Hostile-input and security-boundary suites on Linux and macOS with `TRUEAI_REQUIRE_PRIVILEGED_TESTS=1`, so symlink and permission cases cannot silently skip. |
 | `schema-compatibility` | The published schema contract still holds and the snapshot is current. |
 | `package` | Build, `twine check --strict`, byte-for-byte reproducible rebuild, packaged-manifest check, clean-environment install, `pip check`, and an installed console-script smoke test. |
-| `supply-chain` | `pip-audit` for known vulnerabilities, dependency license allowlist, CycloneDX SBOM. |
+| `supply-chain` | `pip-audit` for known vulnerabilities, the dependency license allowlist, the [advisory ledger](supply-chain.md) — which fails when nobody has reviewed recently rather than only when a CVE appears — and a CycloneDX SBOM checked for completeness. |
 
 ## What the release workflow adds
 

@@ -12,20 +12,33 @@ import re
 import subprocess
 import sys
 from importlib.metadata import PackageNotFoundError, distribution
+from pathlib import Path
 
 from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+_REPOSITORY = Path(__file__).resolve().parent.parent
+if str(_REPOSITORY) not in sys.path:
+    sys.path.insert(0, str(_REPOSITORY))
+
+#: One license, several spellings. The list carries all of them because two
+#: readers disagree about which field to believe: pip-licenses prefers the
+#: trove classifier ("ISC License (ISCL)") and installed metadata prefers the
+#: `License:` field ("ISC License"). Same license, and a gate that failed on the
+#: spelling would teach a maintainer to widen the list rather than read it.
 ALLOWED_LICENSES = frozenset(
     {
         "Apache Software License",
+        "Apache License",
         "Apache-2.0",
         "BSD License",
         "BSD-2-Clause",
         "BSD-3-Clause",
         "HPND",
         "ISC License (ISCL)",
+        "ISC License",
+        "ISC",
         "MIT",
         "MIT-0",
         "MIT License",
@@ -34,6 +47,7 @@ ALLOWED_LICENSES = frozenset(
         "Mozilla Public License 2.0 (MPL 2.0)",
         "Python Software Foundation License",
         "PSF-2.0",
+        "PSFL",
         "The Unlicense (Unlicense)",
     }
 )
@@ -112,6 +126,32 @@ def runtime_distribution_names(
     return tuple(sorted(display_names.values(), key=str.casefold))
 
 
+def read_licenses_directly(names: tuple[str, ...]) -> list[dict[str, str]]:
+    """Read licenses from installed metadata, in pip-licenses' output shape.
+
+    The same source pip-licenses reads. Having it here means the gate runs from a
+    working tree without an extra install, which is the difference between
+    finding a licensing problem before pushing and finding it in CI.
+    """
+
+    from scripts.generate_sbom import _license_of
+
+    packages: list[dict[str, str]] = []
+    for name in sorted(names):
+        try:
+            package = distribution(name)
+        except PackageNotFoundError:
+            continue
+        packages.append(
+            {
+                "Name": package.metadata.get("Name", name),
+                "Version": package.version or "",
+                "License": _license_of(package.metadata) or "UNKNOWN",
+            }
+        )
+    return packages
+
+
 def main() -> int:
     """Compare installed distribution licenses against the allowlist."""
 
@@ -134,9 +174,17 @@ def main() -> int:
         check=False,
     )
     if completed.returncode != 0:
-        print(completed.stderr, file=sys.stderr)
-        return completed.returncode
-    packages = json.loads(completed.stdout)
+        if "No module named piplicenses" in completed.stderr:
+            # Fall back rather than skip. A gate that quietly does nothing when a
+            # tool is missing is worse than one that fails, because it reports
+            # success either way.
+            packages = read_licenses_directly(runtime_packages)
+            print("pip-licenses is not installed; reading licenses from installed metadata.")
+        else:
+            print(completed.stderr, file=sys.stderr)
+            return completed.returncode
+    else:
+        packages = json.loads(completed.stdout)
 
     problems: list[str] = []
     for package in packages:

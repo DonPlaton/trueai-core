@@ -496,8 +496,25 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   certificate — worth roughly double the coverage where it matters (PDF went 153 → 348 lines).
   `--self-check` and 28 tests prove the harness can fail, and a short pass of every boundary runs in
   the suite. 25,000 inputs across all ten: no findings. `docs/fuzzing.md`.
-- [ ] `QA-02` Track parser and dependency advisories, regenerate SBOMs, and re-run license and
-  vulnerability gates for every release.
+- [x] `QA-02` `pip-audit` answers "is there a known CVE right now"; `scripts/check_advisories.py`
+  answers the two questions it cannot. **What about the parsers that are not packaged
+  dependencies** — most artifact bytes reach `zipfile`, `xml.etree`, `zlib`, `html.parser`, and
+  `json`, and a CPython advisory for any of them never appears in a dependency audit, so
+  `security/advisories.toml` lists them as components reviewed on the same clock. And **has anybody
+  looked** — the gate fails on *staleness*, so it fires when the reviewing stops rather than only
+  when a CVE is published. Four failure kinds: stale, unreviewed dependency, orphaned entry
+  describing a build that no longer exists, and an accepted risk past its expiry, because an
+  acceptance without an expiry becomes permanent by inattention rather than by decision. Writing the
+  ledger found something the audit never mentions: `c2pa-python` declares `wheel`, `setuptools`,
+  `toml`, `pytest`, and `requests` as **install** requirements, so the `c2pa` extra puts an HTTP
+  client and a test runner into an environment for a tool that advertises being offline — recorded
+  rather than only noticed. `scripts/generate_sbom.py --check` gates on **completeness**, not
+  existence: a component with no version, license, or purl fails, because a document with blanks
+  passes a consumer's "do you have an SBOM" check and answers none of their questions. The license
+  gate now falls back to installed metadata when `pip-licenses` is absent instead of skipping — a
+  gate that quietly does nothing reports success either way — which surfaced three spelling variants
+  the two readers disagree on. All four run together in `check_supply_chain.py`, in CI, and at
+  release. 34 tests; `docs/supply-chain.md`.
 - [ ] `QA-03` Maintain synthetic regression fixtures for every bug and every new removable field.
 - [ ] `QA-04` Keep documentation, schemas, CLI help, the Codex skill, and this backlog aligned with
   demonstrated behavior.

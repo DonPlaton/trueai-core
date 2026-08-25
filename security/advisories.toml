@@ -1,0 +1,339 @@
+# Reviewed advisory ledger.
+#
+# `pip-audit` in CI answers "does a packaged dependency have a known CVE".  It
+# does not answer the two questions that actually matter for a scanner:
+#
+#   1. What about the parsers that are *not* packaged dependencies?  TrueAI reads
+#      ZIP, XML, and zlib streams through the standard library, and a CPython
+#      advisory for any of those never appears in a dependency audit.
+#   2. Has anybody looked recently?  "No known vulnerabilities" from a review
+#      done eight months ago is a lie by omission, and a green check makes it a
+#      confident one.
+#
+# So this file is a record of review rather than a scan result.  `reviewed_at`
+# has to move for the gate to pass, which means the gate fails when the work
+# stops rather than when a specific CVE appears.
+#
+# Fetching new advisories is deliberately not automated here: it needs the
+# network, and the core stays offline.  What is automated is noticing that the
+# ledger has gone stale, that a component was added without being reviewed, or
+# that an accepted risk has run out its clock.
+
+[meta]
+# Bump when a review actually happens. The gate refuses a ledger older than
+# `max_age_days`.
+reviewed_at = "2026-08-25"
+reviewed_by = "TrueAI maintainers"
+max_age_days = 90
+
+# Where advisories for the components below are watched. Written down so a
+# handover does not lose the list.
+sources = [
+  "https://osv.dev/",
+  "https://github.com/advisories",
+  "https://mail.python.org/archives/list/security-announce@python.org/",
+  "https://pypi.org/security/",
+]
+
+# -- packaged dependencies -----------------------------------------------------
+# Every distribution in the runtime closure must appear here, and every entry
+# here must still be in the closure. A dependency added without a review, or an
+# entry left behind after a dependency was dropped, both fail the gate.
+
+[[component]]
+name = "pydantic"
+kind = "dependency"
+why = "Validates every model that crosses the report, policy, and plugin boundaries."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pydantic-core"
+kind = "dependency"
+why = "The native validator behind pydantic; a memory-safety issue here is reachable from any parsed input."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "typing-inspection"
+kind = "dependency"
+why = "Pulled in by pydantic; no parsing role."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "typing-extensions"
+kind = "dependency"
+why = "Typing shims only; no parsing role."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "typer"
+kind = "dependency"
+why = "Parses the command line, which is operator input rather than artifact input."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "click"
+kind = "dependency"
+why = "Behind typer; same boundary."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "rich"
+kind = "dependency"
+why = "Renders artifact-derived text to a terminal. Markup injection is the risk, and it is handled by escaping at the reporter."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "markdown-it-py"
+kind = "dependency"
+why = "Behind rich; parses markdown that TrueAI itself writes, not artifact content."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "mdurl"
+kind = "dependency"
+why = "Behind markdown-it-py."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pygments"
+kind = "dependency"
+why = "Behind rich; lexes text for display."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "shellingham"
+kind = "dependency"
+why = "Behind typer; detects the shell for completion."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "annotated-types"
+kind = "dependency"
+why = "Behind pydantic; declarative constraints only."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pyyaml"
+kind = "dependency"
+why = "Reads policy profiles. Loaded with the safe loader; an arbitrary-construction advisory would be directly relevant."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "annotated-doc"
+kind = "dependency"
+why = "Behind pydantic; annotation metadata only."
+reviewed_at = "2026-08-25"
+
+# -- pulled in by the optional extras ------------------------------------------
+# Reviewed on the same clock as the extras themselves, because a release
+# environment with those extras installed has all of these in it.
+#
+# One finding worth writing down rather than only noticing: `c2pa-python`
+# declares `wheel`, `setuptools`, `toml`, `pytest`, and `requests` as *install*
+# requirements. Installing the `c2pa` extra therefore puts an HTTP client and a
+# test runner into an environment for a tool that advertises being offline. They
+# are not imported by TrueAI and the network gate still governs every request
+# TrueAI makes, but their presence widens what an attacker who achieves
+# execution can reach, and it is the sort of thing a dependency audit reports as
+# "no known vulnerabilities" while saying nothing at all.
+
+[[component]]
+name = "requests"
+kind = "dependency"
+extra = "c2pa"
+why = "An HTTP client pulled in by c2pa-python's install requirements. TrueAI never imports it; every request TrueAI makes goes through the network gate."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "urllib3"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind requests. Same reasoning; not imported by TrueAI."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "certifi"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind requests: the CA bundle. Not used for TrueAI's own trust decisions, which use configured anchors."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "charset-normalizer"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind requests; guesses encodings for HTTP bodies TrueAI does not fetch."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "idna"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind requests; hostname encoding."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "toml"
+kind = "dependency"
+extra = "c2pa"
+why = "Declared by c2pa-python. Not imported by TrueAI, which reads TOML through the standard library."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pytest"
+kind = "dependency"
+extra = "c2pa"
+why = "Declared by c2pa-python as an install requirement. A test runner in a release environment is a packaging mistake upstream, not a TrueAI dependency."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "iniconfig"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind pytest."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pluggy"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind pytest."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pathspec"
+kind = "dependency"
+extra = "c2pa"
+why = "Behind pytest."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "setuptools"
+kind = "dependency"
+extra = "c2pa"
+why = "Declared by c2pa-python. Build tooling in a runtime closure, again upstream's choice."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "wheel"
+kind = "dependency"
+extra = "c2pa"
+why = "Declared by c2pa-python. Same."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cffi"
+kind = "dependency"
+extra = "attestation"
+why = "Behind cryptography: the FFI layer to OpenSSL. A memory-safety issue here is reachable from signature verification."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pycparser"
+kind = "dependency"
+extra = "attestation"
+why = "Behind cffi; parses C declarations at build time rather than artifact bytes."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "lxml"
+kind = "dependency"
+extra = "pdf"
+why = "Behind pikepdf. A native XML parser: an advisory here is directly relevant because pikepdf uses it on PDF metadata."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "pillow"
+kind = "dependency"
+extra = "pdf"
+why = "Behind pikepdf. Decodes image streams from attacker-supplied PDFs; historically the most advisory-prone dependency in this list."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "packaging"
+kind = "dependency"
+why = "Version and requirement parsing, used by the release scripts and by pikepdf. Operator input, not artifact input."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "defusedxml"
+kind = "dependency"
+why = "Hardened XML entry points. Directly on the path every OPC part takes, so an advisory here is a scanning-boundary advisory."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "colorama"
+kind = "dependency"
+why = "Behind rich on Windows; terminal escapes only."
+reviewed_at = "2026-08-25"
+
+# -- parsers that no dependency audit covers -----------------------------------
+# The standard library is where most artifact bytes are actually parsed, and a
+# CPython advisory for any of these never appears in a `pip-audit` run.
+
+[[component]]
+name = "cpython:zipfile"
+kind = "stdlib-parser"
+why = "Every OPC and ODF package. Path traversal and decompression-bomb advisories apply directly."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cpython:xml.etree"
+kind = "stdlib-parser"
+why = "Every XML part inside a package. Entity-expansion and DTD advisories apply directly."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cpython:zlib"
+kind = "stdlib-parser"
+why = "PDF stream inflation and ZIP members. Bounded by `inflate_bounded`, but a decoder bug is a decoder bug."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cpython:html.parser"
+kind = "stdlib-parser"
+why = "DOM topology extraction from HTML artifacts."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cpython:json"
+kind = "stdlib-parser"
+why = "Cache entries, reports, certificates, policy bundles, and the plugin worker protocol."
+reviewed_at = "2026-08-25"
+
+# -- optional extras -----------------------------------------------------------
+# Not in the default closure, but a scan that has them installed parses hostile
+# bytes with them, so they are reviewed on the same clock.
+
+[[component]]
+name = "pikepdf"
+kind = "optional-parser"
+extra = "pdf"
+why = "PDF parsing through qpdf. A qpdf CVE reaches TrueAI through this and is invisible to a pure-Python audit."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "c2pa-python"
+kind = "optional-parser"
+extra = "c2pa"
+why = "C2PA manifest verification, native. Parses attacker-supplied manifests."
+reviewed_at = "2026-08-25"
+
+[[component]]
+name = "cryptography"
+kind = "optional-parser"
+extra = "attestation"
+why = "Signature verification for certificates, attestations, distributions, and trust stores."
+reviewed_at = "2026-08-25"
+
+# -- accepted risks ------------------------------------------------------------
+# An accepted risk needs a reason and an expiry. Without an expiry it is not an
+# acceptance, it is a decision nobody will revisit; the gate fails when one runs
+# out rather than letting it become permanent by inattention.
+#
+# [[accepted]]
+# advisory = "GHSA-xxxx-xxxx-xxxx"
+# component = "example"
+# reason = "Not reachable: the affected code path requires a feature TrueAI does not enable."
+# accepted_by = "maintainer"
+# expires_at = "2026-12-31"

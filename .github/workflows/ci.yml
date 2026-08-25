@@ -306,8 +306,17 @@ jobs:
           python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
       - name: Enforce the dependency license allowlist
         run: python scripts/check_licenses.py
+      # pip-audit above answers "is there a known CVE right now". This answers
+      # "has anybody looked, and does the ledger still describe this build" —
+      # including the standard-library parsers no dependency audit mentions.
+      - name: Check the advisory ledger is current and complete
+        run: python scripts/check_advisories.py
       - name: Generate a CycloneDX SBOM
         run: cyclonedx-py environment --output-format JSON --output-file sbom.cdx.json
+      # A document that exists and has blanks in it passes a consumer's "do you
+      # have an SBOM" check while answering none of their questions.
+      - name: Check every component carries a version, a license, and a purl
+        run: python scripts/generate_sbom.py --check
       - name: Upload the SBOM
         uses: actions/upload-artifact@v4
         with:

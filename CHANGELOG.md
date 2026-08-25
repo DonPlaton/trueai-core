@@ -12,6 +12,51 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Advisory tracking that fails when nobody has looked**
+
+- `security/advisories.toml` and `scripts/check_advisories.py`. `pip-audit`
+  answers "does a packaged dependency have a known CVE right now". This answers
+  the two questions it cannot.
+- **The parsers that are not packaged dependencies.** Most artifact bytes reach
+  `zipfile`, `xml.etree`, `zlib`, `html.parser`, and `json`. A CPython advisory
+  for any of them applies directly to how TrueAI reads a hostile file and passes
+  a clean dependency audit without comment, so they are listed and reviewed on
+  the same clock as everything else.
+- **Whether anybody looked.** The gate fails on *staleness*, so it fires when the
+  reviewing stops rather than only when a CVE is published. "No known
+  vulnerabilities" from a review done eight months ago is a lie by omission, and
+  a green check makes it a confident one.
+- Four failure kinds: `stale`, `unreviewed` (a dependency nobody classified),
+  `orphaned` (an entry describing a build that no longer exists), and `expired`.
+  An acceptance needs a reason, an owner, **and an expiry** — without one it is
+  not an acceptance, it is a decision nobody will revisit.
+- Filling in the ledger found something the audit never mentions: `c2pa-python`
+  declares `wheel`, `setuptools`, `toml`, `pytest`, and `requests` as **install**
+  requirements, so installing the `c2pa` extra puts an HTTP client and a test
+  runner into an environment for a tool that advertises being offline. TrueAI
+  imports none of them and the network gate still governs every request TrueAI
+  makes, but it is recorded rather than only noticed.
+- `scripts/generate_sbom.py` emits CycloneDX from the installed closure with no
+  build tooling, and `--check` gates on **completeness rather than existence**: a
+  component with no version, no license, or no package URL fails, because a
+  document with blanks passes a "do you have an SBOM" check and answers none of
+  the questions it was requested for. The timestamp is injectable so a
+  reproducible build can pin it.
+- `scripts/check_supply_chain.py` runs all four gates and reports all of them
+  rather than stopping at the first — they fail together in practice.
+- `docs/supply-chain.md`.
+
+### Changed
+
+- `scripts/check_licenses.py` falls back to reading installed metadata when
+  `pip-licenses` is not available, instead of failing to run. A gate that quietly
+  does nothing when a tool is missing is worse than one that fails, because it
+  reports success either way — and a gate that only runs inside one CI provider
+  cannot be run before pushing. The fallback surfaced three licenses the two
+  readers spell differently (`ISC License` vs `ISC License (ISCL)`, `PSFL` vs
+  `PSF-2.0`, `Apache License` vs `Apache Software License`); the allowlist now
+  carries both spellings, with a test that GPL and AGPL are still refused.
+
 **Coverage-guided fuzzing of every parsing boundary**
 
 - `scripts/fuzz_parsers.py` covers ZIP/OPC, XML, PDF, ISO-BMFF, EBML, Git object

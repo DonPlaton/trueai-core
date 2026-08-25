@@ -62,8 +62,14 @@ jobs:
           python -m pip install pip-licenses
           python scripts/check_licenses.py
 
+      - name: Check the advisory ledger is current and complete
+        run: python scripts/check_advisories.py
+
       - name: Generate the release SBOM
         run: cyclonedx-py environment --output-format JSON --output-file dist/sbom.cdx.json
+
+      - name: Check every SBOM component carries a version, a license, and a purl
+        run: python scripts/generate_sbom.py --check
 
       - name: Record SHA-256 digests
         run: |
