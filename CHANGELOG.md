@@ -12,6 +12,32 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A single-file HTML report a hostile artifact cannot turn into a page**
+
+- `trueai/reporters/html.py` and `trueai scan -f html`. One self-contained
+  document: no script, no external stylesheet, font, or image, and no attribute
+  that can fetch anything. It opens from a USB stick on an air-gapped machine.
+- Every string in a report came from the file under examination, and the report
+  is opened in a browser by the person examining it. Exactly one function turns a
+  value into markup, escaping `&`, `<`, `>`, `"`, and `'` — correct in a text
+  node and in a quoted attribute alike, so there is no second one to forget.
+- The document declares a `Content-Security-Policy` it already satisfies
+  (`default-src 'none'; script-src 'none'`), which turns "we escaped everything"
+  from a claim into something the browser enforces.
+- The tests **parse** the output instead of grepping it: `onmouseover=&quot;`
+  reads as an event handler to a substring check and is inert to a parser, so the
+  suite asks `HTMLParser` what elements and attributes exist. With escaping
+  deliberately removed, 13 tests fail.
+- Findings are grouped by confidence class, strongest first, each group headed by
+  what that class actually claims — the reader who does not know the difference
+  is the one who will treat a heuristic as a fact.
+- Provenance renders as PROV-04's four facets, an unanswered question is styled
+  as unanswered rather than as a negative, per-artifact caveats are printed under
+  "What these results do not say", and diagnostics are a section rather than a
+  footnote, because a scan that could not read something did not find it clean.
+- The same report renders byte-identically every time, so two runs can be diffed.
+- `docs/html-report.md`.
+
 **A detector SDK that is checked rather than described**
 
 - `examples/acme_ticket_detector/` — a real installable third-party detector

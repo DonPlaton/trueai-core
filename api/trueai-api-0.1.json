@@ -6635,6 +6635,49 @@
       }
     },
     "trueai.reporters": {
+      "HTMLReporter": {
+        "abstract_methods": [],
+        "attributes": [],
+        "bases": [],
+        "kind": "class",
+        "methods": {
+          "render": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "title",
+                "required": false
+              }
+            ]
+          },
+          "write": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "report",
+                "required": true
+              },
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "path",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "title",
+                "required": false
+              }
+            ]
+          }
+        }
+      },
       "JSONReporter": {
         "abstract_methods": [],
         "attributes": [],

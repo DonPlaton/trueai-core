@@ -47,6 +47,7 @@ uv sync --extra attestation  # Ed25519-signed audit certificates
 trueai scan ./repository
 trueai scan ./repository --jobs 8 --cache          # parallel, and reuse unchanged results
 trueai scan ./repository --no-progress             # no bar; Ctrl-C stops cleanly either way
+trueai scan ./repository -f html -o report.html    # one self-contained, script-free file
 trueai scan report.docx --format json --output report.trueai.json
 trueai scan deck.pptx --verbose
 trueai inspect model.xlsx

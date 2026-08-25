@@ -369,7 +369,20 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   `tests/unit/test_sdk_examples.py` runs it, signs a distribution from it, and **parses its imports**
   to prove none leaves the public surface, so an example that drifts fails the build. 17 example
   tests plus 7 compatibility-rule tests; `docs/sdk.md`, `examples/README.md`.
-- [ ] `UI-01` Implement a self-contained, escaped, content-security-policy-compatible HTML reporter.
+- [x] `UI-01` `trueai/reporters/html.py`, reachable as `trueai scan -f html`. One file: no script,
+  no external stylesheet, font, or image, no attribute that can fetch anything — it opens from a USB
+  stick on an air-gapped machine, which is where a forensic report gets read. Every string in a
+  report came from the artifact under examination and the report is then opened in a browser by the
+  person examining it, so exactly one function turns a value into markup and it escapes `&<>"'`,
+  correct in a text node and a quoted attribute alike. The document declares a
+  `Content-Security-Policy` it already satisfies (`default-src 'none'; script-src 'none'`), turning
+  "we escaped everything" into something the browser enforces. The tests **parse** the output rather
+  than grepping it — `onmouseover=&quot;` looks like a handler to a substring check and is inert to a
+  parser — and asking `HTMLParser` for the real elements and attributes proves it; with escaping
+  deliberately removed, 13 of them fail. Presentation keeps the distinctions: findings grouped by
+  confidence class with what each class claims stated at the heading, provenance as PROV-04's four
+  facets with unanswered styled as unanswered, caveats printed, and diagnostics as a section because
+  a scan that could not read something did not find it clean. 33 tests; `docs/html-report.md`.
 - [ ] `UI-02` Build desktop, CI, and IDE adapters around the public schema, including finding
   explanation, remediation preview, integrity evidence, provenance, and certificate views.
 

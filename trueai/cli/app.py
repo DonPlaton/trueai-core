@@ -51,7 +51,7 @@ from trueai.core.progress import (
 from trueai.core.remediation import RemediationPlanner, RemediationService
 from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import PluginIsolation
-from trueai.reporters import JSONReporter, SARIFReporter, TerminalReporter
+from trueai.reporters import HTMLReporter, JSONReporter, SARIFReporter, TerminalReporter
 
 
 class AttestationPresentation(StrEnum):
@@ -92,6 +92,7 @@ class OutputFormat(StrEnum):
     TERMINAL = "terminal"
     JSON = "json"
     SARIF = "sarif"
+    HTML = "html"
 
 
 console = Console()
@@ -133,7 +134,7 @@ def scan(
     path: Annotated[Path, typer.Argument(help="File, directory, or Git repository to scan.")],
     output_format: Annotated[
         OutputFormat,
-        typer.Option("--format", "-f", help="terminal, json, or sarif"),
+        typer.Option("--format", "-f", help="terminal, json, sarif, or html"),
     ] = OutputFormat.TERMINAL,
     output: Annotated[
         Path | None, typer.Option("--output", "-o", help="Explicit report path.")
@@ -2223,6 +2224,11 @@ def _render_report(
         return rendered
     if output_format == OutputFormat.SARIF:
         rendered = SARIFReporter().render(report, attestation_properties=attestation_properties)
+        if emit:
+            typer.echo(rendered)
+        return rendered
+    if output_format == OutputFormat.HTML:
+        rendered = HTMLReporter().render(report)
         if emit:
             typer.echo(rendered)
         return rendered
