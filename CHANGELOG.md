@@ -12,6 +12,42 @@ change is called out explicitly and governed by
 
 ### Added
 
+**One network gate, and an admission standard for provider adapters**
+
+- `trueai/core/network.py` is the only place TrueAI may reach the network. Six
+  conditions, all required: `NetworkPolicy.EXPLICIT_ONLY`, recorded consent, an
+  exact endpoint allowlist, a timeout and response-size cap, per-request
+  credentials, and an audit record.
+- Consent is separate from policy on purpose. A policy flag says the software
+  may; consent says a person decided. It is scoped to endpoints *and* a purpose,
+  so consent to check a watermark is not consent to upload a document.
+- The audit records **refusals as well as successes**. A forensic tool needs to be
+  able to prove it did not contact anything, and a log of successes cannot do
+  that. A record carries endpoint, purpose, grantor, duration, response size, and
+  header *names* — never a body, never a header value, because a header value can
+  be a credential.
+- The gate holds no credential. A caller supplies a callable invoked per request
+  with the endpoint being contacted, so a credential produced for one destination
+  cannot be replayed to another when an allowlist grows.
+- `AdmissionCriteria` states what a provider must publish before an adapter is
+  written: a published mechanism, independently runnable, specified semantics, and
+  a stable contract — all four. Three out of four describes a watermark someone
+  reverse-engineered, and shipping that would present a guess as a verification.
+- `PROVIDER_ASSESSMENTS` records where each provider stands, in code rather than
+  only in prose. C2PA is the only one admitted. An unadmitted provider reports
+  `VERIFICATION_UNAVAILABLE` naming the criteria it fails.
+- A provider adapter is offline unless handed a configured gate, and one that has
+  not declared `network_required` cannot make a request even with one.
+- `docs/network-and-providers.md`.
+
+### Changed
+
+- `NetworkTimestampProvider` was carrying its own copy of the policy and
+  allowlist checks; it now builds or accepts a `NetworkGate` and calls through it,
+  so "did this tool contact anything" has one answer and one audit trail. Its
+  original two-argument transport shape is adapted to the gate's protocol rather
+  than replaced, because changing it would break every caller who wrote one.
+
 **OpenDocument inspection and cleanup**
 
 - `ArtifactType.ODF` covers OpenDocument text, spreadsheets, presentations, and

@@ -196,7 +196,10 @@ the trace was observed exactly; `0.82 HEURISTIC` means an experimental rule scor
 chance of AI authorship.
 
 Provider watermark adapters for Anthropic, OpenAI, Google, and Generic currently return
-`VERIFICATION_UNAVAILABLE` or `NOT_SUPPORTED`. TrueAI does not invent provider watermark
+`VERIFICATION_UNAVAILABLE`, naming the admission criteria the provider does not meet. An adapter is
+written only when a provider publishes a verifier, API, or specification a third party can run; any
+remote call goes through one audited gate that records refusals as well as successes. See
+[the network boundary](docs/network-and-providers.md). TrueAI does not invent provider watermark
 algorithms, reverse-engineer keys, forge provenance, or claim watermark removal. C2PA verification
 is real but explicit: default scanning reports markers; `trueai verify` or
 `scan --verify-provenance` validates signatures through the official implementation.

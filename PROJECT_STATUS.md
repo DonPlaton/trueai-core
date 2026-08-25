@@ -272,10 +272,20 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P2 — provenance adapters and trust presentation
 
-- [ ] `PROV-01` Add provider verification adapters only when a provider publishes an official API,
-  verifier, or specification; unsupported providers must continue to report unavailable status.
-- [ ] `PROV-02` Route every remote verifier through explicit `NetworkPolicy`, consent, endpoint
-  allowlisting, timeout/size limits, credential isolation, and auditable request metadata.
+- [x] `PROV-01` `AdmissionCriteria` writes the standard down — published mechanism, independently
+  runnable, specified semantics, stable contract, all four — and `PROVIDER_ASSESSMENTS` records
+  where each provider stands, in code rather than only in prose. C2PA is the only one admitted.
+  An unadmitted provider reports `VERIFICATION_UNAVAILABLE` naming the criteria it fails, so
+  "unavailable" is a position with reasons; a test pins that C2PA is the only admission and that
+  every assessment explains itself.
+- [x] `PROV-02` `trueai/core/network.py` is the one gate, requiring all six: `EXPLICIT_ONLY`
+  policy, recorded consent scoped to endpoints *and* a purpose, an exact endpoint allowlist,
+  timeout and response-size caps, per-request credentials the gate never holds, and an audit record
+  of every attempt — refusals included, because a tool that must prove it contacted nothing cannot
+  do it from a log of successes. `NetworkTimestampProvider` was carrying a private copy of the
+  policy and allowlist checks and now calls through the gate; its original transport shape is
+  adapted rather than replaced. An adapter is offline unless handed a gate, and one that has not
+  declared `network_required` cannot request anything even with one.
 - [ ] `PROV-03` Add managed trust-store distribution, rotation, expiry, and offline update bundles.
 - [ ] `PROV-04` Present marker, signature validity, signer trust, and provider-verification status as
   separate concepts in future HTML/desktop interfaces.

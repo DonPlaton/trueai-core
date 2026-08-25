@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -46,6 +47,7 @@ from trueai.core.certificates import (
 )
 from trueai.core.errors import AttestationError, TrueAIError
 from trueai.core.models import FrozenModel, NetworkPolicy
+from trueai.core.network import NetworkGate
 
 TRUST_SCHEMA_VERSION: Literal["0.1"] = "0.1"
 
@@ -416,44 +418,92 @@ class OfflineTimestampProvider(TimestampProvider):
 
 
 class NetworkTimestampProvider(TimestampProvider):
-    """An RFC 3161 authority, reachable only under an explicit network policy.
+    """An RFC 3161 authority, reachable only through the shared network gate.
 
-    TrueAI refuses to contact a timestamp authority unless the caller passed a
-    policy that permits it and an endpoint the operator allowlisted. Normal
-    scanning stays offline; asking for a trusted timestamp is a separate,
-    deliberate act.
+    Normal scanning stays offline; asking for a trusted timestamp is a separate,
+    deliberate act. The conditions for that act are not stated here — they live
+    in :class:`trueai.core.network.NetworkGate`, so "did this tool contact
+    anything" has one answer, one set of rules, and one audit trail rather than a
+    copy per caller.
 
     The transport is supplied by the caller. TrueAI does not embed an HTTP client,
     because a forensic tool that can reach the network by default is a different
     product with a different threat model.
+
+    A caller that already has a configured gate passes it. A caller that does not
+    may pass the endpoint, policy, allowlist, and transport instead, and a gate is
+    built from them — with a consent record naming the constructor arguments as
+    the source, because a synthesised consent must not be mistaken for a person's.
     """
 
     name = "rfc3161"
+    purpose = "rfc3161 timestamp"
 
     def __init__(
         self,
         *,
         endpoint: str,
-        network_policy: NetworkPolicy,
-        allowed_endpoints: frozenset[str],
-        transport: Any,
+        network_policy: NetworkPolicy | None = None,
+        allowed_endpoints: frozenset[str] | None = None,
+        transport: Any = None,
         authority: str | None = None,
+        gate: NetworkGate | None = None,
     ) -> None:
-        if network_policy != NetworkPolicy.EXPLICIT_ONLY:
-            raise TrustError(
-                "Contacting a timestamp authority requires NetworkPolicy.EXPLICIT_ONLY; "
-                f"got {network_policy.value}"
+        from trueai.core.network import NetworkConsent
+
+        if gate is None:
+            if network_policy is None or allowed_endpoints is None:
+                raise TrustError(
+                    "Pass a configured NetworkGate, or the policy and allowlist to build one"
+                )
+            if not callable(transport):
+                raise TrustError("A network timestamp provider needs a callable transport")
+
+            def adapted(
+                endpoint_url: str,
+                *,
+                payload: bytes,
+                headers: Mapping[str, str],
+                timeout: float,
+            ) -> bytes:
+                """Bridge the timestamp transport's own shape to the gate's.
+
+                A timestamp transport was always ``(endpoint, digest) -> bytes``.
+                Changing that to the gate's signature would break every caller
+                who wrote one, so the shape is adapted rather than replaced. A
+                caller who passes a ``gate`` uses the gate's protocol directly.
+                """
+
+                del headers, timeout
+                raw = transport(endpoint_url, payload.decode("ascii"))
+                if not isinstance(raw, (bytes, bytearray)):
+                    raise TrustError("A timestamp transport must return raw token bytes")
+                return bytes(raw)
+
+            gate = NetworkGate(
+                policy=network_policy,
+                allowed_endpoints=allowed_endpoints,
+                consent=NetworkConsent(
+                    granted_by="constructor arguments",
+                    purpose=self.purpose,
+                    endpoints=allowed_endpoints,
+                ),
+                transport=adapted,
             )
-        if endpoint not in allowed_endpoints:
-            raise TrustError(
-                f"Endpoint {endpoint!r} is not in the operator's allowlist, so it will not "
-                "be contacted"
-            )
-        if not callable(transport):
-            raise TrustError("A network timestamp provider needs a callable transport")
+        refusal = gate.check(endpoint, self.purpose)
+        if refusal is not None:
+            if gate.policy != NetworkPolicy.EXPLICIT_ONLY:
+                # Named explicitly because the policy is the condition a caller is
+                # most likely to have got wrong, and the enum member is what they
+                # need to pass.
+                raise TrustError(
+                    "Contacting a timestamp authority requires NetworkPolicy.EXPLICIT_ONLY; "
+                    f"got {gate.policy.value}"
+                )
+            raise TrustError(f"This timestamp authority will not be contacted: {refusal}")
         self.endpoint = endpoint
         self.authority = authority or endpoint
-        self._transport = transport
+        self.gate = gate
 
     def timestamp(self, digest_sha256: str) -> TimestampToken:
         """Request a token from the allowlisted authority."""
@@ -461,11 +511,13 @@ class NetworkTimestampProvider(TimestampProvider):
         import base64
 
         try:
-            raw = self._transport(self.endpoint, digest_sha256)
+            # Through the gate, so the request is bounded, credential-isolated,
+            # and recorded like every other remote call this tool makes.
+            raw = self.gate.request(
+                self.endpoint, purpose=self.purpose, payload=digest_sha256.encode("ascii")
+            )
         except Exception as exc:
             raise TrustError(f"Timestamp authority {self.endpoint} failed: {exc}") from exc
-        if not isinstance(raw, (bytes, bytearray)):
-            raise TrustError("A timestamp transport must return raw token bytes")
         return TimestampToken(
             format="rfc3161",
             authority=self.authority,
