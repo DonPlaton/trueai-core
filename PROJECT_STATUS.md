@@ -286,7 +286,18 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   policy and allowlist checks and now calls through the gate; its original transport shape is
   adapted rather than replaced. An adapter is offline unless handed a gate, and one that has not
   declared `network_required` cannot request anything even with one.
-- [ ] `PROV-03` Add managed trust-store distribution, rotation, expiry, and offline update bundles.
+- [x] `PROV-03` `trueai/core/trust_store.py` handles three problems that are not the same problem.
+  *Distribution:* a store is signed, sequenced, and expires; it is installed against a remembered
+  sequence, so a store claiming to be older than the installed one is a rollback and is refused, and
+  an expired store yields no anchors at all rather than quietly continuing. *Rotation:* a replacement
+  anchor names what it replaces, and `rotation_problems()` finds the **gap** — a successor starting
+  after its predecessor ended leaves a window where nothing verifies, and the failure surfaces months
+  later to someone who will not connect it to a key change; installing reports it as a warning,
+  because the gap may be deliberate but must not be silent. *Offline updates:* a `TrustStoreUpdate`
+  advances exactly one sequence, since jumping 4 to 6 skips whatever 5 revoked. Verification also
+  splits an unreadable key file, the wrong key for this store, and a genuinely broken signature into
+  three distinct refusals, so a typed path does not send an operator hunting an attacker.
+  63 tests; `docs/trust-store.md`.
 - [ ] `PROV-04` Present marker, signature validity, signer trust, and provider-verification status as
   separate concepts in future HTML/desktop interfaces.
 

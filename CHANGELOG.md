@@ -12,6 +12,46 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Managed trust stores: distribution, rotation, and offline updates**
+
+- `trueai/core/trust_store.py`. A `TrustProfile` answers "whose key is this" for
+  one signature; a trust store is what an organization deploys to a fleet — C2PA
+  roots, issuer keys, plugin publisher keys — as one signed, sequenced document
+  with a lifetime.
+- **Rollback is refused.** A store is installed against the sequence this machine
+  already holds, because a rollback reinstates every key the intervening
+  sequences revoked. A verifier with no memory cannot detect that, so the API
+  asks for the memory rather than pretending it is unnecessary.
+- **An expired store yields no anchors at all**, rather than continuing to honour
+  what it held. Otherwise the lifetime would be decorative.
+- **Rotation gaps are found.** A replacement anchor names what it replaces, and
+  `rotation_problems()` reports the window where the successor starts after the
+  predecessor ended — the failure nobody connects to a key rotation, because it
+  surfaces months later as a signature that will not verify. Installing reports
+  it as a warning, not a refusal: the gap may be deliberate, but not silent.
+- **Offline updates advance exactly one sequence.** Jumping from 4 to 6 would
+  skip whatever 5 revoked, and a revocation you skipped is a key you are still
+  trusting. Enforced twice: the update model refuses to describe a jump, and
+  `apply_update` refuses one that does not start where the machine is.
+- An update carries the whole successor rather than a diff, so "what will I be
+  trusting afterwards" needs no computation. A refused update leaves the
+  installed store in place, never a partially applied one.
+- `AnchorKind` keeps `c2pa_root`, `issuer_key`, `plugin_publisher`, and
+  `timestamp_authority` apart: trusting a key to sign C2PA manifests is not
+  trusting it to publish plugins.
+- `to_trust_profile()` and `c2pa_anchor_pems()` are projections, not second
+  sources of truth, and both apply the store lifetime, the anchor window, and
+  every revocation before returning.
+- `docs/trust-store.md`.
+
+### Changed
+
+- Trust-store verification splits three failures a single "the signature does not
+  verify" would collapse: an unreadable key file, the wrong key for this store,
+  and a signature that genuinely disagrees with the bytes. Telling an operator
+  their signature failed when they typed the wrong filename sends them looking
+  for an attacker.
+
 **One network gate, and an admission standard for provider adapters**
 
 - `trueai/core/network.py` is the only place TrueAI may reach the network. Six

@@ -180,7 +180,9 @@ Records export to W3C PROV, in-toto/DSSE, and C2PA assertion data, each carrying
 its target vocabulary could not express. See
 [Human Contribution Records](docs/process-attestation.md),
 [evaluation profiles](docs/evaluation-profiles.md),
-[interoperability](docs/interoperability.md), and [trust](docs/trust.md).
+[interoperability](docs/interoperability.md), [trust](docs/trust.md), and
+[trust stores](docs/trust-store.md) — signed, sequenced anchor sets that refuse a rollback,
+report rotation gaps, and apply offline updates one sequence at a time.
 
 ## Confidence and provenance semantics
 
