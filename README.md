@@ -175,7 +175,8 @@ Two orthogonal questions get answered separately:
 ```console
 $ trueai attestations init attestation.yaml && trueai attestations issue attestation.yaml \
     --artifact report.md --signing-key alice.key --claimant alice
-$ trueai attestations evaluate report.process.json --profile software-delivery
+$ trueai attestations evaluate report.process.json --artifact report.pdf \
+    --profile software-delivery
 $ trueai scan report.md --format sarif --attestation report.process.json
 ```
 

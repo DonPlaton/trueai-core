@@ -12,8 +12,10 @@ So both are protocols, each with one member, and a plain implementation attached
 ```python
 from trueai.core.progress import ProgressEvent, ScanPhase
 
+
 def observe(event: ProgressEvent) -> None:
     print(event.describe())
+
 
 report = engine.scan(path, progress=observe)
 ```
@@ -49,7 +51,7 @@ fatal.
 ```python
 from trueai.core.progress import CancellationToken, ScanCancelled
 
-token = CancellationToken()          # threading.Event inside; set it from anywhere
+token = CancellationToken()  # threading.Event inside; set it from anywhere
 try:
     report = engine.scan(path, cancellation=token)
 except ScanCancelled as stopped:

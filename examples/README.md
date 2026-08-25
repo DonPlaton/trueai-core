@@ -17,6 +17,7 @@ from trueai.core.artifact import Artifact
 from trueai.core.models import Finding, ScanContext
 from trueai.detectors.base import BaseDetector
 
+
 class MyDetector(BaseDetector):
     id = "vendor.thing.v1"
     supported_types = frozenset({ArtifactType.MARKDOWN})

@@ -355,7 +355,8 @@ class IsolatedDetector:
             elif self.confinement == ConfinementLevel.REQUIRED:
                 raise ConfinementUnavailableError(
                     "Restricted-token spawning is unavailable on this machine, and the host "
-                    "requires operating-system confinement."
+                    "requires operating-system confinement. The worker was not started, so the "
+                    "plugin was not imported."
                 )
 
         try:

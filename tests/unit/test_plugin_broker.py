@@ -206,6 +206,34 @@ def test_an_absolute_path_does_not_escape_the_workspace(tmp_path: Path) -> None:
         broker.workspace_path(str(outside))
 
 
+def test_an_unrepresentable_workspace_path_is_a_capability_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows path conversion failures must not escape the plugin error boundary."""
+
+    from trueai.plugins import broker as broker_module
+
+    root = tmp_path / "package"
+    root.mkdir()
+    broker = CapabilityBroker(BrokerGrants(workspace=WorkspaceGrant(root=root)))
+    real_resolved = broker_module._resolved
+    calls = 0
+
+    def fail_candidate(path: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("path has no representation in the filesystem encoding")
+        return real_resolved(path)
+
+    monkeypatch.setattr(broker_module, "_resolved", fail_candidate)
+
+    with pytest.raises(CapabilityDeniedError, match="cannot be resolved safely") as raised:
+        broker.workspace_path("\u202eunsafe\u200b")
+
+    assert raised.value.capability == PluginCapability.READ_WORKSPACE
+
+
 def test_an_oversized_workspace_file_is_refused_rather_than_read(tmp_path: Path) -> None:
     root = tmp_path / "package"
     root.mkdir()

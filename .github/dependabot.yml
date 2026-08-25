@@ -15,3 +15,5 @@ updates:
     schedule:
       interval: weekly
     labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: ci

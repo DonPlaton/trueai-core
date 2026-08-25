@@ -47,6 +47,18 @@ dev = [
   "types-PyYAML>=6.0.12.20241230",
 ]
 
+# Release tooling is a dependency group rather than a runtime extra. CI and the
+# reproducible container install it from uv.lock, then build with isolation
+# disabled so the backend cannot drift behind an apparently reproducible build.
+[dependency-groups]
+release = [
+  "build>=1.5.0,<2",
+  "hatchling>=1.27,<2",
+  "pip-audit>=2.10,<3",
+  "pip-licenses>=5.5,<6",
+  "twine>=6.2,<7",
+]
+
 [project.scripts]
 trueai = "trueai.cli.app:main"
 

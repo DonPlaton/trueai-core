@@ -104,8 +104,8 @@ store was authored, on a machine that cannot fix it.
 ## Consuming a store
 
 ```python
-profile = store.to_trust_profile()     # feeds resolve_identity
-roots = store.c2pa_anchor_pems()       # feeds C2PA verification
+profile = store.to_trust_profile()  # feeds resolve_identity
+roots = store.c2pa_anchor_pems()  # feeds C2PA verification
 ```
 
 Both are projections, not second sources of truth. The store is what the

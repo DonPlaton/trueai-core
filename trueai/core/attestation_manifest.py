@@ -43,7 +43,9 @@ from trueai.core.attestation import (
     ValidationRecord,
     issue_attestation,
 )
+from trueai.core.certificates import artifact_inventory_digest, describe_artifact_inventory
 from trueai.core.errors import AttestationError
+from trueai.core.models import ScanOptions
 
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 
@@ -162,8 +164,14 @@ def build_attestation(
     if artifact is not None:
         artifact_path = Path(artifact)
         subject_name = str(subject.get("name") or artifact_path.name)
-        subject_sha256 = _digest_file(artifact_path)
-        subject_is_inventory = False
+        if artifact_path.is_dir():
+            subject_sha256 = artifact_inventory_digest(
+                describe_artifact_inventory(artifact_path, ScanOptions())
+            )
+            subject_is_inventory = True
+        else:
+            subject_sha256 = _digest_file(artifact_path)
+            subject_is_inventory = False
     else:
         declared = subject.get("sha256")
         if not isinstance(declared, str):

@@ -31,9 +31,13 @@ WORKDIR /src
 COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN python -m pip install --no-cache-dir "uv==0.12.5" \
     && python -m uv export --frozen --no-emit-project --no-editable \
-        --extra pdf --extra attestation \
-        --format requirements.txt --output-file /tmp/requirements.txt \
-    && python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt
+        --extra pdf --extra c2pa --extra attestation \
+        --format requirements.txt --output-file /tmp/runtime-requirements.txt \
+    && python -m uv export --frozen --no-emit-project --no-editable \
+        --only-group release \
+        --format requirements.txt --output-file /tmp/release-requirements.txt \
+    && python -m pip install --no-cache-dir --require-hashes \
+        -r /tmp/release-requirements.txt
 
 # The whole source tree, minus what .dockerignore excludes, so the container
 # builds from exactly what an offline sdist rebuild would see. Copying a subset
@@ -47,12 +51,14 @@ RUN find . -type d -exec chmod 0755 {} + \
     && find . -type f -exec chmod 0644 {} + \
     && chmod 0755 scripts/*.sh
 
-RUN python -m pip install --no-cache-dir "build==1.5.1" \
-    && python -m build --outdir /dist \
-    && python -m pip install --no-cache-dir --no-deps /dist/*.whl \
+RUN python -m build --no-isolation --outdir /dist \
+    && python -m pip install --no-cache-dir --require-hashes \
+        --prefix=/runtime -r /tmp/runtime-requirements.txt \
+    && python -m pip install --no-cache-dir --no-deps --prefix=/runtime /dist/*.whl \
     && python scripts/record_build_inputs.py --dist /dist
 
-# The runtime stage carries no build tooling, so what ships is what runs.
+# Copy the dedicated runtime prefix rather than the builder's site-packages. The
+# final image therefore carries no uv, build, hatchling, twine, or audit tools.
 FROM python@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134 AS runtime
 
 ARG SOURCE_DATE_EPOCH=1735689600
@@ -61,8 +67,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     # Detector execution and report ordering must not depend on hash randomization.
     PYTHONHASHSEED=0
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin/trueai /usr/local/bin/trueai
+COPY --from=builder /runtime/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /runtime/bin/trueai /usr/local/bin/trueai
 COPY --from=builder /dist /dist
 
 # Scanning is a read-only activity and the image performs no network access.

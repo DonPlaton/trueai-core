@@ -159,6 +159,24 @@ def test_a_manifest_binds_the_subject_and_its_evidence_by_digest(workspace: Path
     assert notes.disclosure == DisclosureStatus.PRIVATE
 
 
+def test_a_directory_subject_is_bound_as_a_verifiable_inventory(tmp_path: Path) -> None:
+    """Repository attestations must be able to prove the inventory they name."""
+
+    manifest = tmp_path / "attestation.yaml"
+    manifest.write_text(template_manifest(), encoding="utf-8")
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    (repository / "README.md").write_text("original\n", encoding="utf-8")
+
+    record = build_attestation(load_manifest(manifest), artifact=repository)
+
+    assert record.subject_is_inventory is True
+    assert verify_attestation(record, artifact=repository).subject_bound is True
+
+    (repository / "README.md").write_text("changed\n", encoding="utf-8")
+    assert verify_attestation(record, artifact=repository).subject_bound is False
+
+
 def test_an_unknown_enum_value_names_what_was_allowed(workspace: Path) -> None:
     manifest = load_manifest(workspace / "manifest.yaml")
     manifest["claims"][0]["level"] = "mostly_human"

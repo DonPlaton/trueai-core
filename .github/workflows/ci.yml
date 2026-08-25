@@ -29,8 +29,10 @@ jobs:
     name: Lint, format, and strict types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -58,8 +60,10 @@ jobs:
       # tests/support.py for the enforcement helper.
       TRUEAI_REQUIRE_PRIVILEGED_TESTS: ${{ matrix.os == 'windows-latest' && '0' || '1' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -72,7 +76,7 @@ jobs:
         run: python -m pytest --cov=trueai --cov-report=term-missing --cov-report=xml -rs
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-xml
           path: coverage.xml
@@ -88,8 +92,10 @@ jobs:
     env:
       TRUEAI_REQUIRE_PRIVILEGED_TESTS: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -112,8 +118,10 @@ jobs:
     name: Plugin trust boundary
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -140,8 +148,10 @@ jobs:
       matrix:
         target: [protocol, manifest, distribution, findings, limits, broker]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -163,8 +173,10 @@ jobs:
       # report green while proving nothing, so here the skip becomes a failure.
       TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -180,8 +192,10 @@ jobs:
     name: Public schema 0.1 compatibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -221,32 +235,38 @@ jobs:
     runs-on: ubuntu-latest
     needs: [static-analysis]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           # A reproducible SOURCE_DATE_EPOCH is derived from the commit date.
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install build tooling
-        run: python -m pip install build twine "uv==0.12.5"
+          cache-dependency-path: uv.lock
+      - name: Install the locked build environment
+        run: |
+          python -m pip install "uv==0.12.5"
+          python -m uv sync --frozen --all-extras --group release
       - name: Confirm the dependency lock matches pyproject.toml
         run: python -m uv lock --check
       - name: Build wheel and sdist
-        run: SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)" python -m build --outdir dist
+        run: >-
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          python -m uv run python -m build --no-isolation --outdir dist
       - name: Validate distribution metadata
-        run: python -m twine check --strict dist/*
+        run: python -m uv run twine check --strict dist/*
       - name: Rebuild and compare for reproducibility
         run: |
-          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)" python -m build --outdir dist-rebuild
-          python scripts/compare_builds.py dist dist-rebuild
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)" \
+            python -m uv run python -m build --no-isolation --outdir dist-rebuild
+          python -m uv run python scripts/compare_builds.py dist dist-rebuild
       - name: Verify the packaged source manifest
-        run: python scripts/check_manifest.py
+        run: python -m uv run python scripts/check_manifest.py
       - name: Record the build inputs an auditor needs
         run: |
-          python scripts/record_build_inputs.py \
+          python -m uv run python scripts/record_build_inputs.py \
             --dist dist --source-date-epoch "$(git log -1 --pretty=%ct)"
           cat dist/build-inputs.json
       - name: Install the wheel into a clean environment
@@ -259,7 +279,7 @@ jobs:
           export PATH="/tmp/clean-env/bin:$PATH"
           bash scripts/smoke_test.sh /tmp/clean-env/bin/trueai
       - name: Upload distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: distributions
           path: dist/*
@@ -269,11 +289,12 @@ jobs:
     name: Container build is byte-for-byte reproducible
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           # The build clock is the commit date, which needs history.
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
       - name: Build the pinned auditor image twice and compare
@@ -289,40 +310,45 @@ jobs:
     name: Dependency, license, and SBOM review
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install the package and audit tooling
+          cache-dependency-path: uv.lock
+      - name: Install the locked audit environment
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install ".[pdf,c2pa,attestation]"
-          python -m pip install pip-audit cyclonedx-bom pip-licenses
+          python -m pip install "uv==0.12.5"
+          python -m uv sync --frozen --all-extras --group release
       - name: Audit dependencies for known vulnerabilities
         run: |
-          python -m pip freeze --all | grep -ivE '^trueai-core([=@ ]|$)' > audit-requirements.txt
-          python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
+          python -m uv export --frozen --no-emit-project --no-editable --all-extras \
+            --no-extra dev --no-dev --no-group release --output-file audit-requirements.txt
+          python -m uv run python -m pip_audit --strict --require-hashes \
+            --requirement audit-requirements.txt --progress-spinner off
       - name: Enforce the dependency license allowlist
-        run: python scripts/check_licenses.py
+        run: python -m uv run python scripts/check_licenses.py
       # Prose has no compiler. This checks that the nouns exist: commands,
       # options, links, and the files a completed backlog item cites.
       - name: Check the documentation names things that exist
-        run: python scripts/check_docs.py
+        run: python -m uv run python scripts/check_docs.py
       # pip-audit above answers "is there a known CVE right now". This answers
       # "has anybody looked, and does the ledger still describe this build" —
       # including the standard-library parsers no dependency audit mentions.
       - name: Check the advisory ledger is current and complete
-        run: python scripts/check_advisories.py
+        run: python -m uv run python scripts/check_advisories.py
       - name: Generate a CycloneDX SBOM
-        run: cyclonedx-py environment --output-format JSON --output-file sbom.cdx.json
+        run: >-
+          python -m uv run python scripts/generate_sbom.py
+          --timestamp "$(git log -1 --pretty=%ct)" --output sbom.cdx.json
       # A document that exists and has blanks in it passes a consumer's "do you
       # have an SBOM" check while answering none of their questions.
       - name: Check every component carries a version, a license, and a purl
-        run: python scripts/generate_sbom.py --check
+        run: python -m uv run python scripts/generate_sbom.py --check
       - name: Upload the SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
           path: sbom.cdx.json

@@ -171,7 +171,7 @@ Every record carries these four, and a record missing any of them is invalid:
 Each names something a reader could otherwise wrongly infer from a valid
 signature. Every human-readable summary must repeat the applicable ones.
 
-## What is not implemented yet
+## Related implementation and remaining validation
 
 Evaluation profiles and the Process Assurance Level live in
 [evaluation profiles](evaluation-profiles.md); the shared signing, identity,

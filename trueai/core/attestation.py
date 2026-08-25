@@ -49,12 +49,14 @@ from pydantic import Field, model_validator
 from trueai._version import PACKAGE_VERSION
 from trueai.core.certificates import (
     CertificateSignature,
+    artifact_inventory_digest,
     canonical_json_bytes,
+    describe_artifact_inventory,
     sign_detached_payload,
     verify_detached_payload,
 )
 from trueai.core.errors import AttestationError
-from trueai.core.models import FrozenModel
+from trueai.core.models import FrozenModel, ScanOptions
 from trueai.core.trust import (
     IdentityAssurance,
     IdentityResult,
@@ -568,6 +570,14 @@ class AttestationVerification(FrozenModel):
     reviewer_signature: str = "absent"
     organization_signature: str = "absent"
     assessor_signature: str = "absent"
+    #: Actor identities whose individual signatures verified for each role.
+    #: The aggregate status above remains useful for presentation, while PAL
+    #: needs signer identity to prove that review and assessment were performed
+    #: by distinct actors rather than by one key changing its role label.
+    valid_claimant_actor_ids: tuple[str, ...] = ()
+    valid_reviewer_actor_ids: tuple[str, ...] = ()
+    valid_organization_actor_ids: tuple[str, ...] = ()
+    valid_assessor_actor_ids: tuple[str, ...] = ()
     expired: bool = False
     evaluation_profile_supported: bool | None = None
     disclosed_evidence_consistent: bool | None = None
@@ -774,30 +784,60 @@ def verify_attestation(
     if artifact is not None:
         path = Path(artifact)
         try:
-            subject_bound = _sha256_file(path) == attestation.subject_sha256
+            actual_subject = (
+                artifact_inventory_digest(describe_artifact_inventory(path, ScanOptions()))
+                if attestation.subject_is_inventory
+                else _sha256_file(path)
+            )
+            subject_bound = actual_subject == attestation.subject_sha256
         except OSError as exc:
             subject_bound = False
             problems.append(f"The subject artifact could not be read: {exc}")
+        except AttestationError as exc:
+            subject_bound = False
+            problems.append(f"The subject inventory could not be verified: {exc}")
         if subject_bound is False and not problems:
             problems.append("The artifact does not match the bound subject digest")
 
     keys = public_keys or {}
-    statuses = {role: "absent" for role in SignatureRole}
+    signature_results: dict[SignatureRole, list[str]] = {role: [] for role in SignatureRole}
+    valid_signers: dict[SignatureRole, set[str]] = {role: set() for role in SignatureRole}
     payload = signed_payload(attestation)
     for signature in attestation.signatures:
         key = keys.get(signature.actor_id)
         if key is None:
-            statuses[signature.role] = "unverified"
+            signature_results[signature.role].append("unverified")
             continue
         try:
             valid = verify_detached_payload(signature.signature, payload, key)
         except Exception as exc:  # foreign key material is caller-supplied
-            statuses[signature.role] = "error"
+            signature_results[signature.role].append("error")
             problems.append(f"Signature for {signature.actor_id} could not be checked: {exc}")
             continue
-        statuses[signature.role] = "valid" if valid else "invalid"
+        signature_results[signature.role].append("valid" if valid else "invalid")
+        if valid:
+            valid_signers[signature.role].add(signature.actor_id)
         if not valid:
             problems.append(f"Signature for {signature.actor_id} does not verify")
+
+    def aggregate_signature_status(role: SignatureRole) -> str:
+        """Summarize a role without allowing signature order to choose the answer."""
+
+        results = signature_results[role]
+        if not results:
+            return "absent"
+        # One verified signer establishes that the role was signed. PAL still
+        # checks the identity of that signer below; an appended junk signature
+        # cannot erase an otherwise valid countersignature.
+        if "valid" in results:
+            return "valid"
+        if "error" in results:
+            return "error"
+        if "invalid" in results:
+            return "invalid"
+        return "unverified"
+
+    statuses = {role: aggregate_signature_status(role) for role in SignatureRole}
 
     evidence_ids = {item.id for item in attestation.evidence}
     referenced = {evidence_id for claim in attestation.claims for evidence_id in claim.evidence_ids}
@@ -807,10 +847,9 @@ def verify_attestation(
 
     profile_supported: bool | None = None
     if attestation.evaluation is not None:
-        profile_supported = (
-            supported_profiles is None or attestation.evaluation.profile in supported_profiles
-        )
-        if not profile_supported:
+        if supported_profiles is not None:
+            profile_supported = attestation.evaluation.profile in supported_profiles
+        if profile_supported is False:
             problems.append(
                 f"Evaluation profile {attestation.evaluation.profile!r} is not supported here, "
                 "so its levels cannot be interpreted"
@@ -855,7 +894,12 @@ def verify_attestation(
         problems.append("The record has passed its stated validity window")
 
     claimant = next(
-        (item for item in attestation.signatures if item.role == SignatureRole.CLAIMANT),
+        (
+            item
+            for item in attestation.signatures
+            if item.role == SignatureRole.CLAIMANT
+            and item.actor_id in valid_signers[SignatureRole.CLAIMANT]
+        ),
         None,
     )
     identity: IdentityResult | None = None
@@ -888,6 +932,10 @@ def verify_attestation(
         reviewer_signature=statuses[SignatureRole.REVIEWER],
         organization_signature=statuses[SignatureRole.ORGANIZATION],
         assessor_signature=statuses[SignatureRole.ASSESSOR],
+        valid_claimant_actor_ids=tuple(sorted(valid_signers[SignatureRole.CLAIMANT])),
+        valid_reviewer_actor_ids=tuple(sorted(valid_signers[SignatureRole.REVIEWER])),
+        valid_organization_actor_ids=tuple(sorted(valid_signers[SignatureRole.ORGANIZATION])),
+        valid_assessor_actor_ids=tuple(sorted(valid_signers[SignatureRole.ASSESSOR])),
         expired=expired,
         evaluation_profile_supported=profile_supported,
         disclosed_evidence_consistent=disclosed_consistent,

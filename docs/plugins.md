@@ -73,6 +73,7 @@ A plugin declares `bind_broker` and receives one:
 ```python
 from trueai.detectors.base import BaseDetector
 
+
 class InvoiceDetector(BaseDetector):
     id = "acme.invoice-forensics.v1"
 
@@ -80,11 +81,11 @@ class InvoiceDetector(BaseDetector):
         self.broker = broker
 
     def scan(self, artifact, context):
-        payload = self.broker.read_artifact()          # the granted file, read-only
+        payload = self.broker.read_artifact()  # the granted file, read-only
         sibling = self.broker.read_workspace("meta.xml")  # inside the grant, or refused
         if self.broker.granted(PluginCapability.WRITE_TEMPORARY):
             with self.broker.open_temporary("work.bin") as handle:
-                handle.write(payload[:1024])           # charged against the budget
+                handle.write(payload[:1024])  # charged against the budget
         ...
 ```
 
@@ -136,7 +137,7 @@ from trueai.plugins import CapabilityPolicy, PluginCapability, PluginIsolation
 
 policy = CapabilityPolicy(
     granted=frozenset({PluginCapability.READ_ARTIFACT}),
-    require_manifest=True,                       # refuse plugins that will not declare
+    require_manifest=True,  # refuse plugins that will not declare
     allowed_detector_ids=frozenset({"acme.invoice-forensics.v1"}),
 )
 engine = TrueAIEngine.default(

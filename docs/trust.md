@@ -17,8 +17,8 @@ from trueai.core.trust import ExternalSigningProvider
 
 provider = ExternalSigningProvider(
     name="corporate-kms",
-    public_key="signer.pub",          # so a verifier can check without asking the KMS
-    signer=kms_sign,                  # bytes in, raw Ed25519 signature out
+    public_key="signer.pub",  # so a verifier can check without asking the KMS
+    signer=kms_sign,  # bytes in, raw Ed25519 signature out
 )
 ```
 

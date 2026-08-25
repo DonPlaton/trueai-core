@@ -121,6 +121,14 @@ def keypair(tmp_path: Path, actor_id: str) -> tuple[Path, Path]:
     return private, public
 
 
+def subject_artifact(tmp_path: Path) -> Path:
+    """Write the exact bytes all records in this module bind to."""
+
+    artifact = tmp_path / "deliverable"
+    artifact.write_bytes(b"deliverable")
+    return artifact
+
+
 def solid_record(**extra: object) -> ProcessAttestation:
     """A record that reaches PAL-3 so a single defect is the only variable."""
 
@@ -197,9 +205,114 @@ def test_the_baseline_record_reaches_reviewed(tmp_path: Path) -> None:
 
     record, keys = countersigned(solid_record(), tmp_path)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.REVIEWED
+
+
+def test_an_unchecked_subject_cannot_receive_process_assurance(tmp_path: Path) -> None:
+    """A signed digest is not proof that the delivered artifact matches that digest."""
+
+    record, keys = countersigned(solid_record(), tmp_path)
+    verification = verify_attestation(record, public_keys=keys)
+
+    assert verification.subject_bound is None
+    assert assess_process_assurance(record, verification).level == (
+        ProcessAssuranceLevel.UNSUBSTANTIATED
+    )
+
+
+def test_one_actor_cannot_countersign_their_own_declaration(tmp_path: Path) -> None:
+    """Changing the role label on the same key does not create independent review."""
+
+    alice_key, alice_public = keypair(tmp_path, "alice")
+    record = solid_record(actors=(ALICE, ASSISTANT))
+    record = sign_attestation(
+        record, role=SignatureRole.CLAIMANT, actor_id="alice", signing_key=alice_key
+    )
+    record = sign_attestation(
+        record, role=SignatureRole.REVIEWER, actor_id="alice", signing_key=alice_key
+    )
+    artifact = tmp_path / "deliverable"
+    artifact.write_bytes(b"deliverable")
+
+    verification = verify_attestation(
+        record, artifact=artifact, public_keys={"alice": alice_public}
+    )
+
+    assert verification.reviewer_signature == "valid"
+    assert assess_process_assurance(record, verification).level == ProcessAssuranceLevel.EVIDENCED
+
+
+@pytest.mark.parametrize("named_assessor", ["alice", "bob"])
+def test_an_assessor_must_be_named_and_independent(tmp_path: Path, named_assessor: str) -> None:
+    """PAL-4 needs a distinct assessor who is also the actor named by the evaluation."""
+
+    authority_key, authority_public = keypair(tmp_path, "authority")
+    alice_key, alice_public = keypair(tmp_path, "alice")
+    bob_key, bob_public = keypair(tmp_path, "bob")
+    record = solid_record(
+        actors=(ALICE, ASSISTANT, BOB),
+        created_at=NOW,
+        expires_at=NOW + timedelta(days=30),
+        evaluation=Evaluation(
+            profile="software-delivery",
+            rubric_version="0.1",
+            assessor_actor_id=named_assessor,
+            assessed_at=NOW,
+            results=(
+                DimensionAssessment(
+                    dimension=ContributionDimension.VALIDATION,
+                    level=ContributionLevel.PRIMARY,
+                    confidence="high",
+                ),
+            ),
+        ),
+    )
+    record = sign_attestation(
+        record,
+        role=SignatureRole.CLAIMANT,
+        actor_id="alice",
+        signing_key=alice_key,
+        timestamp_provider=OfflineTimestampProvider(
+            LocalKeySigningProvider(authority_key), authority="Independent clock"
+        ),
+    )
+    record = sign_attestation(
+        record, role=SignatureRole.REVIEWER, actor_id="bob", signing_key=bob_key
+    )
+    # For named_assessor=alice this is the wrong actor; for bob it is the same
+    # actor as the reviewer. Neither establishes an independent assessment.
+    record = sign_attestation(
+        record, role=SignatureRole.ASSESSOR, actor_id="bob", signing_key=bob_key
+    )
+    profile = TrustProfile(
+        profile_id="local",
+        issued_at=NOW,
+        bindings=(
+            IssuerBinding(
+                key_id=public_key_id(alice_public),
+                organization="Example organization",
+                not_before=NOW - timedelta(days=1),
+            ),
+        ),
+    )
+    artifact = tmp_path / "deliverable"
+    artifact.write_bytes(b"deliverable")
+    verification = verify_attestation(
+        record,
+        artifact=artifact,
+        public_keys={"alice": alice_public, "bob": bob_public},
+        supported_profiles=frozenset({"software-delivery"}),
+        trust_profile=profile,
+        timestamp_authority_key=authority_public,
+        now=NOW,
+    )
+
+    assert assess_process_assurance(record, verification).level == ProcessAssuranceLevel.REVIEWED
 
 
 # -- forged evidence -----------------------------------------------------------------
@@ -222,6 +335,7 @@ def test_disclosed_bytes_that_miss_their_commitment_block_the_evidenced_level(
 
     verification = verify_attestation(
         record,
+        artifact=subject_artifact(tmp_path),
         public_keys=keys,
         disclosed_evidence={"tests": salt + b"a log that was never produced"},
     )
@@ -586,7 +700,10 @@ def test_machine_work_without_a_named_ai_actor_cannot_reach_evidenced(tmp_path: 
     )
     record, keys = countersigned(record, tmp_path)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.DECLARED
     assert any("name the AI systems" in item for item in assurance.next_level_requires)
@@ -608,7 +725,10 @@ def test_stating_that_no_ai_participated_is_a_disclosure(tmp_path: Path) -> None
     )
     record, keys = countersigned(record, tmp_path)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.EVIDENCED
 
@@ -638,7 +758,10 @@ def test_recorded_dissent_blocks_the_reviewed_level(tmp_path: Path) -> None:
     record, keys = countersigned(record, tmp_path)
 
     verification = verify_attestation(
-        record, public_keys=keys, supported_profiles=frozenset({"software-delivery"})
+        record,
+        artifact=subject_artifact(tmp_path),
+        public_keys=keys,
+        supported_profiles=frozenset({"software-delivery"}),
     )
     assurance = assess_process_assurance(record, verification)
 
@@ -870,6 +993,30 @@ def test_an_unsupported_profile_is_reported_rather_than_interpreted(tmp_path: Pa
     )
 
 
+def test_profile_support_is_not_assumed_when_the_verifier_supplies_none() -> None:
+    """Silence from a verifier is not support for an arbitrary evaluation rubric."""
+
+    record = solid_record(
+        evaluation=Evaluation(
+            profile="unknown-rubric",
+            rubric_version="99",
+            assessor_actor_id="bob",
+            assessed_at=NOW,
+            results=(
+                DimensionAssessment(
+                    dimension=ContributionDimension.EXECUTION,
+                    level=ContributionLevel.PRIMARY,
+                    confidence="unknown",
+                ),
+            ),
+        )
+    )
+
+    verification = verify_attestation(record)
+
+    assert verification.evaluation_profile_supported is None
+
+
 def test_the_cli_names_the_profiles_it_does_know(tmp_path: Path) -> None:
     record, _ = countersigned(solid_record(), tmp_path)
     path = tmp_path / "record.process.json"
@@ -926,7 +1073,12 @@ def test_the_next_step_is_stated_rather_than_left_to_be_inferred(tmp_path: Path)
     )
 
     assurance = assess_process_assurance(
-        record, verify_attestation(record, public_keys={"alice": alice_public})
+        record,
+        verify_attestation(
+            record,
+            artifact=subject_artifact(tmp_path),
+            public_keys={"alice": alice_public},
+        ),
     )
 
     assert assurance.level == ProcessAssuranceLevel.EVIDENCED

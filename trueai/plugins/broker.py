@@ -355,8 +355,15 @@ class CapabilityBroker:
                 "Reading workspace files requires the read_workspace capability.",
                 capability=PluginCapability.READ_WORKSPACE,
             )
-        root = _resolved(grant.root)
-        candidate = _resolved(root / relative)
+        try:
+            root = _resolved(grant.root)
+            candidate = _resolved(root / relative)
+        except (OSError, TypeError, ValueError) as exc:
+            raise CapabilityDeniedError(
+                f"The requested workspace path {str(relative)!a} cannot be resolved safely.",
+                capability=PluginCapability.READ_WORKSPACE,
+                scope=str(grant.root),
+            ) from exc
         if not _within(candidate, root):
             raise CapabilityDeniedError(
                 f"{candidate} is outside the workspace grant rooted at {root}.",
@@ -396,8 +403,15 @@ class CapabilityBroker:
                 "Writing temporary output requires the write_temporary capability.",
                 capability=PluginCapability.WRITE_TEMPORARY,
             )
-        root = _resolved(grant.directory)
-        candidate = _resolved(root / name)
+        try:
+            root = _resolved(grant.directory)
+            candidate = _resolved(root / name)
+        except (OSError, TypeError, ValueError) as exc:
+            raise CapabilityDeniedError(
+                f"The requested temporary path {name!a} cannot be resolved safely.",
+                capability=PluginCapability.WRITE_TEMPORARY,
+                scope=str(grant.directory),
+            ) from exc
         if not _within(candidate, root):
             raise CapabilityDeniedError(
                 f"{candidate} is outside the temporary grant rooted at {root}.",

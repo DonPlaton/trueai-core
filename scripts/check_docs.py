@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,8 +54,8 @@ DOCUMENTS: tuple[Path, ...] = (
     *sorted((REPOSITORY / "docs").glob("*.md")),
 )
 
-#: `trueai scan`, `trueai cache prune` — a command named in backticks.
-COMMAND = re.compile(r"`trueai((?: [a-z][a-z0-9-]*)+)")
+#: `trueai scan`, or the same invocation in a fenced command block.
+COMMAND = re.compile(r"(?<!from )(?<![\w-])trueai((?: [a-z][a-z0-9-]*)+)")
 
 #: A long option, wherever it appears.
 OPTION = re.compile(r"(?<![\w-])(--[a-z][a-z0-9-]+)")
@@ -88,7 +89,6 @@ def cli_surface() -> tuple[set[str], dict[str, set[str]], set[str]]:
     parent and passes.
     """
 
-    import click
     import typer
 
     from trueai.cli.app import app
@@ -98,18 +98,31 @@ def cli_surface() -> tuple[set[str], dict[str, set[str]], set[str]]:
     options: dict[str, set[str]] = {}
     groups: set[str] = set()
 
-    def walk(command: click.Command, prefix: str) -> None:
-        path = f"{prefix} {command.name}".strip() if command.name else prefix
+    def walk(command: object, prefix: str) -> None:
+        """Walk Typer's command tree without importing its private Click fork.
+
+        Typer 0.27 vendors its command implementation under ``typer._click``.
+        Importing the separately installed ``click`` package makes an
+        ``isinstance(..., click.Group)`` check false even though the object has
+        a real command mapping.  Structural inspection also keeps this gate
+        compatible with older Typer releases that used upstream Click.
+        """
+
+        name = getattr(command, "name", None)
+        path = f"{prefix} {name}".strip() if name else prefix
         commands.add(path)
         names: set[str] = set()
-        for parameter in command.params:
-            for flag in list(parameter.opts) + list(parameter.secondary_opts):
+        for parameter in getattr(command, "params", ()):
+            for flag in list(getattr(parameter, "opts", ())) + list(
+                getattr(parameter, "secondary_opts", ())
+            ):
                 if flag.startswith("--"):
                     names.add(flag)
         options[path] = names
-        if isinstance(command, click.Group):
+        children = getattr(command, "commands", None)
+        if isinstance(children, Mapping):
             groups.add(path)
-            for child in command.commands.values():
+            for child in children.values():
                 walk(child, path)
 
     walk(root, "")
@@ -155,7 +168,8 @@ def check_document(
     text = path.read_text(encoding="utf-8")
 
     known_groups = groups if groups is not None else set()
-    for match in COMMAND.finditer(text):
+
+    def resolve(match: re.Match[str]) -> tuple[str, Problem | None]:
         # Walk the tree. A group takes no positional arguments, so while the
         # current path is a group the next word has to be one of its
         # subcommands. Once a leaf is reached the rest are arguments. Popping a
@@ -167,38 +181,49 @@ def check_document(
                 break
             extended = f"{current} {word}"
             if extended not in commands:
-                problems.append(
-                    Problem(
-                        relative,
-                        "command",
-                        f"`{extended}` names no command; `{current}` has no subcommand {word!r}",
-                    )
+                return current, Problem(
+                    relative,
+                    "command",
+                    f"`{extended}` names no command; `{current}` has no subcommand {word!r}",
                 )
-                break
             current = extended
+        return current, None
+
+    for match in COMMAND.finditer(text):
+        _, problem = resolve(match)
+        if problem is not None:
+            problems.append(problem)
 
     # Only lines that are about `trueai` are checked. A first attempt looked at
     # every long option in the file and reported `--all-extras`, `--build-arg`,
     # and `--outdir` — pip, docker, and build flags this project documents and
     # does not own. Maintaining an allowlist of other tools' flags would rot;
     # scoping to the line removes the whole class.
-    known = {flag for flags in options.values() for flag in flags}
     for line in text.splitlines():
         # `trueai` followed by whitespace, so an image or container named
         # `trueai-core:audit` on a docker line does not drag docker's flags in.
         if not INVOCATION.search(line):
             continue
-        for match in OPTION.finditer(line):
-            flag = match.group(1)
-            if flag not in known and flag not in {"--help", "--version"}:
-                problems.append(
-                    Problem(
-                        relative,
-                        "option",
-                        f"{flag} is shown with a trueai command and is not an option of any; "
-                        "a wrong flag reads exactly like a right one",
+        invocations = list(COMMAND.finditer(line))
+        for index, invocation in enumerate(invocations):
+            command, problem = resolve(invocation)
+            if problem is not None:
+                continue
+            segment_end = (
+                invocations[index + 1].start() if index + 1 < len(invocations) else len(line)
+            )
+            allowed = options.get(command, set()) | options.get("trueai", set())
+            for match in OPTION.finditer(line, invocation.end(), segment_end):
+                flag = match.group(1)
+                if flag not in allowed and flag not in {"--help", "--version"}:
+                    problems.append(
+                        Problem(
+                            relative,
+                            "option",
+                            f"{flag} is shown with `{command}` but that command does not accept "
+                            "it; a wrong flag reads exactly like a right one",
+                        )
                     )
-                )
 
     for match in LINK.finditer(text):
         target = (path.parent / match.group(1)).resolve()

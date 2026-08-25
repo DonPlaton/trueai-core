@@ -137,6 +137,15 @@ def signed(
     return record, keys
 
 
+def subject_artifact(tmp_path: Path) -> Path:
+    """Write the exact bytes all records in this module bind to."""
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    artifact = tmp_path / "deliverable"
+    artifact.write_bytes(b"deliverable")
+    return artifact
+
+
 # -- Process Assurance Level ---------------------------------------------------------
 
 
@@ -176,7 +185,10 @@ def test_a_signed_self_declared_record_is_declared(tmp_path: Path) -> None:
     )
     record, keys = signed(record, tmp_path)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.DECLARED
     assert any("artifact_correlated" in item for item in assurance.next_level_requires)
@@ -246,7 +258,10 @@ def evidenced_record(**extra: object) -> ProcessAttestation:
 def test_evidence_and_disclosed_ai_roles_reach_evidenced(tmp_path: Path) -> None:
     record, keys = signed(evidenced_record(), tmp_path)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.EVIDENCED
 
@@ -313,7 +328,10 @@ def reviewed_record(**extra: object) -> ProcessAttestation:
 def test_a_countersigned_evidenced_record_reaches_reviewed(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
 
-    assurance = assess_process_assurance(record, verify_attestation(record, public_keys=keys))
+    assurance = assess_process_assurance(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert assurance.level == ProcessAssuranceLevel.REVIEWED
 
@@ -376,6 +394,7 @@ def test_independent_assurance_needs_identity_expiry_and_a_timestamp(tmp_path: P
 
     verification = verify_attestation(
         record,
+        artifact=subject_artifact(tmp_path),
         public_keys={
             "alice": alice_public,
             "bob": tmp_path / "bob.pub",
@@ -411,10 +430,18 @@ def test_assurance_is_orthogonal_to_how_human_the_work_was(tmp_path: Path) -> No
     machine_assisted, machine_keys = signed(evidenced_record(), tmp_path / "machine")
 
     human = assess_process_assurance(
-        human_only, verify_attestation(human_only, public_keys=human_keys)
+        human_only,
+        verify_attestation(
+            human_only, artifact=subject_artifact(tmp_path / "human"), public_keys=human_keys
+        ),
     )
     machine = assess_process_assurance(
-        machine_assisted, verify_attestation(machine_assisted, public_keys=machine_keys)
+        machine_assisted,
+        verify_attestation(
+            machine_assisted,
+            artifact=subject_artifact(tmp_path / "machine"),
+            public_keys=machine_keys,
+        ),
     )
 
     assert human.level == ProcessAssuranceLevel.DECLARED
@@ -432,13 +459,17 @@ def test_every_built_in_profile_exposes_its_weights() -> None:
         for requirement in profile.requirements:
             assert 0.0 <= requirement.weight <= 1.0
         assert profile.description
+    assert (
+        REGULATED_ENTERPRISE_PROFILE.minimum_assurance
+        == ProcessAssuranceLevel.INDEPENDENTLY_ASSURED
+    )
 
 
 def test_two_profiles_can_disagree_about_the_same_record(tmp_path: Path) -> None:
     """Different contexts value different dimensions, and neither is wrong."""
 
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
-    verification = verify_attestation(record, public_keys=keys)
+    verification = verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys)
 
     education = evaluate_with_profile(record, verification, EDUCATION_PROFILE)
     software = evaluate_with_profile(record, verification, SOFTWARE_DELIVERY_PROFILE)
@@ -453,7 +484,9 @@ def test_two_profiles_can_disagree_about_the_same_record(tmp_path: Path) -> None
 def test_a_profile_result_never_claims_authorship(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
     result = evaluate_with_profile(
-        record, verify_attestation(record, public_keys=keys), SOFTWARE_DELIVERY_PROFILE
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+        SOFTWARE_DELIVERY_PROFILE,
     )
 
     fields = set(result.model_dump().keys())
@@ -468,7 +501,9 @@ def test_a_profile_reports_the_weights_it_used(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
 
     result = evaluate_with_profile(
-        record, verify_attestation(record, public_keys=keys), RESEARCH_PROFILE
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+        RESEARCH_PROFILE,
     )
 
     assert result.weights
@@ -481,7 +516,9 @@ def test_an_unclaimed_optional_dimension_does_not_fail_a_profile(tmp_path: Path)
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
 
     result = evaluate_with_profile(
-        record, verify_attestation(record, public_keys=keys), SOFTWARE_DELIVERY_PROFILE
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+        SOFTWARE_DELIVERY_PROFILE,
     )
 
     optional = [item for item in result.outcomes if not item.claimed]
@@ -498,7 +535,9 @@ def test_a_required_dimension_that_is_not_claimed_fails(tmp_path: Path) -> None:
     record, keys = signed(record, tmp_path)
 
     result = evaluate_with_profile(
-        record, verify_attestation(record, public_keys=keys), RESEARCH_PROFILE
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+        RESEARCH_PROFILE,
     )
 
     assert not result.meets_review_requirements
@@ -509,7 +548,9 @@ def test_a_profile_minimum_assurance_is_enforced(tmp_path: Path) -> None:
     record, keys = signed(evidenced_record(), tmp_path)
 
     result = evaluate_with_profile(
-        record, verify_attestation(record, public_keys=keys), REGULATED_ENTERPRISE_PROFILE
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+        REGULATED_ENTERPRISE_PROFILE,
     )
 
     assert not result.meets_review_requirements
@@ -535,7 +576,7 @@ def test_the_stage_summary_names_stages_not_authorship() -> None:
 
 def test_the_portable_summary_carries_its_limitations(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
-    verification = verify_attestation(record, public_keys=keys)
+    verification = verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys)
 
     summary = portable_summary(record, verification, SOFTWARE_DELIVERY_PROFILE)
 
@@ -549,7 +590,10 @@ def test_the_portable_summary_carries_its_limitations(tmp_path: Path) -> None:
 def test_the_portable_summary_says_when_an_issuer_is_only_a_key(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
 
-    summary = portable_summary(record, verify_attestation(record, public_keys=keys))
+    summary = portable_summary(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert "a key, not an identified organization" in summary
 
@@ -557,7 +601,10 @@ def test_the_portable_summary_says_when_an_issuer_is_only_a_key(tmp_path: Path) 
 def test_the_portable_summary_marks_unassessed_originality(tmp_path: Path) -> None:
     record, keys = signed(evidenced_record(), tmp_path)
 
-    summary = portable_summary(record, verify_attestation(record, public_keys=keys))
+    summary = portable_summary(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert "Originality: not independently assessed" in summary
 
@@ -565,7 +612,10 @@ def test_the_portable_summary_marks_unassessed_originality(tmp_path: Path) -> No
 def test_sarif_properties_name_what_was_established(tmp_path: Path) -> None:
     record, keys = signed(reviewed_record(), tmp_path, reviewer=True)
 
-    properties = sarif_properties(record, verify_attestation(record, public_keys=keys))
+    properties = sarif_properties(
+        record,
+        verify_attestation(record, artifact=subject_artifact(tmp_path), public_keys=keys),
+    )
 
     assert properties["trueaiProcessAssuranceLevel"] == "PAL-3"
     assert properties["trueaiAttestationAuthenticatedDeclaration"] is True
@@ -598,6 +648,8 @@ def test_the_cli_evaluates_a_record_against_a_named_profile(tmp_path: Path) -> N
             "attestations",
             "evaluate",
             str(path),
+            "--artifact",
+            str(subject_artifact(tmp_path)),
             "--profile",
             "software-delivery",
             "--public-key",
@@ -629,6 +681,8 @@ def test_the_cli_exit_code_says_review_required_without_calling_it_dishonest(
             "attestations",
             "evaluate",
             str(path),
+            "--artifact",
+            str(subject_artifact(tmp_path)),
             "--profile",
             "education",
             "--public-key",
@@ -664,6 +718,8 @@ def test_the_cli_emits_the_profile_result_as_json(tmp_path: Path) -> None:
             "attestations",
             "evaluate",
             str(path),
+            "--artifact",
+            str(subject_artifact(tmp_path)),
             "--format",
             "json",
             "--public-key",
@@ -693,6 +749,8 @@ def test_the_cli_emits_sarif_properties_for_ci(tmp_path: Path) -> None:
             "attestations",
             "evaluate",
             str(path),
+            "--artifact",
+            str(subject_artifact(tmp_path)),
             "--format",
             "sarif-properties",
             "--public-key",
@@ -717,6 +775,8 @@ def test_the_cli_summary_is_readable_without_training(tmp_path: Path) -> None:
             "attestations",
             "evaluate",
             str(path),
+            "--artifact",
+            str(subject_artifact(tmp_path)),
             "--format",
             "summary",
             "--public-key",

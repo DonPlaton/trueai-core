@@ -1,6 +1,10 @@
 # Everything the auditor image must NOT see, so a container build starts from the
 # same source an offline sdist rebuild would.
 .git/
+.agents/
+.audit-venv/
+.claude/
+.codex/
 .github/workflows/*.log
 .venv/
 .mypy_cache/

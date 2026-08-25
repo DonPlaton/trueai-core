@@ -7,6 +7,7 @@ most of what follows drives the clock forward and checks the gate notices.
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -36,6 +37,7 @@ from scripts.generate_sbom import (  # noqa: E402
     collect,
     incompleteness,
 )
+from scripts.generate_sbom import main as sbom_main  # noqa: E402
 
 TODAY = date(2026, 8, 25)
 
@@ -342,6 +344,15 @@ def test_the_timestamp_can_be_pinned_for_a_reproducible_build() -> None:
     second = build_document([], timestamp=moment)
 
     assert first == second
+
+
+def test_the_sbom_cli_accepts_a_reproducible_timestamp(tmp_path: Path) -> None:
+    output = tmp_path / "sbom.json"
+
+    assert sbom_main(["--output", str(output), "--timestamp", "1767225600"]) == 0
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert document["metadata"]["timestamp"] == "2026-01-01T00:00:00+00:00"
 
 
 # -- licenses -------------------------------------------------------------------------

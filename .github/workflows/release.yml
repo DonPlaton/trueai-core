@@ -5,102 +5,193 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      publish:
-        description: "Publish to PyPI after all gates pass"
-        type: boolean
-        default: false
+      target:
+        description: "Where to publish after all gates pass"
+        type: choice
+        options: [none, testpypi, pypi]
+        default: none
 
 permissions:
   contents: read
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONHASHSEED: "0"
 
 jobs:
+  verify:
+    name: Verify the release candidate
+    runs-on: ubuntu-latest
+    env:
+      TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES: "1"
+      TRUEAI_REQUIRE_PRIVILEGED_TESTS: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install the locked verification environment
+        run: |
+          python -m pip install "uv==0.12.5"
+          python -m uv sync --frozen --all-extras --group release
+      - name: Confirm optional verifier availability
+        run: python -m uv run trueai doctor
+      - name: Run static analysis
+        run: |
+          python -m uv run ruff check .
+          python -m uv run ruff format --check .
+          python -m uv run mypy trueai
+      - name: Run the full test suite
+        run: python -m uv run pytest -rs
+      - name: Run contract and documentation gates
+        run: |
+          python -m uv run python scripts/check_schema_snapshot.py
+          python -m uv run python scripts/check_api_snapshot.py
+          python -m uv run python scripts/check_docs.py
+          python -m uv run python scripts/check_supply_chain.py
+
   build:
     name: Build signed, attested distributions
+    needs: [verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
-      - name: Install build and audit tooling
+      - name: Install the locked release environment
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine cyclonedx-bom pip-audit
+          python -m pip install "uv==0.12.5"
+          python -m uv sync --frozen --all-extras --group release
 
       - name: Confirm the tag matches the package version
         id: version
-        run: python scripts/check_release_tag.py
+        run: python -m uv run python scripts/check_release_tag.py
 
       - name: Build reproducible distributions
-        run: SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)" python -m build --outdir dist
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)" \
+            python -m uv run python -m build --no-isolation --outdir dist
 
       - name: Validate distribution metadata
-        run: python -m twine check --strict dist/*
+        run: python -m uv run twine check --strict dist/*
 
       - name: Verify the packaged source manifest
-        run: python scripts/check_manifest.py
+        run: python -m uv run python scripts/check_manifest.py
 
       - name: Audit dependencies before publishing
         run: |
-          python -m pip install ".[pdf,c2pa,attestation]"
-          python -m pip freeze --all | grep -ivE '^trueai-core([=@ ]|$)' > audit-requirements.txt
-          python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
+          python -m uv export --frozen --no-emit-project --no-editable --all-extras \
+            --no-extra dev --no-dev --no-group release --output-file audit-requirements.txt
+          python -m uv run python -m pip_audit --strict --require-hashes \
+            --requirement audit-requirements.txt --progress-spinner off
 
-      - name: Enforce the dependency license allowlist
+      - name: Enforce release supply-chain policy
+        run: python -m uv run python scripts/check_supply_chain.py
+
+      - name: Generate the reproducible runtime SBOM
         run: |
-          python -m pip install pip-licenses
-          python scripts/check_licenses.py
+          python -m uv run python scripts/generate_sbom.py \
+            --timestamp "$(git log -1 --pretty=%ct)" \
+            --output dist/sbom.cdx.json
+          python -m uv run python scripts/generate_sbom.py --check
 
-      - name: Check the advisory ledger is current and complete
-        run: python scripts/check_advisories.py
-
-      - name: Generate the release SBOM
-        run: cyclonedx-py environment --output-format JSON --output-file dist/sbom.cdx.json
-
-      - name: Check every SBOM component carries a version, a license, and a purl
-        run: python scripts/generate_sbom.py --check
+      - name: Record build inputs
+        run: |
+          python -m uv run python scripts/record_build_inputs.py \
+            --dist dist --source-date-epoch "$(git log -1 --pretty=%ct)"
 
       - name: Record SHA-256 digests
         run: |
           cd dist
-          sha256sum ./*.whl ./*.tar.gz ./sbom.cdx.json > SHA256SUMS
+          sha256sum ./*.whl ./*.tar.gz ./sbom.cdx.json ./build-inputs.json > SHA256SUMS
           cat SHA256SUMS
 
-      # Build provenance ties each artifact to this workflow, commit, and runner.
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
-          subject-path: "dist/*.whl,dist/*.tar.gz"
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/sbom.cdx.json
+            dist/build-inputs.json
+            dist/SHA256SUMS
 
-      # Keyless Sigstore signatures let consumers verify without a long-lived key.
-      - name: Sign distributions with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3
+      - name: Attest the runtime SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
-          inputs: ./dist/*.whl ./dist/*.tar.gz
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+          sbom-path: dist/sbom.cdx.json
+
+      - name: Sign and verify the release evidence with Sigstore
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: |
+            ./dist/*.whl
+            ./dist/*.tar.gz
+            ./dist/sbom.cdx.json
+            ./dist/build-inputs.json
+            ./dist/SHA256SUMS
           upload-signing-artifacts: true
+          verify: true
+          verify-cert-identity: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
+          verify-oidc-issuer: https://token.actions.githubusercontent.com
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-distributions
           path: dist/*
           if-no-files-found: error
 
-  publish:
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [build]
+    if: inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/trueai-core
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-distributions
+          path: dist
+      - name: Remove non-distribution artifacts before upload
+        run: >-
+          rm -f dist/SHA256SUMS dist/sbom.cdx.json dist/build-inputs.json
+          dist/*.sigstore dist/*.sigstore.json
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          attestations: true
+
+  publish-pypi:
     name: Publish to PyPI
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+    # A manual run from a branch may exercise TestPyPI, but production
+    # publishing remains bound to an immutable release tag.  This prevents the
+    # workflow_dispatch convenience path from bypassing the tag/version gate.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || inputs.target == 'pypi')
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -108,13 +199,15 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-distributions
           path: dist
       - name: Remove non-distribution artifacts before upload
-        run: rm -f dist/SHA256SUMS dist/sbom.cdx.json dist/*.sigstore dist/*.sigstore.json
+        run: >-
+          rm -f dist/SHA256SUMS dist/sbom.cdx.json dist/build-inputs.json
+          dist/*.sigstore dist/*.sigstore.json
       # Trusted publishing; no API token is stored in the repository.
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           attestations: true

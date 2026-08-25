@@ -173,6 +173,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=None, help="Write the SBOM here.")
     parser.add_argument(
+        "--timestamp",
+        type=int,
+        default=None,
+        metavar="UNIX_SECONDS",
+        help="Pin the CycloneDX timestamp to a reproducible UTC build time.",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Fail when a component is missing a version, a license, or a package URL.",
@@ -195,7 +202,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(components)} components, each with a version, a license, and a package URL.")
         return 0
 
-    document = build_document(components)
+    timestamp = (
+        datetime.fromtimestamp(arguments.timestamp, tz=UTC)
+        if arguments.timestamp is not None
+        else None
+    )
+    document = build_document(components, timestamp=timestamp)
     rendered = json.dumps(document, indent=2, sort_keys=True) + "\n"
     if arguments.output is not None:
         arguments.output.write_text(rendered, encoding="utf-8")

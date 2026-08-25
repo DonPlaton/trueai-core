@@ -105,5 +105,9 @@ it does. See [reproducible builds](reproducible-builds.md).
 | advisory ledger | yes | yes | yes |
 | SBOM completeness | yes | yes | yes |
 | manifest | yes | yes | yes |
-| `pip-audit` | no — needs the network | yes | yes |
-| CycloneDX artifact upload | no | yes | yes |
+| `pip-audit` | yes, when network access is explicitly available | yes | yes |
+| CycloneDX generation and completeness | yes | yes | yes |
+| CycloneDX artifact upload/attestation | not applicable | yes | yes |
+
+Normal TrueAI scanning remains offline. Release auditing is a separate operator
+workflow whose network use is explicit and does not send scanned artifacts.

@@ -1,8 +1,10 @@
 """Release checks must distinguish valid metadata from real policy violations."""
 
+import re
 from pathlib import Path
 
 import pytest
+import yaml
 from packaging.utils import canonicalize_name
 
 from scripts.check_licenses import license_is_allowed, runtime_distribution_names
@@ -32,15 +34,84 @@ def test_license_gate_targets_runtime_closure_not_release_tooling() -> None:
     assert "cyclonedx-bom" not in names
 
 
-@pytest.mark.parametrize(
-    "workflow",
-    [Path(".github/workflows/ci.yml"), Path(".github/workflows/release.yml")],
-)
-def test_workflows_use_the_current_cyclonedx_output_option(workflow: Path) -> None:
+WORKFLOWS = (Path(".github/workflows/ci.yml"), Path(".github/workflows/release.yml"))
+
+
+@pytest.mark.parametrize("workflow", WORKFLOWS)
+def test_every_external_action_is_pinned_to_an_immutable_sha(workflow: Path) -> None:
+    references = re.findall(r"uses:\s*([^\s#]+)", workflow.read_text(encoding="utf-8"))
+
+    assert references
+    assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", item) for item in references), references
+
+
+@pytest.mark.parametrize("workflow", WORKFLOWS)
+def test_github_actions_use_the_node24_generation(workflow: Path) -> None:
+    """A full SHA does not make an end-of-life action runtime supportable."""
+
+    minimum_major = {
+        "actions/checkout": 6,
+        "actions/setup-python": 6,
+        "actions/upload-artifact": 7,
+        "actions/download-artifact": 8,
+        "actions/attest": 4,
+    }
+    content = workflow.read_text(encoding="utf-8")
+    for name, minimum in minimum_major.items():
+        for major in re.findall(rf"{re.escape(name)}@[0-9a-f]{{40}} # v(\d+)", content):
+            assert int(major) >= minimum, f"{name} v{major} predates the Node 24 release"
+
+
+def test_release_publication_cannot_bypass_the_verification_job() -> None:
+    workflow = yaml.load(
+        Path(".github/workflows/release.yml").read_text(encoding="utf-8"), Loader=yaml.BaseLoader
+    )
+    jobs = workflow["jobs"]
+
+    assert jobs["build"]["needs"] == ["verify"]
+    assert jobs["publish-testpypi"]["needs"] == ["build"]
+    assert jobs["publish-pypi"]["needs"] == ["build"]
+    assert "startsWith(github.ref, 'refs/tags/v') &&" in jobs["publish-pypi"]["if"]
+    assert "inputs.target == 'testpypi'" in jobs["publish-testpypi"]["if"]
+    verification = str(jobs["verify"])
+    for required in (
+        "pytest",
+        "ruff check",
+        "ruff format",
+        "mypy trueai",
+        "check_schema_snapshot.py",
+        "check_api_snapshot.py",
+        "check_docs.py",
+        "check_supply_chain.py",
+    ):
+        assert required in verification
+
+
+def test_release_evidence_includes_runtime_sbom_and_build_inputs() -> None:
+    content = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+
+    assert "scripts/generate_sbom.py" in content
+    assert "cyclonedx-py environment" not in content
+    assert "dist/sbom.cdx.json" in content
+    assert "dist/build-inputs.json" in content
+    assert "verify: true" in content
+    assert "https://test.pypi.org/legacy/" in content
+
+
+@pytest.mark.parametrize("workflow", WORKFLOWS)
+def test_checkout_credentials_are_not_persisted(workflow: Path) -> None:
     content = workflow.read_text(encoding="utf-8")
 
-    assert "--output-file" in content
-    assert "--outfile" not in content
+    assert content.count("persist-credentials: false") == content.count("actions/checkout@")
+
+
+def test_reproducible_container_does_not_copy_build_tools_into_runtime() -> None:
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+
+    assert "python -m build --no-isolation" in dockerfile
+    assert "--only-group release" in dockerfile
+    assert "COPY --from=builder /runtime/" in dockerfile
+    assert "COPY --from=builder /usr/local/lib/python" not in dockerfile
 
 
 # -- the scale benchmark -------------------------------------------------------------

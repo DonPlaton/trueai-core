@@ -16,8 +16,7 @@ class MyDetector(BaseDetector):
     supported_types = frozenset({ArtifactType.MARKDOWN})
     categories = frozenset({FindingCategory.TOOLING_RESIDUE})
 
-    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
-        ...
+    def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]: ...
 ```
 
 `scan` is the only abstract method, and that is a **promise, not an observation**.

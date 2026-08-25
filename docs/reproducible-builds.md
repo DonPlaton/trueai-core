@@ -15,13 +15,18 @@ what CI runs. Nothing in this document is aspirational.
 | Source | Git commit, recorded in `build-inputs.json` |
 | Dependencies | `uv.lock`, hash-locked for every package |
 | Interpreter and OS | `Dockerfile`, base image pinned by digest |
-| Build backend | `pyproject.toml` (`hatchling`), version recorded in `build-inputs.json` |
+| Build backend and release tools | The `release` group in `uv.lock`; versions recorded in `build-inputs.json` |
 | Build timestamp | `SOURCE_DATE_EPOCH`, passed in explicitly |
 | File modes | Normalised in the container, so the host OS does not leak into the archive |
 
 `dist/build-inputs.json` records all of them alongside the SHA-256 of every
 artifact produced. It is evidence about a build, not a copy of one: it stores
 digests, never contents.
+
+The builder installs the locked `release` group and invokes
+`python -m build --no-isolation`. The final container copies a dedicated runtime
+prefix, not the builder's site-packages, so `uv`, Hatchling, Build, Twine, and
+audit tools do not ship in the scanner image.
 
 ## Byte-for-byte reproduction
 
@@ -88,19 +93,22 @@ means the published artifact does not correspond to that source.
 Release signatures and provenance attestations are produced by hosted CI, which
 is a separate gate; see [release.md](release.md).
 
-## Building from the source distribution offline
+## Building from the source distribution with locked inputs
 
 The source distribution carries `uv.lock`, the `Dockerfile`, the test suite, the
-published schema, and the release scripts, so it can rebuild and re-verify itself
-without network access to anything but a package index:
+published schema, and the release scripts. Dependency artifacts must first be
+available from a package index or a populated local cache; after that, `--offline`
+can prove the build did not resolve or download anything:
 
 ```bash
 tar xf trueai_core-0.1.0.tar.gz
 cd trueai_core-0.1.0
-uv sync --frozen --all-extras
+uv sync --frozen --all-extras --group release
 uv run pytest
 uv run python scripts/check_manifest.py
 ```
 
 `--frozen` fails rather than re-resolving, so a lock that does not match
-`pyproject.toml` is an error instead of a silent upgrade.
+`pyproject.toml` is an error instead of a silent upgrade. It does not itself mean
+"offline"; use `uv sync --offline --frozen ...` once the required wheels are in
+the cache.

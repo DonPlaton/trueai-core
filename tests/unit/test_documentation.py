@@ -112,6 +112,44 @@ def test_an_option_that_does_not_exist_is_reported(
     assert any(item.kind == "option" and "--polciy" in item.detail for item in problems)
 
 
+def test_an_option_from_another_command_is_reported(
+    tmp_path: Path, surface: tuple[set[str], dict[str, set[str]], set[str]]
+) -> None:
+    """A globally real flag is still wrong when the documented command cannot accept it."""
+
+    commands, options, groups = surface
+    document = tmp_path / "guide.md"
+    document.write_text("Run `trueai scan ./repo --yes`.\n", encoding="utf-8")
+
+    problems = check_document(document, commands, options, groups)
+
+    assert any(item.kind == "option" and "--yes" in item.detail for item in problems)
+
+
+def test_a_misspelt_command_in_a_fenced_example_is_reported(
+    tmp_path: Path, surface: tuple[set[str], dict[str, set[str]], set[str]]
+) -> None:
+    """Most copy-paste examples are fenced rather than wrapped in inline backticks."""
+
+    commands, options, groups = surface
+    document = tmp_path / "guide.md"
+    document.write_text("```bash\ntrueai scna ./repo\n```\n", encoding="utf-8")
+
+    problems = check_document(document, commands, options, groups)
+
+    assert any(item.kind == "command" and "scna" in item.detail for item in problems)
+
+
+def test_a_python_import_is_not_treated_as_a_cli_invocation(
+    tmp_path: Path, surface: tuple[set[str], dict[str, set[str]], set[str]]
+) -> None:
+    commands, options, groups = surface
+    document = tmp_path / "guide.md"
+    document.write_text("```python\nfrom trueai import TrueAIEngine\n```\n", encoding="utf-8")
+
+    assert check_document(document, commands, options, groups) == []
+
+
 def test_a_dead_relative_link_is_reported(
     tmp_path: Path, surface: tuple[set[str], dict[str, set[str]], set[str]]
 ) -> None:

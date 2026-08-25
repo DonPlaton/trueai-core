@@ -18,6 +18,11 @@ PAL is derived from what verification established, never from what the record
 claims about itself. A record asserting the strongest claims in every dimension
 with nothing behind them stops at PAL-1.
 
+The delivered artifact must be supplied during verification. A signed record
+that names a digest but is evaluated without the corresponding artifact remains
+PAL-0: signing a claimed digest is not proof that the recipient received those
+bytes.
+
 | Level | Name | What it establishes |
 |---|---|---|
 | PAL-0 | `unsubstantiated` | The record is missing, invalid, or not bound to the delivered artifact. |
@@ -47,6 +52,13 @@ a score:
 - **Falsified disclosure.** Bytes offered under a published commitment that do
   not hash to it block PAL-2. Offering evidence that fails its own commitment is
   a worse position than never having disclosed.
+- **Role aliasing.** A claimant cannot raise the record to PAL-3 by signing again
+  under the reviewer role. PAL-4 requires the actor named by the evaluation to
+  sign as assessor, and that actor must be distinct from every claimant and
+  reviewer.
+- **Unrecognised rubric.** Profile support must be stated by the verifier. An
+  omitted support list is `not checked`, never implicit acceptance of an
+  arbitrary profile name.
 
 ## Evaluation profiles
 
@@ -60,7 +72,7 @@ from trueai.core.evaluation import evaluate_with_profile, get_profile
 
 result = evaluate_with_profile(record, verification, get_profile("research"))
 print(result.statement)
-print(result.weights)          # what produced the answer
+print(result.weights)  # what produced the answer
 print(result.unmet_requirements)
 ```
 
@@ -112,9 +124,11 @@ Every surface renders the same three things and never merges them:
 - **Profile result** — the profile id, version, weights, and unmet requirements.
 
 ```console
-$ trueai attestations evaluate record.process.json --profile software-delivery \
+$ trueai attestations evaluate record.process.json --artifact deliverable.pdf \
+    --profile software-delivery \
     --public-key alice=alice.pub --public-key bob=bob.pub
-$ trueai attestations evaluate record.process.json --format summary
+$ trueai attestations evaluate record.process.json --artifact deliverable.pdf \
+    --format summary
 $ trueai attestations profiles
 ```
 

@@ -878,7 +878,12 @@ def attestations_validate(
     ],
     artifact: Annotated[
         Path | None,
-        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+        typer.Option(
+            "--artifact",
+            exists=True,
+            dir_okay=True,
+            help="Subject file or directory inventory root.",
+        ),
     ] = None,
 ) -> None:
     """Check a manifest without writing anything."""
@@ -907,7 +912,12 @@ def attestations_issue(
     ],
     artifact: Annotated[
         Path | None,
-        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+        typer.Option(
+            "--artifact",
+            exists=True,
+            dir_okay=True,
+            help="Subject file or directory inventory root.",
+        ),
     ] = None,
     output: Annotated[Path | None, typer.Option("--output", "-o", help="Record path.")] = None,
     signing_key: Annotated[
@@ -1014,7 +1024,12 @@ def attestations_verify(
     ],
     artifact: Annotated[
         Path | None,
-        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+        typer.Option(
+            "--artifact",
+            exists=True,
+            dir_okay=True,
+            help="Subject file or directory inventory; required to establish binding.",
+        ),
     ] = None,
     public_key: Annotated[
         list[str] | None,
@@ -1097,7 +1112,12 @@ def attestations_evaluate(
     ] = "software-delivery",
     artifact: Annotated[
         Path | None,
-        typer.Option("--artifact", exists=True, dir_okay=False, help="Subject artifact."),
+        typer.Option(
+            "--artifact",
+            exists=True,
+            dir_okay=True,
+            help="Subject file or directory inventory; without it assurance remains PAL-0.",
+        ),
     ] = None,
     public_key: Annotated[
         list[str] | None,

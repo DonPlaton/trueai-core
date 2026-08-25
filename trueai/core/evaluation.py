@@ -148,11 +148,27 @@ def assess_process_assurance(
 
     reasons: list[str] = []
 
-    if not verification.content_id_valid or verification.subject_bound is False:
+    if not verification.content_id_valid:
         return AssuranceAssessment(
             level=ProcessAssuranceLevel.UNSUBSTANTIATED,
-            reasons=("The record is not validly bound to the artifact it describes.",),
-            next_level_requires=("Re-issue the record against the current artifact bytes.",),
+            reasons=("The record's content identifier does not match its claims.",),
+            next_level_requires=(
+                "Re-issue the record so its identifier covers the current claims.",
+            ),
+        )
+    if verification.subject_bound is not True:
+        if verification.subject_bound is False:
+            reason = "The record does not match the delivered artifact bytes."
+            requirement = "Re-issue the record against the current artifact bytes."
+        else:
+            reason = (
+                "The delivered artifact was not supplied, so its subject binding is unverified."
+            )
+            requirement = "Verify the record together with the delivered artifact."
+        return AssuranceAssessment(
+            level=ProcessAssuranceLevel.UNSUBSTANTIATED,
+            reasons=(reason,),
+            next_level_requires=(requirement,),
         )
     if not verification.authenticated_declaration:
         return AssuranceAssessment(
@@ -203,7 +219,9 @@ def assess_process_assurance(
             level=level, reasons=tuple(reasons), next_level_requires=tuple(missing)
         )
 
-    countersigned = verification.reviewer_signature == "valid"
+    claimant_signers = set(verification.valid_claimant_actor_ids)
+    independent_reviewers = set(verification.valid_reviewer_actor_ids) - claimant_signers
+    countersigned = bool(independent_reviewers)
     # A countersignature recording disagreement is not a countersignature that
     # settles anything. A dispute is not resolved by outranking it.
     reviewed = (
@@ -219,7 +237,12 @@ def assess_process_assurance(
     else:
         missing = []
         if not countersigned:
-            missing.append("have an identified reviewer countersign the record")
+            if verification.reviewer_signature == "valid":
+                missing.append(
+                    "have a reviewer distinct from every claimant countersign the record"
+                )
+            else:
+                missing.append("have an identified reviewer countersign the record")
         if not _decisions_and_validation_evidenced(attestation):
             missing.append("record decisions and validation with supporting evidence")
         if verification.unresolved_dissent:
@@ -228,10 +251,20 @@ def assess_process_assurance(
             level=level, reasons=tuple(reasons), next_level_requires=tuple(missing)
         )
 
-    independent = (
-        attestation.evaluation is not None
-        and verification.assessor_signature == "valid"
-        and verification.evaluation_profile_supported is not False
+    evaluation = attestation.evaluation
+    valid_assessors = set(verification.valid_assessor_actor_ids)
+    named_assessor = evaluation.assessor_actor_id if evaluation is not None else None
+    assessor_matches = named_assessor is not None and named_assessor in valid_assessors
+    assessor_is_independent = bool(
+        assessor_matches
+        and named_assessor not in claimant_signers
+        and named_assessor not in independent_reviewers
+    )
+    independent = bool(
+        evaluation is not None
+        and evaluation.results
+        and assessor_is_independent
+        and verification.evaluation_profile_supported is True
     )
     governed = (
         verification.organizationally_attributed
@@ -251,7 +284,16 @@ def assess_process_assurance(
 
     missing = []
     if not independent:
-        missing.append("have an independent assessor apply a named profile and sign as assessor")
+        if evaluation is None:
+            missing.append("have an independent assessor apply a named profile")
+        elif not evaluation.results:
+            missing.append("record the independent assessor's per-dimension results")
+        elif not assessor_matches:
+            missing.append("have the actor named by the evaluation sign the record as assessor")
+        elif not assessor_is_independent:
+            missing.append("use an assessor distinct from every claimant and reviewer")
+        elif verification.evaluation_profile_supported is not True:
+            missing.append("verify that the named evaluation profile is supported")
     if not verification.organizationally_attributed:
         missing.append("bind the signing key to an organization through a trust profile")
     if attestation.expires_at is None:
@@ -678,7 +720,7 @@ REGULATED_ENTERPRISE_PROFILE = EvaluationProfile(
         _requirement(ContributionDimension.EXECUTION, 0.2),
         _requirement(ContributionDimension.EVIDENCE_QUALITY, 0.8),
     ),
-    minimum_assurance=ProcessAssuranceLevel.REVIEWED,
+    minimum_assurance=ProcessAssuranceLevel.INDEPENDENTLY_ASSURED,
 )
 
 BUILT_IN_PROFILES: dict[str, EvaluationProfile] = {

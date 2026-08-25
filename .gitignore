@@ -7,6 +7,8 @@ __pycache__/
 .pytest-tmp/
 .ruff_cache/
 .venv/
+.audit-venv/
+.claude/*.lock
 build/
 dist/
 *.cleaned.*

@@ -67,13 +67,7 @@ reviewed_at = "2026-08-25"
 [[component]]
 name = "typer"
 kind = "dependency"
-why = "Parses the command line, which is operator input rather than artifact input."
-reviewed_at = "2026-08-25"
-
-[[component]]
-name = "click"
-kind = "dependency"
-why = "Behind typer; same boundary."
+why = "Parses the command line, which is operator input rather than artifact input. The locked Typer 0.27 release vendors its command core, so there is no separate Click distribution in the runtime closure."
 reviewed_at = "2026-08-25"
 
 [[component]]

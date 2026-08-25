@@ -22,7 +22,7 @@ A `ScoreModel` records the `feature_set_version` it was trained against.
 `score_with()` refuses a vector from any other:
 
 ```python
-score_with(model_trained_on_v2, vector_from_v1)   # FeatureError
+score_with(model_trained_on_v2, vector_from_v1)  # FeatureError
 ```
 
 The refusal is the point. The alternative is scoring a vector whose third column
