@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from tests.support import create_symlink
 from trueai import TrueAIEngine
-from trueai.core.artifact import Artifact
+from trueai.core.artifact import Artifact, ArtifactDiscovery, DiscoveryOptions
 from trueai.core.cache import (
     CACHE_FORMAT_VERSION,
     MAX_ENTRY_BYTES,
@@ -490,3 +491,89 @@ def test_cache_and_parallelism_compose(tmp_path: Path, workers: int) -> None:
     assert [finding.id for finding in result.findings] == [
         finding.id for finding in reference.findings
     ]
+
+
+# -- the end-of-scan inventory -------------------------------------------------------
+
+
+def test_the_inventory_sees_exactly_what_discovery_sees(tmp_path: Path) -> None:
+    """A sweep that walked differently would report differences that are its own."""
+
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "nested" / "deep.md").write_text(ATTRIBUTION, encoding="utf-8")
+    (tmp_path / "top.txt").write_text("plain\n", encoding="utf-8")
+
+    discovery = ArtifactDiscovery()
+    discovered = {artifact.display_path for artifact in discovery.discover(tmp_path)}
+
+    assert ArtifactDiscovery().inventory(tmp_path) == discovered
+
+
+def test_the_inventory_applies_the_same_ignore_rules(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text("build/\n", encoding="utf-8")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "hidden.md").write_text(ATTRIBUTION, encoding="utf-8")
+    (tmp_path / "kept.md").write_text(ATTRIBUTION, encoding="utf-8")
+
+    paths = ArtifactDiscovery().inventory(tmp_path)
+
+    assert "kept.md" in paths
+    assert "build/hidden.md" not in paths
+
+
+def test_the_inventory_never_descends_into_a_git_directory(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text("[core]\n", encoding="utf-8")
+    (tmp_path / "kept.md").write_text(ATTRIBUTION, encoding="utf-8")
+
+    paths = ArtifactDiscovery().inventory(tmp_path)
+
+    assert not [item for item in paths if item.startswith(".git")]
+
+
+def test_the_inventory_honours_the_file_cap_and_records_it(tmp_path: Path) -> None:
+    for index in range(6):
+        (tmp_path / f"file{index}.txt").write_text("x\n", encoding="utf-8")
+
+    discovery = ArtifactDiscovery(DiscoveryOptions(max_files=3))
+    paths = discovery.inventory(tmp_path)
+
+    assert len(paths) == 4  # three files plus the root entry
+    assert discovery.truncated
+
+
+def test_the_inventory_does_not_open_the_files_it_lists(tmp_path: Path) -> None:
+    """The saving is the point: a path set does not need a file sniffed."""
+
+    (tmp_path / "one.md").write_text(ATTRIBUTION, encoding="utf-8")
+    (tmp_path / "two.svg").write_text("<svg/>\n", encoding="utf-8")
+    opened: list[str] = []
+    original = Path.open
+
+    def watched(self: Path, *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        opened.append(self.name)
+        return original(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with patch.object(Path, "open", watched):
+        ArtifactDiscovery().inventory(tmp_path)
+
+    assert [name for name in opened if name in {"one.md", "two.svg"}] == []
+
+
+def test_an_unidentifiable_file_is_not_announced_as_a_detector_mutation(tmp_path: Path) -> None:
+    """A permission error in the first pass is not a plugin creating a file."""
+
+    (tmp_path / "readable.txt").write_text("fine\n", encoding="utf-8")
+    (tmp_path / "unreadable.txt").write_text("also there\n", encoding="utf-8")
+    original = ArtifactDiscovery.identify
+
+    def refuse_one(self: ArtifactDiscovery, path: Path):  # type: ignore[no-untyped-def]
+        if path.name == "unreadable.txt":
+            raise OSError("permission denied")
+        return original(self, path)
+
+    with patch.object(ArtifactDiscovery, "identify", refuse_one):
+        report = TrueAIEngine.default(discover_plugins=False).scan(tmp_path)
+
+    assert not [item for item in report.diagnostics if item.code == "detector_mutation"]
+    assert any(item.code == "discovery_error" for item in report.diagnostics)

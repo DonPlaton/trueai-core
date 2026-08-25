@@ -408,6 +408,27 @@ class ArtifactDiscovery:
             )
         return artifacts
 
+    def inventory(self, root: Path) -> set[str]:
+        """Return the logical paths under ``root`` without identifying anything.
+
+        The end-of-scan sweep that asks "did new files appear while detectors
+        ran" needs a set of paths and nothing else.  Building it with
+        :meth:`discover` meant opening and sniffing every file a second time to
+        produce type information the comparison then threw away — measured at
+        roughly a third of a whole-repository scan.  Traversal, ignore rules,
+        symlink containment, and the file cap are the same ones
+        :meth:`discover` uses, because a sweep that walked differently would
+        report differences that are its own.
+        """
+
+        paths = {"."}
+        for candidate in self._walk(root, IgnoreRules.root(root)):
+            if len(paths) - 1 >= self.options.max_files:
+                self.truncated = True
+                break
+            paths.add(candidate.relative_to(root).as_posix())
+        return paths
+
     def _walk(self, root: Path, rules: IgnoreRules) -> Iterator[Path]:
         stack: list[tuple[Path, IgnoreRules]] = [(root, rules)]
         visited_directories: set[Path] = set()

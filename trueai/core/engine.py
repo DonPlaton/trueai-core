@@ -118,8 +118,16 @@ class TrueAIEngine:
         *,
         options: ScanOptions | None = None,
         policy: PolicyProfile | None = None,
+        cache: ScanCache | None = None,
     ) -> ScanReport:
-        """Scan a target recursively and return a versioned report."""
+        """Scan a target recursively and return a versioned report.
+
+        ``cache`` overrides the instance the engine would build from
+        ``options.cache_directory``. A caller supplies one when it needs to read
+        the cache back afterwards — hit and rejection counts, for instance,
+        which are otherwise invisible because the instance would be created and
+        discarded inside this call.
+        """
 
         scan_options = options or ScanOptions()
         discovery = ArtifactDiscovery(
@@ -175,11 +183,8 @@ class TrueAIEngine:
         )
 
         budget = _FindingBudget(scan_options.max_findings)
-        cache = (
-            ScanCache(scan_options.cache_directory)
-            if scan_options.cache_directory is not None
-            else None
-        )
+        if cache is None and scan_options.cache_directory is not None:
+            cache = ScanCache(scan_options.cache_directory)
         options_digest = options_fingerprint(scan_options) if cache is not None else ""
         detector_ids = tuple(detector.id for detector in self._eligible_detectors(scan_options))
         single_artifact = len(artifacts) == 1
@@ -223,15 +228,15 @@ class TrueAIEngine:
         if root_artifact.path is not None and root_artifact.artifact_type in _CONTAINER_TYPES:
             try:
                 final_discovery = ArtifactDiscovery(discovery.options)
-                final_artifacts = final_discovery.discover(root_artifact.path)
+                final_paths = final_discovery.inventory(root_artifact.path)
                 initial_paths = {artifact.display_path for artifact in artifacts}
-                added_paths = sorted(
-                    {
-                        artifact.display_path
-                        for artifact in final_artifacts
-                        if artifact.display_path not in initial_paths
-                    }
-                )
+                # A path the first pass could not identify — unreadable, or
+                # deleted between the walk and the open — is absent from
+                # `initial_paths` but present in a path-only sweep. Excluding
+                # what the first pass already reported keeps a permission error
+                # from being announced as a detector mutating the repository.
+                unidentified = {issue.path for issue in discovery.issues}
+                added_paths = sorted(final_paths - initial_paths - unidentified)
             except (OSError, TrueAIError):
                 added_paths = ["<directory inventory became unreadable>"]
             if added_paths and root_artifact.display_path not in mutated_set:

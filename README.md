@@ -303,7 +303,9 @@ The engine has no UI dependency, performs no telemetry, and makes no network req
 normal scanning. Future network verification must pass an explicit `NetworkPolicy` boundary and
 live in a separate adapter.
 
-More detail: [architecture](docs/architecture.md) and [detectors](docs/detectors.md).
+More detail: [architecture](docs/architecture.md), [detectors](docs/detectors.md), and
+[benchmarks](docs/benchmarks.md) — measured wall time, memory, cache hit rate, and
+determinism at 10,000 and 100,000 files.
 
 The current implementation status, differentiators, limitations, and development roadmap are
 maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

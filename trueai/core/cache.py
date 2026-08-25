@@ -54,6 +54,43 @@ class CachedArtifactResult:
     detectors_run: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class CacheStatistics:
+    """What one cache instance did during one scan.
+
+    ``misses`` and ``rejections`` are counted apart on purpose. A miss means the
+    bytes were never scanned under this key. A rejection means an entry was
+    there and could not be used — truncated, corrupt, oversized, or written by a
+    different version. Both make the scan slower, but only the second says the
+    cache directory itself is unhealthy, and a single "hit rate" hides that.
+    """
+
+    hits: int = 0
+    misses: int = 0
+    rejections: int = 0
+    stores: int = 0
+    store_failures: int = 0
+
+    @property
+    def lookups(self) -> int:
+        return self.hits + self.misses + self.rejections
+
+    @property
+    def hit_rate(self) -> float:
+        """Hits as a fraction of lookups; 0.0 when nothing was looked up."""
+
+        return self.hits / self.lookups if self.lookups else 0.0
+
+    def explain(self) -> str:
+        if not self.lookups:
+            return "No cache lookups."
+        note = f" {self.rejections} unusable entries." if self.rejections else ""
+        return (
+            f"{self.hits}/{self.lookups} lookups hit ({self.hit_rate:.1%}); "
+            f"{self.stores} stored.{note}"
+        )
+
+
 def options_fingerprint(options: ScanOptions) -> str:
     """Return a stable digest of every option that can change detector output."""
 
@@ -69,6 +106,22 @@ class ScanCache:
 
     def __init__(self, directory: Path) -> None:
         self.directory = Path(directory)
+        self._hits = 0
+        self._misses = 0
+        self._rejections = 0
+        self._stores = 0
+        self._store_failures = 0
+
+    def statistics(self) -> CacheStatistics:
+        """Return a snapshot of what this instance has done so far."""
+
+        return CacheStatistics(
+            hits=self._hits,
+            misses=self._misses,
+            rejections=self._rejections,
+            stores=self._stores,
+            store_failures=self._store_failures,
+        )
 
     def key(
         self,
@@ -96,22 +149,37 @@ class ScanCache:
         return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
     def load(self, key: str) -> CachedArtifactResult | None:
-        """Return a previously stored result, or ``None`` for any miss or damage."""
+        """Return a previously stored result, or ``None`` for any miss or damage.
+
+        Every ``None`` is counted as either a miss or a rejection, because "the
+        cache did not help" and "the cache is damaged" are different operational
+        facts and a bare hit rate cannot tell them apart.
+        """
 
         path = self._safe_entry_path(key)
         if path is None:
+            # An unresolvable path is a refusal to follow a link, not a
+            # cold key: something is wrong with the directory.
+            self._rejections += 1
             return None
         try:
             if path.stat().st_size > MAX_ENTRY_BYTES:
+                self._rejections += 1
                 return None
             with path.open("rb") as handle:
                 encoded = handle.read(MAX_ENTRY_BYTES + 1)
             if len(encoded) > MAX_ENTRY_BYTES:
+                self._rejections += 1
                 return None
             raw: Any = json.loads(encoded.decode("utf-8"))
+        except FileNotFoundError:
+            self._misses += 1
+            return None
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            self._rejections += 1
             return None
         if not isinstance(raw, dict) or raw.get("key") != key:
+            self._rejections += 1
             return None
         try:
             findings = tuple(Finding.model_validate(item) for item in raw.get("findings", []))
@@ -119,10 +187,13 @@ class ScanCache:
                 ScanDiagnostic.model_validate(item) for item in raw.get("diagnostics", [])
             )
         except (ValidationError, TypeError):
+            self._rejections += 1
             return None
         detectors = raw.get("detectors_run", [])
         if not isinstance(detectors, list):
+            self._rejections += 1
             return None
+        self._hits += 1
         return CachedArtifactResult(
             findings=findings,
             diagnostics=diagnostics,
@@ -146,9 +217,11 @@ class ScanCache:
         )
         encoded = payload.encode("utf-8")
         if len(encoded) > MAX_ENTRY_BYTES:
+            self._store_failures += 1
             return
         path = self._safe_entry_path(key, create_parent=True)
         if path is None:
+            self._store_failures += 1
             return
         try:
             descriptor, temporary_name = tempfile.mkstemp(prefix=".trueai-cache-", dir=path.parent)
@@ -157,9 +230,12 @@ class ScanCache:
                 with open(descriptor, "wb") as handle:
                     handle.write(encoded)
                 temporary.replace(path)
+                self._stores += 1
             except OSError:
                 temporary.unlink(missing_ok=True)
+                self._store_failures += 1
         except OSError:
+            self._store_failures += 1
             return
 
     def clear(self) -> int:

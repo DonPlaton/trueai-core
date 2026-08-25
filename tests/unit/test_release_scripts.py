@@ -41,3 +41,88 @@ def test_workflows_use_the_current_cyclonedx_output_option(workflow: Path) -> No
 
     assert "--output-file" in content
     assert "--outfile" not in content
+
+
+# -- the scale benchmark -------------------------------------------------------------
+
+
+def test_the_benchmark_writes_nothing_into_a_directory_it_was_pointed_at(
+    tmp_path: Path,
+) -> None:
+    """A benchmark that modified the repository it measured would be worse than useless."""
+
+    import subprocess
+    import sys
+
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    (repository / "note.md").write_text("Generated with ChatGPT\n", encoding="utf-8")
+    (repository / "code.py").write_text("VALUE = 1\n", encoding="utf-8")
+    before = {
+        item.relative_to(repository).as_posix(): item.read_bytes()
+        for item in repository.rglob("*")
+        if item.is_file()
+    }
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_scale.py",
+            "--corpus",
+            str(repository),
+            "--workers",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+
+    after = {
+        item.relative_to(repository).as_posix(): item.read_bytes()
+        for item in repository.rglob("*")
+        if item.is_file()
+    }
+    assert completed.returncode == 0, completed.stderr
+    assert after == before
+    assert "nothing is written into it" in completed.stdout
+
+
+def test_the_benchmark_refuses_a_corpus_that_is_not_a_directory(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    target = tmp_path / "single.md"
+    target.write_text("x\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, "scripts/benchmark_scale.py", "--corpus", str(target)],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+
+    assert completed.returncode != 0
+    assert "is not a directory" in completed.stderr
+
+
+def test_the_benchmark_refuses_to_both_build_and_reuse_a_corpus(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_scale.py",
+            "--corpus",
+            str(tmp_path),
+            "--keep-corpus",
+            str(tmp_path / "built"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+
+    assert completed.returncode != 0
+    assert "benchmarks a directory as it is" in completed.stderr

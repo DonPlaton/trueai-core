@@ -12,6 +12,56 @@ change is called out explicitly and governed by
 
 ### Added
 
+**Repository-scale benchmarks, and what they found**
+
+- `trueai/core/benchmark.py` and `scripts/benchmark_scale.py`. A seeded synthetic
+  corpus is scanned cold, warm, and in parallel; wall time, both memory peaks,
+  cache hit rate, and determinism are reported. Results for 10,000 and 100,000
+  files are published in `docs/benchmarks.md`.
+- Two memory figures, labelled. Process peak RSS is what the machine feels, but
+  every OS exposes it as a lifetime high-water mark that never falls, so only the
+  first phase's figure is that phase's own peak. Peak Python allocation is
+  per-phase and honest about covering only the Python side. Subtracting two
+  high-water marks to fake a per-phase RSS would produce a confident wrong
+  number, so the harness does not.
+- Two determinism checks. Two identical scans must agree with only `scan_id` and
+  `generated_at` removed — a comparison that ignored everything unstable would
+  always pass — and the parallel scan must agree with the serial one.
+- `ScanCache.statistics()` counts hits, misses, **rejections**, stores, and store
+  failures. A miss and a damaged entry are different operational facts, and one
+  blended hit rate hides the second.
+- `TrueAIEngine.scan(cache=...)` accepts a cache instance, so a caller can read
+  its statistics back; the engine would otherwise build one and discard it.
+- `ArtifactDiscovery.inventory()` returns the logical paths under a root without
+  identifying anything.
+- `--corpus` benchmarks an existing directory and writes nothing into it — not a
+  file, not a cache entry. A benchmark that modified the repository it measured
+  would be worse than useless.
+- A phase whose finding budget or file cap ran out is marked `INCOMPLETE`, and
+  the count is described as a floor rather than a total. The 100,000-file run
+  reaches the default `max_findings` after 29,127 artifacts, and a capped count
+  published as a result is exactly what a scale benchmark exists to prevent.
+- Reports are compared by per-field SHA-256 digest rather than by value. The
+  first attempt at 100,000 files died holding three whole reports at once; a
+  benchmark should not be the thing that runs out of memory.
+
+### Changed
+
+- The end-of-scan sweep that asks "did new files appear while detectors ran" used
+  to run full discovery a second time, opening and sniffing every file to produce
+  type information the comparison then discarded. It now walks for paths only,
+  with the same traversal, ignore rules, symlink containment, and file cap.
+  Measured: 14% of wall time removed on a warm 2,000-file corpus, with no check
+  weakened.
+
+### Fixed
+
+- A file the first discovery pass could not identify — a permission error, or one
+  deleted between the walk and the open — was absent from that pass's inventory
+  and present in the second, and was announced as `detector_mutation` at CRITICAL
+  severity: a plugin rewriting your repository. Paths the first pass already
+  reported as problems are now excluded from the comparison.
+
 **Provenance as four questions instead of one badge**
 
 - `trueai/core/provenance_view.py`. A verification status is a single value, and

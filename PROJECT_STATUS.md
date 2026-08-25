@@ -312,8 +312,24 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P2 — repository scale and public interfaces
 
-- [ ] `SCALE-01` Benchmark synthetic and real consented repositories at 10,000 and 100,000 files;
-  publish wall time, peak memory, cache hit rate, and deterministic-output checks.
+- [x] `SCALE-01` `scripts/benchmark_scale.py` and `trueai/core/benchmark.py` measure a seeded
+  synthetic corpus cold, warm, and in parallel, publishing wall time, both memory peaks, cache hit
+  rate, and two determinism checks — repeat-run agreement and serial/parallel agreement, because a
+  speedup that changes the answer is not a speedup. Results at 10,000 and 100,000 files are in
+  [`docs/benchmarks.md`](docs/benchmarks.md). Two things the benchmark found, both now fixed or
+  written down: **parallelism is the lever and the cache is not** — eight workers give ~4.9x while a
+  fully warm cache saves ~5%, because the time is in file I/O rather than in detectors; and the
+  end-of-scan "did new files appear" sweep was running full discovery a second time, opening and
+  sniffing every file to build type information the comparison discarded. `ArtifactDiscovery.
+  inventory()` now walks for paths only (same traversal, ignore rules, symlink containment, and file
+  cap), removing 14% of wall time and a latent CRITICAL false positive: a file the first pass could
+  not identify was being announced as a detector mutating the repository. Cache statistics count
+  misses apart from rejections, since "did not help" and "is damaged" are different problems, and a
+  phase whose finding budget or file cap ran out is marked `INCOMPLETE` rather than published as a
+  total — the 100,000-file run reaches the default `max_findings` after 29,127 artifacts, and a
+  capped count that reads as a result is the failure mode a scale benchmark exists to avoid.
+  Benchmarking **real consented repositories** stays `external` — it needs their owners' consent —
+  but `--corpus` runs the harness against any directory and writes nothing into it.
 - [ ] `SCALE-02` Add bounded cache size, deterministic eviction, cache inspection, and safe pruning.
 - [ ] `SCALE-03` Add engine-level progress and cancellation events without coupling core code to
   Rich, a desktop UI, or a particular async framework.
