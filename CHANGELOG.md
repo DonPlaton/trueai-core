@@ -12,6 +12,26 @@ change is called out explicitly and governed by
 
 ### Added
 
+**EBML/WebM invariants and cleanup**
+
+- `trueai/core/ebml.py` specifies six invariants — tracks, clusters, cues,
+  timing, seek positions, provenance — over a structural model that resolves
+  `SeekHead` and `Cues` positions to whatever elements are actually there.
+- The failure it exists to catch is the EBML spelling of the MP4 one: removing
+  bytes from `Tags` shifts every cluster after them, while the document still
+  parses, the duration is still right, and every block is byte-identical. Only
+  the stored positions are now wrong. A test asserts the block digests were
+  identical in exactly that case.
+- `CodecPrivate` is named in the failure detail, because losing it is the
+  difference between a file that plays differently and one that does not play.
+- WebM and Matroska metadata can now be removed. The selected `SimpleTag` is
+  overwritten with a same-length `Void` — EBML's own padding element — so nothing
+  moves and no `SeekHead` or `Cues` position needs rewriting.
+- `void_element` is exact by construction and tested from 2 bytes to 5 MB. The
+  whole substitution depends on the replacement being the same size.
+- A document carrying a provenance attachment is refused outright, as an MP4 with
+  a C2PA box is.
+
 **Surgical ISO-BMFF metadata cleanup**
 
 - MP4, MOV, and M4A metadata can now be removed. The selected box is overwritten
@@ -54,7 +74,7 @@ change is called out explicitly and governed by
 - Parsing is bounded: depth 16, 100,000 boxes, four million sample entries, with
   the declared count checked before anything is allocated against it. A box
   claiming more bytes than remain is a refusal, not a short slice.
-- `docs/iso-bmff-invariants.md` explains why this format needs a structural gate
+- `docs/container-invariants.md` explains why this format needs a structural gate
   where WAV and FLAC did not.
 - The media cleaner still refuses ISO-BMFF. Two tests pin the refusal and the
   satisfiability of the invariants, so `FMT-02` implements against a

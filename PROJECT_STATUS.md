@@ -152,8 +152,13 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   payload need not contain the letters `c2pa`, so the byte-marker scan the other formats rely on
   missed it; the ISO-BMFF branch now refuses structurally. Positive, refusal, malformed,
   signed-provenance, and large-container tests all present.
-- [ ] `FMT-03` Specify equivalent EBML/WebM track, cluster, cue, timing, and provenance invariants,
-  then implement cleanup only when those invariants pass.
+- [x] `FMT-03` `trueai/core/ebml.py` specifies six invariants — tracks, clusters, cues, timing,
+  seek positions, provenance — over a model that resolves `SeekHead` and `Cues` positions to the
+  elements actually there. Cleanup overwrites the selected `SimpleTag` with a same-length `Void`,
+  EBML's own padding element, so nothing moves and no stored position needs rewriting; every result
+  passes the invariants before it is written, and a document carrying a provenance attachment is
+  refused. `void_element` is exact by construction and tested from 2 bytes to 5 MB, because the
+  substitution depends on it.
 - [ ] `FMT-04` Expand PDF inspection from bounded lexical coverage to a deeper bounded object-graph
   model without enabling decompression bombs or weakening signature/provenance preservation.
 - [ ] `FMT-05` Add richer HTML DOM topology and stylesheet feature extraction with parser-event and

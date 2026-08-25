@@ -831,7 +831,11 @@ def _walk_ebml(
         if unknown and element_id not in _EBML_MASTER_IDS:
             raise CorruptArtifactError("Unknown-size EBML value is not a master element")
         if element_id == 0x67C8:  # SimpleTag
-            entries.extend(_parse_ebml_simple_tag(data, payload_start, payload_end, budget))
+            entries.extend(
+                _parse_ebml_simple_tag(
+                    data, payload_start, payload_end, budget, element_range=(offset, payload_end)
+                )
+            )
         elif element_id in _EBML_MASTER_IDS:
             _walk_ebml(
                 data,
@@ -859,7 +863,11 @@ def _walk_ebml(
 
 
 def _parse_ebml_simple_tag(
-    data: bytes, start: int, end: int, budget: ParserBudget
+    data: bytes,
+    start: int,
+    end: int,
+    budget: ParserBudget,
+    element_range: tuple[int, int] | None = None,
 ) -> list[MediaMetadataEntry]:
     offset = start
     name: str | None = None
@@ -898,6 +906,10 @@ def _parse_ebml_simple_tag(
                 value=value,
                 byte_offset=value_offset,
                 raw_identifier=name,
+                # The whole SimpleTag goes. A SimpleTag whose TagString was
+                # removed is a malformed tag rather than an absent one.
+                remediation_safe=element_range is not None,
+                removable_range=element_range,
             ),
         )
     return result

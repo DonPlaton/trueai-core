@@ -1,4 +1,4 @@
-"""Surgical WAV, MP3, FLAC, and ISO-BMFF metadata cleanup with format invariants.
+"""Surgical WAV, MP3, FLAC, ISO-BMFF, and EBML metadata cleanup with format invariants.
 
 The ISO-BMFF branch works differently from the other three, on purpose.
 
@@ -21,10 +21,17 @@ padding rather than disappearing. For a delivery pipeline that cares whether the
 client can read the shooting location, that is the right trade; for one that
 cares about file size it is not, and `FMT-02` does not pretend otherwise.
 
+EBML — WebM and Matroska — has the same problem written in a different notation.
+`SeekHead` and `Cues` store positions relative to the start of segment data, so
+removing bytes from `Tags` shifts every cluster after them and seeking lands
+somewhere else. It also has the same escape hatch: `Void`, the format's own
+padding element. The EBML branch does exactly what the ISO-BMFF branch does, with
+`Void` in place of `free`.
+
 Either way the result is checked against the executable invariants in
-:mod:`trueai.core.iso_bmff` before it is accepted, so a mistake in the
-substitution — a wrong length, a clobbered neighbour — fails the gate instead of
-shipping.
+:mod:`trueai.core.iso_bmff` or :mod:`trueai.core.ebml` before it is accepted, so
+a mistake in the substitution — a wrong length, a clobbered neighbour — fails the
+gate instead of shipping.
 """
 
 from __future__ import annotations
@@ -36,6 +43,7 @@ from pathlib import Path
 from typing import Literal
 
 from trueai.cleaners.base import CleanerOutcome
+from trueai.core.ebml import EbmlError, model_ebml, verify_ebml_invariants, void_element
 from trueai.core.errors import CorruptArtifactError, RemediationError
 from trueai.core.integrity import sha256_bytes
 from trueai.core.iso_bmff import IsoBmffError, model_iso_bmff, verify_iso_bmff_invariants
@@ -180,9 +188,12 @@ class MediaMetadataCleaner:
             format_label = "MP3"
         elif _looks_like_iso_bmff(before):
             return self._clean_iso_bmff(before, destination, selections, available, limits)
+        elif before.startswith(b"\x1a\x45\xdf\xa3"):
+            return self._clean_ebml(before, destination, selections, available, limits)
         else:
             raise RemediationError(
-                "Media cleanup currently supports WAV, MP3, FLAC, and ISO base media containers"
+                "Media cleanup currently supports WAV, MP3, FLAC, ISO base media, and EBML "
+                "containers"
             )
         if after == before:
             raise RemediationError("Selected media metadata produced no byte change")
@@ -242,29 +253,7 @@ class MediaMetadataCleaner:
                 "and it binds byte ranges that any edit would invalidate"
             )
 
-        ranges: list[tuple[int, int]] = []
-        for selection in sorted(selections, key=lambda item: item.byte_offset):
-            entry = available[selection]
-            if entry.removable_range is None:
-                raise RemediationError(
-                    f"{selection.label} has no removable box range; refusing to guess one"
-                )
-            start, end = entry.removable_range
-            if start < 0 or end > len(before) or end - start < _FREE_BOX_HEADER:
-                raise RemediationError(
-                    f"{selection.label} names an unusable byte range {start}..{end}"
-                )
-            ranges.append((start, end))
-
-        for (first_start, first_end), (second_start, _) in pairwise(ranges):
-            if second_start < first_end:
-                # Two selections covering the same bytes would have the second
-                # overwrite padding the first already wrote, which is not the
-                # edit either of them described.
-                raise RemediationError(
-                    f"Selected ISO-BMFF boxes overlap at {first_start}..{first_end}"
-                )
-
+        ranges = _selected_ranges(selections, available, len(before), minimum=_FREE_BOX_HEADER)
         buffer = bytearray(before)
         for start, end in ranges:
             # A free box of exactly the same length: same file, same offsets, and
@@ -304,6 +293,66 @@ class MediaMetadataCleaner:
             # answer a different and less useful question.
             logical_before_sha256=_iso_sample_digest(before),
             logical_after_sha256=_iso_sample_digest(emitted),
+            intentionally_removed=changed,
+        )
+        return CleanerOutcome(changed_fields=changed, integrity=integrity)
+
+    def _clean_ebml(
+        self,
+        before: bytes,
+        destination: Path,
+        selections: frozenset[_Selection],
+        available: dict[_Selection, MediaMetadataEntry],
+        limits: ScanOptions,
+    ) -> CleanerOutcome:
+        """Overwrite the selected elements with Void padding, then prove nothing moved."""
+
+        try:
+            model = model_ebml(before)
+        except EbmlError as exc:
+            raise RemediationError(f"EBML document could not be modelled: {exc}") from exc
+        if model.provenance:
+            raise RemediationError(
+                "Refusing EBML cleanup: the document carries provenance material, and an "
+                "edit would invalidate what it binds"
+            )
+
+        ranges = _selected_ranges(selections, available, len(before), minimum=2)
+        buffer = bytearray(before)
+        for start, end in ranges:
+            # Void is EBML's own "ignore this" element. Same length in, same
+            # length out, so every SeekHead and Cues position stays correct
+            # without being rewritten.
+            buffer[start:end] = void_element(end - start)
+        after = bytes(buffer)
+
+        if after == before:
+            raise RemediationError("Selected media metadata produced no byte change")
+
+        try:
+            report = verify_ebml_invariants(before, after)
+        except EbmlError as exc:
+            raise RemediationError(f"EBML invariants could not be evaluated: {exc}") from exc
+        if not report.safe_to_apply():
+            raise RemediationError(f"EBML invariants refused the edit: {report.explain()}")
+
+        destination.write_bytes(after)
+        emitted = self._read_bounded(destination, limits.max_file_size)
+        if emitted != after:
+            raise RemediationError("The written EBML output differs from the planned edit")
+
+        changed = tuple(sorted(item.label for item in selections))
+        integrity = IntegrityReport(
+            status=IntegrityStatus.PASS,
+            explanation=(
+                "The EBML output replaces only the selected metadata elements with same-length "
+                "Void padding, so every cluster and cue position still resolves to the same "
+                "element. All six document invariants held: " + report.explain()
+            ),
+            before_sha256=sha256_bytes(before),
+            after_sha256=sha256_bytes(emitted),
+            logical_before_sha256=_ebml_block_digest(before),
+            logical_after_sha256=_ebml_block_digest(emitted),
             intentionally_removed=changed,
         )
         return CleanerOutcome(changed_fields=changed, integrity=integrity)
@@ -724,3 +773,45 @@ def _iso_sample_digest(data: bytes) -> bytes:
     model = model_iso_bmff(data)
     joined = b"".join(track.sample_digest(data).encode("ascii") for track in model.tracks)
     return joined
+
+
+def _selected_ranges(
+    selections: frozenset[_Selection],
+    available: dict[_Selection, MediaMetadataEntry],
+    length: int,
+    *,
+    minimum: int,
+) -> list[tuple[int, int]]:
+    """Return the byte ranges to overwrite, refusing anything unusable.
+
+    The ranges come from the detector rather than being re-derived here. A
+    cleaner that parsed again could disagree with what was reported, and the two
+    disagreeing is how a surgical edit stops being surgical.
+    """
+
+    ranges: list[tuple[int, int]] = []
+    for selection in sorted(selections, key=lambda item: item.byte_offset):
+        entry = available[selection]
+        if entry.removable_range is None:
+            raise RemediationError(
+                f"{selection.label} has no removable element range; refusing to guess one"
+            )
+        start, end = entry.removable_range
+        if start < 0 or end > length or end - start < minimum:
+            raise RemediationError(f"{selection.label} names an unusable byte range {start}..{end}")
+        ranges.append((start, end))
+
+    for (first_start, first_end), (second_start, _) in pairwise(ranges):
+        if second_start < first_end:
+            # Two selections covering the same bytes would have the second
+            # overwrite padding the first already wrote, which is not the edit
+            # either of them described.
+            raise RemediationError(f"Selected elements overlap at {first_start}..{first_end}")
+    return ranges
+
+
+def _ebml_block_digest(data: bytes) -> bytes:
+    """Hash every cluster's blocks, which is the material that must not change."""
+
+    model = model_ebml(data)
+    return b"".join(cluster.block_digest.encode("ascii") for cluster in model.clusters)

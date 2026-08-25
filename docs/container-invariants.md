@@ -1,4 +1,4 @@
-# MP4, MOV, and M4A: what a cleanup must not change
+# Container invariants: MP4/MOV/M4A and WebM/Matroska
 
 This is a specification, and it is written as code in
 [`trueai/core/iso_bmff.py`](../trueai/core/iso_bmff.py). Nothing here removes
@@ -147,3 +147,54 @@ one, so `MediaMetadataEntry.removable_range` names the enclosing box and the
 cleaner uses that range rather than re-deriving one. The detector and the cleaner
 agreeing about which bytes are the metadata is the difference between a surgical
 edit and a hopeful one.
+
+
+# WebM and Matroska: the same problem in EBML
+
+[`trueai/core/ebml.py`](../trueai/core/ebml.py) is the companion specification,
+and it exists for the same reason written in a different notation. ISO-BMFF
+records where the media lives in `stco`; EBML records it in `SeekHead` and
+`Cues`, as positions relative to the start of segment data.
+
+Remove bytes from `Tags` and every cluster after them shifts, while:
+
+- the document still parses;
+- every element is still well formed;
+- `Duration` and `TimestampScale` are still right;
+- every block payload is byte-identical.
+
+Seeking lands somewhere else. `tests/unit/test_ebml_invariants.py` builds a WebM
+whose `SeekHead` and `Cues` positions genuinely resolve, drifts the cue positions
+by three bytes, and asserts that the block digests were identical in that case —
+the same demonstration the MP4 tests make about `mdat`.
+
+## The six invariants
+
+| Invariant | What it covers | What breaking it looks like |
+|---|---|---|
+| `tracks` | `TrackNumber`, `TrackUID`, `CodecID`, `CodecPrivate`, video and audio settings | A track nothing can decode |
+| `clusters` | Block payloads, hashed in order | Wrong or missing media |
+| `cues` | Cue points, and that each `CueClusterPosition` still starts a cluster | Seeking lands mid-element |
+| `timing` | `TimestampScale`, `Duration`, per-cluster `Timestamp` | Wrong duration, drifting playback |
+| `seek_positions` | Every `SeekHead` entry still resolves to the `SeekID` it names | A demuxer jumps into the middle of something |
+| `provenance` | C2PA/XMP attachments and tags | Provenance silently removed |
+
+`CodecPrivate` gets called out by name in the failure detail, because losing it
+is the difference between a file that plays differently and a file that does not
+play at all.
+
+## Cleanup: `Void` instead of `free`
+
+EBML has its own padding element, `Void` (`0xEC`), and the cleanup uses it
+exactly as the ISO-BMFF branch uses `free`: the selected `SimpleTag` is
+overwritten in place with a `Void` of the same total length. Nothing moves, so
+every `SeekHead` and `Cues` position stays correct without being rewritten.
+
+`void_element(length)` is exact by construction and tested at 2, 3, 8, 129,
+1000, 20,000, and 5,000,000 bytes, because the whole substitution depends on
+the replacement being the same size as what it replaced. The minimum is two
+bytes — one identifier, one size — which every real element exceeds.
+
+A document carrying a provenance attachment is refused outright, for the same
+reason an MP4 with a C2PA box is: a manifest binds byte ranges of the file it
+lives in, and any edit invalidates it.
