@@ -19,6 +19,17 @@ worker's stdout and stderr are discarded. There are no pipes to plumb.
 
 from __future__ import annotations
 
+import sys
+
+if sys.platform != "win32":  # pragma: no cover - the module is Windows-only
+    raise ImportError(
+        "trueai.plugins.windows_token requires Windows; the host imports it only there."
+    )
+
+# ``WinDLL`` is a ``CDLL`` subclass. Handles below are annotated as ``CDLL``
+# because an annotation is resolved even inside the branch the guard above makes
+# unreachable, and ``ctypes.WinDLL`` does not exist in POSIX typeshed. The values
+# are still WinDLL, built by the two loaders; only the static type is wider.
 import ctypes
 import os
 from ctypes import wintypes
@@ -91,15 +102,15 @@ class _SidAndAttributes(ctypes.Structure):
     _fields_ = (("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD))
 
 
-def _kernel32() -> ctypes.WinDLL:
+def _kernel32() -> ctypes.CDLL:
     return ctypes.WinDLL("kernel32", use_last_error=True)
 
 
-def _advapi32() -> ctypes.WinDLL:
+def _advapi32() -> ctypes.CDLL:
     return ctypes.WinDLL("advapi32", use_last_error=True)
 
 
-def _declare(kernel32: ctypes.WinDLL, advapi32: ctypes.WinDLL) -> None:
+def _declare(kernel32: ctypes.CDLL, advapi32: ctypes.CDLL) -> None:
     """Pin argument and return types before any call.
 
     ``GetCurrentProcess`` returns the pseudo-handle ``-1``. Left undeclared,
@@ -154,7 +165,7 @@ def _declare(kernel32: ctypes.WinDLL, advapi32: ctypes.WinDLL) -> None:
     advapi32.CreateProcessAsUserW.restype = wintypes.BOOL
 
 
-def _administrators_sid(advapi32: ctypes.WinDLL) -> ctypes.c_void_p:
+def _administrators_sid(advapi32: ctypes.CDLL) -> ctypes.c_void_p:
     """Return the BUILTIN\\Administrators SID, to be denied in the new token.
 
     Deny-only is stronger than absent: an absent group can be re-added by a token

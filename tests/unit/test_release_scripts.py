@@ -78,7 +78,9 @@ def test_release_publication_cannot_bypass_the_verification_job() -> None:
         "pytest",
         "ruff check",
         "ruff format",
-        "mypy trueai",
+        # Both, because one run answers for one operating system.
+        "mypy --platform win32",
+        "mypy --platform linux",
         "check_schema_snapshot.py",
         "check_api_snapshot.py",
         "check_docs.py",
@@ -197,3 +199,39 @@ def test_the_benchmark_refuses_to_both_build_and_reuse_a_corpus(tmp_path: Path) 
 
     assert completed.returncode != 0
     assert "benchmarks a directory as it is" in completed.stderr
+
+
+def test_the_runtime_prefix_is_installed_independently_of_the_builder() -> None:
+    """Without --ignore-installed the image shipped almost nothing it imports.
+
+    The builder carries the release group in its own site-packages, and hatchling
+    shares pathspec, rich, packaging, pluggy and requests with the runtime set.
+    pip calls those "already satisfied" and skips them for the --prefix tree, so
+    `trueai --version` in the published image died on `import pathspec` while the
+    build stayed byte-for-byte reproducible. A reproducible build of the wrong
+    bytes is still reproducible, which is why this needs its own check.
+    """
+
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    install = next(
+        line for line in dockerfile.splitlines() if "-r /tmp/runtime-requirements.txt" in line
+    )
+    stanza = dockerfile[dockerfile.index("RUN python -m build") : dockerfile.index(install)]
+
+    assert "--ignore-installed" in stanza
+    assert "--require-hashes" in stanza
+
+
+@pytest.mark.parametrize("workflow", WORKFLOWS)
+def test_types_are_checked_for_both_platforms(workflow: Path) -> None:
+    """One mypy run answers for one operating system and is blind to the other.
+
+    The Windows restricted-token path carried 25 type errors for as long as the
+    only Linux checker was CI and the only Windows checker was a developer -- each
+    correct about the branch it could see.
+    """
+
+    content = workflow.read_text(encoding="utf-8")
+
+    assert "--platform win32" in content
+    assert "--platform linux" in content

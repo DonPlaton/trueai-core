@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 import trueai.plugins.host as host_module
+from tests.support import confinement_report
 from trueai import TrueAIEngine
 from trueai.core.registry import DetectorRegistry
 from trueai.plugins import (
@@ -32,7 +33,7 @@ from trueai.plugins import (
     PluginIsolation,
     describe_platform,
 )
-from trueai.plugins.confinement import apply_confinement, windows_confinement_report
+from trueai.plugins.confinement import windows_confinement_report
 
 REPOSITORY_ROOT = str(Path(__file__).resolve().parents[2])
 EXAMPLES = "tests.plugin_examples"
@@ -94,7 +95,7 @@ def test_linux_confinement_is_applied_by_the_process_to_itself() -> None:
 
 
 def test_level_none_says_that_nothing_is_enforced() -> None:
-    report = apply_confinement(BrokerGrants(), ConfinementLevel.NONE)
+    report = confinement_report(ConfinementLevel.NONE)
 
     assert report.applied is False
     assert report.not_enforced
@@ -104,7 +105,7 @@ def test_level_none_says_that_nothing_is_enforced() -> None:
 def test_an_applied_report_still_lists_what_it_does_not_cover() -> None:
     """A confinement claiming to cover everything is describing something else."""
 
-    report = apply_confinement(BrokerGrants(), ConfinementLevel.BEST_EFFORT)
+    report = confinement_report(ConfinementLevel.BEST_EFFORT)
 
     assert report.not_enforced, report
     assert report.summary()
@@ -113,7 +114,7 @@ def test_an_applied_report_still_lists_what_it_does_not_cover() -> None:
 def test_best_effort_records_a_gap_instead_of_raising() -> None:
     """On a platform without a self-confinement backend, work continues."""
 
-    report = apply_confinement(BrokerGrants(), ConfinementLevel.BEST_EFFORT)
+    report = confinement_report(ConfinementLevel.BEST_EFFORT)
 
     if not report.applied:
         assert report.reason
@@ -123,12 +124,12 @@ def test_best_effort_records_a_gap_instead_of_raising() -> None:
 def test_required_refuses_where_best_effort_would_have_degraded() -> None:
     """Silently degrading is indistinguishable, in a report, from having succeeded."""
 
-    degraded = apply_confinement(BrokerGrants(), ConfinementLevel.BEST_EFFORT)
+    degraded = confinement_report(ConfinementLevel.BEST_EFFORT)
     if degraded.applied:
         pytest.skip("This machine can establish confinement, so there is nothing to refuse")
 
     with pytest.raises(ConfinementUnavailableError):
-        apply_confinement(BrokerGrants(), ConfinementLevel.REQUIRED)
+        confinement_report(ConfinementLevel.REQUIRED)
 
 
 def test_the_windows_report_does_not_claim_to_be_appcontainer() -> None:
@@ -383,3 +384,62 @@ def test_required_confinement_reports_rather_than_silently_running(
     assert unconfined, report.diagnostics
     assert not findings, "a plugin the host could not confine must not have run"
     assert "not imported" in unconfined[0].message
+
+
+def test_the_windows_token_module_states_the_platform_it_needs() -> None:
+    """It fails on import off Windows, and says which module is the problem.
+
+    `from ctypes import wintypes` already fails on POSIX, but with an ImportError
+    that names ctypes. The guard also carries a second job: a type checker
+    narrows on `sys.platform` and on nothing else, so it is what lets a Linux
+    mypy run skip a module written entirely against the Win32 API instead of
+    reporting every WinDLL reference in it.
+    """
+
+    source = (
+        Path(__file__).resolve().parents[2] / "trueai" / "plugins" / "windows_token.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'if sys.platform != "win32":' in source
+    assert "raise ImportError" in source
+    assert source.index("import sys") < source.index("from ctypes import wintypes")
+
+
+def test_the_windows_job_limits_are_guarded_by_a_check_mypy_understands() -> None:
+    """`os.name == "nt"` reads as a platform guard and narrows nothing."""
+
+    source = (
+        Path(__file__).resolve().parents[2] / "trueai" / "plugins" / "resources.py"
+    ).read_text(encoding="utf-8")
+    body = source[source.index("def _apply_windows_job_limits") :]
+
+    assert 'if sys.platform != "win32":' in body
+    assert body.index('if sys.platform != "win32":') < body.index("ctypes.WinDLL")
+
+
+def test_no_test_module_confines_the_test_runner() -> None:
+    """The guard for the defect that hid every other defect.
+
+    apply_confinement is one-way on purpose. A test that calls it in-process
+    leaves the runner with a read-only root and an empty grant set, so every
+    later test dies in its own tmp_path fixture. The first Linux run of this
+    suite reported fourteen hundred errors that way: one real failure, and the
+    rest collateral from a process that could no longer write anything.
+
+    The controls are still measured against a real kernel -- in a child, through
+    tests.support.confinement_report, which is allowed to be destroyed by them.
+    """
+
+    tests_root = Path(__file__).resolve().parents[1]
+    # Assembled, so the check does not report the file it is written in.
+    needle = "apply_confinement" + "("
+    offenders = [
+        path.relative_to(tests_root).as_posix()
+        for path in tests_root.rglob("test_*.py")
+        if needle in path.read_text(encoding="utf-8")
+    ]
+
+    assert offenders == [], (
+        "these modules confine the process running them; "
+        f"use tests.support.confinement_report instead: {offenders}"
+    )

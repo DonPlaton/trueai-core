@@ -119,8 +119,8 @@ def test_a_killed_worker_does_not_take_the_scan_with_it(
 def test_the_platform_report_matches_what_this_platform_can_enforce() -> None:
     """The report is the contract. It has to say what the machine really does."""
 
-    from trueai.plugins.broker import BrokerGrants
-    from trueai.plugins.confinement import apply_confinement, windows_confinement_report
+    from tests.support import confinement_report
+    from trueai.plugins.confinement import windows_confinement_report
 
     available = describe_platform()
     if available.platform == "windows":
@@ -132,7 +132,9 @@ def test_the_platform_report_matches_what_this_platform_can_enforce() -> None:
         assert "Syscall filtering" in gaps
         return
 
-    report = apply_confinement(BrokerGrants(), ConfinementLevel.BEST_EFFORT)
+    # In a child. Applying it here would confine the test runner, and there is
+    # no way back from a seccomp filter or a read-only mount namespace.
+    report = confinement_report(ConfinementLevel.BEST_EFFORT)
     if report.applied:
         established = " ".join(report.established)
         assert "seccomp" in established or "namespace" in established

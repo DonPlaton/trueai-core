@@ -78,3 +78,73 @@ def assert_optional_dependencies(*names: str) -> None:
             f"{OPTIONAL_DEPENDENCY_VARIABLE} is set but these modules are missing: "
             + ", ".join(missing)
         )
+
+
+# -- confinement has to be applied somewhere it is allowed to win ----------------------
+
+#: Applied in a child, printed as JSON, read back by the parent. Confinement is
+#: one-way by design, so the process that applies it is spent afterwards.
+_CONFINEMENT_PROBE = """
+import json, sys
+from trueai.plugins.broker import BrokerGrants
+from trueai.plugins.confinement import (
+    ConfinementLevel,
+    ConfinementUnavailableError,
+    apply_confinement,
+)
+
+level = ConfinementLevel(sys.argv[1])
+try:
+    report = apply_confinement(BrokerGrants(), level)
+except ConfinementUnavailableError as exc:
+    payload = {"refused": str(exc)}
+else:
+    payload = {"report": report.model_dump(mode="json")}
+# Written to an already-open descriptor: the filter denies sockets and exec, and
+# a read-only root does not close a pipe.
+sys.stdout.write(json.dumps(payload))
+"""
+
+
+def confinement_report(level: object) -> object:
+    """Apply confinement in a child process and return the report it produced.
+
+    Calling ``apply_confinement`` in the test runner confines the test runner.
+    There is no way back from it -- that is the point of the mechanism -- so on
+    Linux the runner is left with a read-only root and an empty grant set, and
+    every later test fails inside its own ``tmp_path`` fixture. The control is
+    still measured against a real kernel here; only the casualty changes.
+
+    Raises ``ConfinementUnavailableError`` when the child refused, so a caller
+    can still assert that ``REQUIRED`` refuses where ``BEST_EFFORT`` degrades.
+    """
+
+    import json
+    import subprocess
+    import sys
+
+    from trueai.plugins.confinement import ConfinementReport, ConfinementUnavailableError
+
+    repository = Path(__file__).resolve().parents[1]
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{repository}{os.pathsep}{existing}" if existing else str(repository)
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", _CONFINEMENT_PROBE, str(getattr(level, "value", level))],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=environment,
+    )
+    if completed.returncode != 0:
+        pytest.fail(
+            "The confinement probe did not survive its own confinement "
+            f"(exit {completed.returncode}): {completed.stderr.strip()}"
+        )
+    payload = json.loads(completed.stdout)
+    if "refused" in payload:
+        raise ConfinementUnavailableError(payload["refused"])
+    return ConfinementReport.model_validate(payload["report"])

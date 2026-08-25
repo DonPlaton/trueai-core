@@ -23,6 +23,7 @@ unnoticed.
 
 from __future__ import annotations
 
+import os
 import sys
 from importlib.metadata import EntryPoint
 from pathlib import Path
@@ -43,6 +44,72 @@ from trueai.plugins import (  # noqa: E402
 )
 
 EXAMPLES = "tests.plugin_examples"
+
+#: Set where the mount namespace must be available, so a skip becomes a failure.
+ENFORCEMENT_VARIABLE = "TRUEAI_REQUIRE_CONFINEMENT"
+
+#: Applied in a child, because confinement is one-way and the process that
+#: applies it is spent afterwards.
+_PROBE = """
+import json, sys
+from trueai.plugins.broker import BrokerGrants
+from trueai.plugins.confinement import ConfinementLevel, apply_confinement
+
+report = apply_confinement(BrokerGrants(), ConfinementLevel.BEST_EFFORT)
+sys.stdout.write(
+    json.dumps(
+        {
+            "established": list(report.established),
+            "not_enforced": list(report.not_enforced),
+            "reason": report.reason,
+        }
+    )
+)
+"""
+
+
+def mount_namespace_available() -> tuple[bool, str]:
+    """Can this kernel give a process a private, read-only mount namespace?
+
+    Check [1] measures that control and nothing else. Where the unshare is
+    refused the hostile write lands, and calling that "the control failed" says
+    the confinement is broken when the truth is that this machine cannot offer
+    it. Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor and
+    GitHub's hosted runners inherit the restriction, so the case is ordinary
+    rather than exotic.
+    """
+
+    import json
+    import subprocess
+
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{REPOSITORY}{os.pathsep}{existing}" if existing else str(REPOSITORY)
+    )
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", _PROBE],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"the confinement probe could not run: {exc}"
+    if completed.returncode != 0:
+        return False, f"the confinement probe exited {completed.returncode}"
+    payload = json.loads(completed.stdout)
+    for line in payload.get("established", []):
+        if "mount namespace" in line:
+            return True, line
+    # Prefer the backend's own words. It knows whether the unshare was refused,
+    # whether seccomp was rejected, or whether this platform has no backend at
+    # all, and guessing on its behalf is how a report starts overstating.
+    for line in payload.get("not_enforced", []):
+        if "amespace" in line:
+            return False, line
+    return False, payload.get("reason") or "no mount namespace was established"
 
 
 def run(
@@ -86,6 +153,7 @@ def main() -> int:
     artifact.write_text("Ordinary content.\n", encoding="utf-8")
 
     failures = 0
+    unverifiable = 0
 
     def check(name: str, condition: bool, detail: str = "") -> None:
         nonlocal failures
@@ -95,19 +163,38 @@ def main() -> int:
             print(f"  FAIL {name}: {detail}")
             failures += 1
 
+    def not_verifiable(name: str, reason: str) -> None:
+        """Neither a pass nor a failure: this kernel cannot answer the question."""
+
+        nonlocal failures, unverifiable
+        unverifiable += 1
+        if os.environ.get(ENFORCEMENT_VARIABLE, "").strip().lower() in {"1", "true", "yes"}:
+            print(f"  FAIL {name}: {reason} ({ENFORCEMENT_VARIABLE} is set)")
+            failures += 1
+        else:
+            print(f"  SKIP {name}: {reason}")
+
+    namespaced, why = mount_namespace_available()
+
     print("[1] a hostile native plugin cannot write outside its grant")
-    report = run("NATIVE_WRITER_REGISTRATION", artifact)
-    escaped = artifact.parent / "written-by-native-code.txt"
-    check(
-        "no file appeared beside the artifact",
-        not escaped.exists(),
-        f"{escaped} was created despite the read-only mount namespace",
-    )
-    check(
-        "the attempt is reported, not swallowed",
-        "NATIVE-WRITE-SUCCEEDED" not in messages(report) and bool(report.diagnostics),
-        messages(report),
-    )
+    if not namespaced:
+        # Running the scenario here would measure nothing and report a failure
+        # for it. The control is unavailable, which is a different sentence.
+        not_verifiable("no file appeared beside the artifact", why)
+        not_verifiable("the attempt is reported, not swallowed", why)
+    else:
+        report = run("NATIVE_WRITER_REGISTRATION", artifact)
+        escaped = artifact.parent / "written-by-native-code.txt"
+        check(
+            "no file appeared beside the artifact",
+            not escaped.exists(),
+            f"{escaped} was created despite the read-only mount namespace",
+        )
+        check(
+            "the attempt is reported, not swallowed",
+            "NATIVE-WRITE-SUCCEEDED" not in messages(report) and bool(report.diagnostics),
+            messages(report),
+        )
 
     print("[2] a granted native write into the scratch directory still works")
     report = run(
@@ -181,7 +268,15 @@ def main() -> int:
         "check [3] proves nothing if the socket would have failed anyway: " + messages(report),
     )
 
-    print(f"\n{'FAILED' if failures else 'PASSED'}: {failures} failure(s)")
+    verdict = "FAILED" if failures else "PASSED"
+    tail = f", {unverifiable} not verifiable on this kernel" if unverifiable else ""
+    print(f"\n{verdict}: {failures} failure(s){tail}")
+    if unverifiable and not failures:
+        print(
+            "  A control this machine cannot provide has not been checked. Run this in a\n"
+            "  container that permits the unshare, as the module docstring describes, and\n"
+            f"  set {ENFORCEMENT_VARIABLE}=1 there so the skip becomes a failure."
+        )
     return 1 if failures else 0
 
 

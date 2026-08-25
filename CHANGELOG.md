@@ -10,6 +10,61 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Fixed
+
+**Six defects the first run on hosted CI found, five of which only Linux could see**
+
+The suite had only ever run on one developer's Windows machine and in a
+container. The first push to a repository with Actions enabled ran it on hosted
+Linux, macOS, and Windows, and most of what follows had been latent since it was
+written.
+
+- **A test confined the test runner.** `apply_confinement` is one-way by design:
+  `no_new_privs` cannot be cleared, a seccomp filter cannot be removed, and a
+  read-only mount namespace cannot be remounted from inside. Five tests called it
+  in the pytest process. On Windows the backend is a report and nothing else, so
+  nothing happened. On Linux the first of them made the whole filesystem
+  read-only with an empty grant set, and every test after it died in its own
+  `tmp_path` fixture — one real failure and fourteen hundred pieces of
+  collateral, in a run that looked like a catastrophe and was one test. The
+  controls are still measured against a real kernel, now in a child process that
+  is allowed to be destroyed by them (`tests.support.confinement_report`), and a
+  gate fails if any test module calls it in-process again.
+- **The auditor image shipped almost nothing it imports.** The builder installs
+  the release group into its own site-packages, and hatchling shares `pathspec`,
+  `rich`, `packaging`, `pluggy` and `requests` with the runtime set. pip called
+  those "already satisfied" and never wrote them into `--prefix=/runtime`, so
+  `trueai --version` in the published image died on `import pathspec` — while the
+  build remained byte-for-byte reproducible, because a reproducible build of the
+  wrong bytes is still reproducible. Fixed with `--ignore-installed`, and the
+  Dockerfile now has a check of its own.
+- **Half the codebase was never type-checked.** mypy narrows on `sys.platform`
+  and on nothing else; `trueai/plugins/resources.py` guarded its Windows branch
+  with `os.name == "nt"`, which reads the same to a person and means nothing to a
+  checker. 25 errors sat in the Windows restricted-token path for as long as the
+  only Linux checker was CI and the only Windows checker was a developer — each
+  correct about the branch it could see. CI now runs `--platform win32` and
+  `--platform linux`, and `windows_token` states the platform it needs.
+- **`trueai doctor` withheld the thing the reader has to type.** Rich elides an
+  overlong cell and the widest row sets the width the narrower ones are cut to,
+  so on an 80-column terminal `install trueai-core[pdf]` rendered as a horizontal
+  ellipsis: the check reported that something was missing and not what to do
+  about it. The Detail column folds now.
+- **The advisory ledger could not express a platform.** `colorama` is in the lock
+  and installs on Windows only. Reported as `orphaned` on Linux, it invited the
+  fix that loses information — deleting a reviewed entry for a package that
+  really does ship. A component may now declare `platforms`, an unreadable list
+  is a ledger error rather than a silent excuse, and `check()` takes the platform
+  as an argument so the answer for Linux can be interrogated from Windows.
+- **The native harness called a missing control a broken one.** Check [1]
+  measures the read-only mount namespace. Ubuntu 24.04 restricts unprivileged
+  user namespaces through AppArmor and GitHub's runners inherit it, so the
+  hostile write landed and the harness reported the confinement as failed. That
+  is `not_examined` versus `absent` turned on the harness itself. It probes the
+  kernel first, prints `SKIP` with the backend's own reason, says plainly that a
+  control went unchecked, and `TRUEAI_REQUIRE_CONFINEMENT=1` turns the skip back
+  into a failure wherever the control must hold.
+
 ### Added
 
 **Incident response for five things that go wrong differently**

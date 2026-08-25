@@ -93,8 +93,15 @@ def check(
     *,
     installed: frozenset[str],
     today: date,
+    platform: str | None = None,
 ) -> list[Problem]:
-    """Return every reason the ledger fails to describe the current build."""
+    """Return every reason the ledger fails to describe the current build.
+
+    ``platform`` names the ``sys.platform`` the closure was taken on, so the
+    answer for Linux can be checked from Windows. A gate that can only be
+    interrogated about the machine it happens to be running on is how a
+    platform-conditional entry stays wrong until a hosted runner tries it.
+    """
 
     problems: list[Problem] = []
     meta = ledger.get("meta")
@@ -151,6 +158,19 @@ def check(
                     f"{name} was last reviewed {(today - component_reviewed).days} days ago",
                 )
             )
+        platforms = entry.get("platforms")
+        if platforms is not None and (
+            not isinstance(platforms, list)
+            or not platforms
+            or not all(isinstance(item, str) and item for item in platforms)
+        ):
+            problems.append(
+                Problem(
+                    "ledger",
+                    f"{name}.platforms must be a non-empty list of sys.platform values; "
+                    "an unreadable one would excuse a real absence",
+                )
+            )
         if kind in DISTRIBUTION_KINDS:
             reviewed_names.add(canonicalize_name(name))
 
@@ -170,13 +190,14 @@ def check(
     stale_entries = sorted(
         name
         for name in reviewed_names
-        if name not in installed and not _is_optional(components, name)
+        if name not in installed and not _absence_is_expected(components, name, platform)
     )
     for name in stale_entries:
         problems.append(
             Problem(
                 "orphaned",
-                f"{name} is reviewed but not installed; remove it or mark it optional",
+                f"{name} is reviewed but not installed; remove it, mark it optional, or "
+                "declare the platforms it installs on",
             )
         )
 
@@ -184,10 +205,33 @@ def check(
     return problems
 
 
-def _is_optional(components: list[object], canonical: str) -> bool:
+def _absence_is_expected(
+    components: list[object], canonical: str, platform: str | None = None
+) -> bool:
+    """Is this component missing for a reason the ledger already declared?
+
+    Two reasons qualify. An `optional-parser` is installed only when somebody
+    asks for the extra. A component that declares `platforms` is in the lock but
+    resolves to nothing here -- `colorama` ships on Windows and on no other
+    platform, and the entry still has to exist, because the question the ledger
+    answers is "what does this parse", which does not stop mattering on the
+    platform that installs it.
+
+    Anything else absent is a ledger that describes a build nobody has.
+    """
+
+    current = sys.platform if platform is None else platform
     for entry in components:
-        if isinstance(entry, dict) and canonicalize_name(str(entry.get("name", ""))) == canonical:
-            return entry.get("kind") == "optional-parser"
+        if not isinstance(entry, dict):
+            continue
+        if canonicalize_name(str(entry.get("name", ""))) != canonical:
+            continue
+        if entry.get("kind") == "optional-parser":
+            return True
+        platforms = entry.get("platforms")
+        if isinstance(platforms, list) and platforms:
+            return current not in platforms
+        return False
     return False
 
 

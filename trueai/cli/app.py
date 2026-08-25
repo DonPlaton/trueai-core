@@ -1994,7 +1994,12 @@ def doctor() -> None:
     checks = Table(title="TrueAI Doctor")
     checks.add_column("Check")
     checks.add_column("Status")
-    checks.add_column("Detail")
+    # The Detail column carries the only actionable text in this table: which
+    # extra to install. Rich elides an overlong cell, and the widest row sets the
+    # width the narrower ones are cut to, so on an 80-column terminal
+    # `install trueai-core[pdf]` rendered as a horizontal ellipsis -- the check
+    # said something was missing and withheld what to do about it. Fold wraps.
+    checks.add_column("Detail", overflow="fold")
     checks.add_row(
         "Python", "PASS" if sys.version_info >= (3, 12) else "FAIL", sys.version.split()[0]
     )

@@ -51,8 +51,15 @@ RUN find . -type d -exec chmod 0755 {} + \
     && find . -type f -exec chmod 0644 {} + \
     && chmod 0755 scripts/*.sh
 
+# --ignore-installed matters more than it looks. The builder already carries the
+# release group in its own site-packages, and hatchling shares pathspec, rich,
+# packaging, pluggy and requests with the runtime set. Without the flag pip calls
+# those requirements "already satisfied" and never writes them into /runtime, so
+# the image ships trueai and almost nothing trueai imports -- while still being
+# byte-for-byte reproducible, because a reproducible build of the wrong bytes is
+# still reproducible.
 RUN python -m build --no-isolation --outdir /dist \
-    && python -m pip install --no-cache-dir --require-hashes \
+    && python -m pip install --no-cache-dir --require-hashes --ignore-installed \
         --prefix=/runtime -r /tmp/runtime-requirements.txt \
     && python -m pip install --no-cache-dir --no-deps --prefix=/runtime /dist/*.whl \
     && python scripts/record_build_inputs.py --dist /dist

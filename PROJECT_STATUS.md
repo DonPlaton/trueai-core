@@ -95,6 +95,16 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 - [ ] `REL-01` (`external`) Run the complete GitHub Actions matrix on hosted Linux, macOS, and
   Windows, including optional PDF/C2PA/attestation jobs and the symlink security cases.
+  **Started.** The repository is published and the matrix has run once. It found six defects, five
+  of which no amount of local work could have surfaced, because the suite had only ever run on one
+  Windows machine and in a container: a test that confined the test runner and took 1,400 other
+  tests down with it, an auditor image that shipped almost nothing it imports while remaining
+  byte-for-byte reproducible, 25 unchecked type errors in the Windows plugin path, a `doctor` that
+  elided the install command it exists to print, a ledger that could not say "Windows only", and a
+  harness that called an unavailable control a broken one. All six are fixed. What remains for this
+  item is the part a green run cannot claim on its own: the native confinement checks still report
+  `SKIP` on hosted Linux, because unprivileged user namespaces are restricted there, so that control
+  needs a container run with `TRUEAI_REQUIRE_CONFINEMENT=1` before the matrix is honestly complete.
 - [ ] `REL-02` (`external`) Configure protected `testpypi` and `pypi` environments plus their
   trusted publishers, then exercise the release workflow against TestPyPI.
 - [ ] `REL-03` (`external`) Attest and sign the wheel, sdist, SBOM, build-input record, and checksums

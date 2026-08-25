@@ -20,6 +20,7 @@ if str(REPOSITORY) not in sys.path:
 
 from scripts.check_advisories import (  # noqa: E402
     LEDGER_PATH,
+    _absence_is_expected,
     check,
     installed_closure,
     load_ledger,
@@ -406,3 +407,90 @@ def test_every_gate_states_the_question_it_answers() -> None:
 @pytest.mark.parametrize("gate", GATES, ids=lambda gate: gate.name)
 def test_each_gate_passes_on_this_working_tree(gate) -> None:
     assert gate.run() == 0
+
+
+# -- a dependency that exists on one platform and not another --------------------------
+
+
+def _platform_component(**overrides: object) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "name": "colorama",
+        "kind": "dependency",
+        "why": "Behind rich on Windows; terminal escapes only.",
+        "platforms": ["win32"],
+        "reviewed_at": "2026-08-25",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def test_a_windows_only_dependency_may_be_absent_on_linux() -> None:
+    """It is in the lock and installs nowhere else, which is not neglect.
+
+    Reported as orphaned it invites the fix that loses information: deleting a
+    reviewed entry for a package that really does ship, on one platform, and
+    really does need a recorded decision about what it parses.
+    """
+
+    conditional = ledger()
+    components = conditional["component"]
+    assert isinstance(components, list)
+    components.append(_platform_component())
+
+    problems = check(conditional, installed=INSTALLED, today=TODAY, platform="linux")
+
+    assert not [item for item in problems if item.kind == "orphaned"]
+
+
+def test_the_same_windows_only_dependency_is_reported_missing_on_windows() -> None:
+    """Declaring a platform excuses absence there and nowhere else."""
+
+    conditional = ledger()
+    components = conditional["component"]
+    assert isinstance(components, list)
+    components.append(_platform_component())
+
+    problems = check(conditional, installed=INSTALLED, today=TODAY, platform="win32")
+
+    assert [item for item in problems if item.kind == "orphaned" and "colorama" in item.detail]
+
+
+def test_the_same_dependency_missing_on_its_own_platform_is_still_reported() -> None:
+    """Declaring a platform excuses absence there and nowhere else."""
+
+    components = [_platform_component()]
+
+    assert _absence_is_expected(components, "colorama", "linux")
+    assert not _absence_is_expected(components, "colorama", "win32")
+
+
+def test_a_dependency_with_no_platforms_is_expected_everywhere() -> None:
+    components = [_platform_component(name="pathspec", platforms=None)]
+    del components[0]["platforms"]
+
+    assert not _absence_is_expected(components, "pathspec", "linux")
+    assert not _absence_is_expected(components, "pathspec", "win32")
+
+
+@pytest.mark.parametrize("value", [[], "win32", ["win32", ""], [1], {}])
+def test_an_unreadable_platform_list_is_a_ledger_error(value: object) -> None:
+    """An unparseable field must not quietly excuse a real absence."""
+
+    broken = ledger()
+    components = broken["component"]
+    assert isinstance(components, list)
+    components.append(_platform_component(platforms=value))
+
+    problems = check(broken, installed=INSTALLED, today=TODAY)
+
+    assert [item for item in problems if item.kind == "ledger" and "platforms" in item.detail]
+
+
+def test_the_committed_ledger_declares_the_platform_for_its_conditional_entry() -> None:
+    """colorama is the one entry whose presence depends on the operating system."""
+
+    components = load_ledger(LEDGER_PATH)["component"]
+    assert isinstance(components, list)
+    entry = next(item for item in components if item.get("name") == "colorama")
+
+    assert entry["platforms"] == ["win32"]

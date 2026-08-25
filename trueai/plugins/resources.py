@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import sys
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -48,6 +49,13 @@ def _apply_posix_limits(limits: PluginResourceLimits) -> None:
 
 def _apply_windows_job_limits(limits: PluginResourceLimits) -> None:
     """Assign the worker to a Job Object with hard per-process limits."""
+
+    if sys.platform != "win32":  # pragma: no cover - the caller checks first
+        # Not defensive programming: this is the check that lets a type checker
+        # narrow the body below to Windows. `os.name == "nt"` at the call site
+        # reads the same to a human and means nothing to mypy, which is how the
+        # Windows branch went unchecked on one platform and misread on the other.
+        raise RuntimeError("Windows job objects are unavailable on this platform.")
 
     import ctypes
     from ctypes import wintypes

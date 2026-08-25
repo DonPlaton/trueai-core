@@ -43,8 +43,14 @@ jobs:
         run: python -m ruff check --output-format=github .
       - name: Ruff format check
         run: python -m ruff format --check .
-      - name: Strict mypy
-        run: python -m mypy
+      # Both platforms, because the project has code for both. One run answers
+      # for the operating system it runs on and is blind to the other's branch --
+      # which is how the Windows restricted-token path went unchecked on Linux
+      # until the day a hosted runner tried.
+      - name: Strict mypy as Windows
+        run: python -m mypy --platform win32
+      - name: Strict mypy as Linux
+        run: python -m mypy --platform linux
 
   test:
     name: Tests ${{ matrix.python-version }} on ${{ matrix.os }}

@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from trueai import TrueAIEngine
@@ -494,3 +495,31 @@ def test_module_entry_points_both_run_the_cli() -> None:
         )
         assert completed.returncode == 0, completed.stderr
         assert "TrueAI Core" in completed.stdout
+
+
+def test_doctor_still_names_the_extra_on_a_narrow_terminal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The install command is the only actionable text the table carries.
+
+    Rich elides an overlong cell, and the widest row sets the width the narrower
+    ones are cut to, so at 80 columns `install trueai-core[pdf]` rendered as a
+    horizontal ellipsis: the check reported that something was missing and
+    withheld what to do about it.
+    """
+
+    import importlib.util
+
+    real = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name, *a, **k: None if name == "pikepdf" else real(name, *a, **k),
+    )
+    monkeypatch.setenv("COLUMNS", "80")
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "OPTIONAL" in result.stdout
+    assert "trueai-core[pdf]" in result.stdout

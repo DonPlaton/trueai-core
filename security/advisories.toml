@@ -259,6 +259,10 @@ reviewed_at = "2026-08-25"
 name = "colorama"
 kind = "dependency"
 why = "Behind rich on Windows; terminal escapes only."
+# In the lock unconditionally, installed only where the marker applies. Without
+# this the gate reports it orphaned on Linux and invites deleting a reviewed
+# entry for a package that really does ship on Windows.
+platforms = ["win32"]
 reviewed_at = "2026-08-25"
 
 # -- parsers that no dependency audit covers -----------------------------------
