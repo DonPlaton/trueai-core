@@ -447,8 +447,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   without them is one nobody looked hard at. A test walks every module in the package and fails on
   any import of torch, tensorflow, jax, sklearn, numpy, scipy, pandas, transformers, onnxruntime,
   xgboost, or lightgbm, and a second test proves that check can fail. 26 tests; `docs/models.md`.
-- [ ] `ML-04` Add model cards, dataset statements, signed model manifests, versioned thresholds, and
-  regression gates before exposing learned scores.
+- [x] `ML-04` `trueai/research/release.py` gates exposure on five artifacts. A `DatasetStatement`
+  requires every field, including `does_not_represent` — a corpus of published English technical
+  writing does not represent a student writing in a second language, and the time to say so is
+  before a model trained on it judges one; listing demographics while claiming none were collected
+  is refused, since one of the two is wrong and a reader cannot tell which. Thresholds are bound to
+  one model version and one feature set and carry the evaluation digest that chose them, and
+  `may_expose` refuses when the evaluation ran at a threshold no shipped operating point uses.
+  Manifests are `TAIMDL1-…`, content-addressed over card, statement, thresholds, and the **digests
+  of the model's own files**, so "is this the model that was evaluated" does not depend on a
+  filename. The regression gate's central rule: **a rise in the false positive rate blocks a release
+  even when everything else improved** — averages let a model get better at finding machine text
+  while getting worse at accusing people, and only one of those costs a person something. Three more
+  ways to look better without being better are closed: the worst subgroup is gated separately, a
+  candidate that scores no subgroup when the baseline did is blocked, and coverage falling is
+  blocked because abstaining more improves every other number for free. 34 tests; `docs/models.md`.
 - [ ] `ML-05` Add longitudinal style comparison as a review aid, never as proof of authorship or as
   an optimization target for evading third-party detectors.
 

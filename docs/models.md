@@ -77,6 +77,76 @@ reader can tell which were not — see
 The corpus digest is the order-independent one from
 [corpus governance](research-data.md), so a card names the exact data.
 
+## Before a learned score is shown to anyone
+
+`trueai.research.release` is the gate. A model that scores text about whether a
+person wrote it is not shipped because it works; it is shipped because someone
+can answer, afterwards and under pressure, what it was trained on, what it is
+for, what it gets wrong, and whether this is the model they think it is.
+
+Five artifacts, and `may_expose()` refuses without them.
+
+### A dataset statement
+
+Every field required, because a statement with the awkward sections left blank is
+the one that gets written and the awkward sections are the reason to write one.
+
+`does_not_represent` is the field the document exists for. A corpus of published
+English technical writing does not represent a student writing in a second
+language, and the moment to say so is before a model trained on it is used to
+judge one.
+
+`author_demographics` empty with `demographics_collected` false means they were
+not collected — a fact about the corpus, not about the population. Listing
+demographics while claiming none were collected is refused, because one of the
+two is wrong and a reader cannot tell which.
+
+### Versioned thresholds
+
+An `OperatingPoint` carries a threshold, what it is *for*, and the false positive
+rate measured at it. A threshold without a use is a number waiting to be
+misapplied.
+
+A `ThresholdSet` is bound to one model version and one feature set version and
+carries the digest of the evaluation that produced it. A manifest refuses
+thresholds from another model version or feature set: a threshold copied forward
+is a number nobody measured on the model it is being applied to.
+
+`may_expose()` also refuses when the evaluation was run at a threshold no
+operating point in the manifest uses — an operating point nobody evaluated is a
+number waiting to be quoted.
+
+### A signed manifest
+
+`TAIMDL1-…`, content-addressed over the card, the statement, the thresholds, and
+the **digests of the model's own files**. So "is this the model that was
+evaluated" has an answer that does not depend on a filename. Editing anything
+breaks the identifier and signing is refused until it is rebuilt.
+
+### A regression gate
+
+`check_regression()` compares a candidate against a baseline, and the rule that
+makes it worth having is this: **a rise in the false positive rate blocks the
+release even when everything else improved**. Averages let a model get better at
+finding machine text while getting worse at accusing people, and only one of
+those two costs a person something. Default tolerance: 0.5 percentage points.
+
+Three more gates, each closing a way to look better without being better:
+
+- **The worst subgroup is gated separately.** An improvement in the mean that
+  comes out of one cohort is not an improvement.
+- **A candidate that scores no subgroup at all is blocked** when the baseline
+  scored one, because the comparison would otherwise hide whichever cohort went
+  missing.
+- **Coverage falling more than 5 points is blocked.** Abstaining more improves
+  every other number for free.
+
+Calibration getting worse by more than 5 points blocks too.
+
+A first release passes `regression=None`: there is nothing to regress against.
+That is not a way to skip the check on a later one — passing `None` for a
+replacement is a decision somebody makes deliberately, in code that shows it.
+
 ## Where the heavy dependencies live
 
 Outside this package. A model implementation satisfies the `ScoreModel`

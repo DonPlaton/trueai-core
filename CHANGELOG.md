@@ -12,6 +12,36 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A release gate for learned scores**
+
+- `trueai.research.release`. A model that scores text about whether a person
+  wrote it is not shipped because it works; it is shipped because someone can
+  answer, afterwards and under pressure, what it was trained on, what it is for,
+  what it gets wrong, and whether this is the model they think it is.
+- `DatasetStatement` requires every field, and the one it exists for is
+  `does_not_represent`. A corpus of published English technical writing does not
+  represent a student writing in a second language, and the moment to say so is
+  before a model trained on it is used to judge one. Listing demographics while
+  claiming none were collected is refused: one of the two is wrong and a reader
+  cannot tell which.
+- `ThresholdSet` binds operating points to one model version and one feature set
+  and carries the evaluation digest that chose them. A threshold copied forward
+  is a number nobody measured on the model it is applied to, and an operating
+  point the evaluation never used blocks the release.
+- `ModelManifest` (`TAIMDL1-…`) is content-addressed over the card, the
+  statement, the thresholds, and the **digests of the model's own files**, so "is
+  this the model that was evaluated" has an answer independent of a filename.
+- **`check_regression()` blocks a release when the false positive rate rises,
+  even if everything else improved.** Averages let a model get better at finding
+  machine text while getting worse at accusing people, and only one of those two
+  costs a person something.
+- Three more ways to look better without being better are closed: the worst
+  subgroup is gated separately, because an improvement in the mean taken out of
+  one cohort is not an improvement; a candidate that scores no subgroup when the
+  baseline scored one is blocked, because the comparison would hide whichever
+  cohort went missing; and a fall in coverage is blocked, because abstaining more
+  improves every other number for free.
+
 **A versioned feature contract, so a model can be optional and replaceable**
 
 - `trueai.research.features`. TrueAI computes features, a model elsewhere
