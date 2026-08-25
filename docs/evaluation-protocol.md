@@ -94,6 +94,10 @@ learn to ignore.
 
 ## What this does not do
 
+It scores; it does not produce the features it scores. Those come from extractors
+such as [DOM and stylesheet features](dom-features.md), and the contract between
+an extractor and a model is in [models](models.md).
+
 It does not train anything, does not decide a threshold, and takes no position on
 a labelling scheme: `Prediction.is_positive` is ground truth supplied by the
 evaluator and the label vocabulary is theirs. This module scores; deciding what

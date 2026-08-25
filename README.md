@@ -215,7 +215,9 @@ is real but explicit: default scanning reports markers; `trueai verify` or
 Cleanup is gated on format-specific integrity proofs. MP4/MOV/M4A and WebM/Matroska have an
 executable specification of what an edit must not change — sample bytes reached through the chunk offsets,
 timing, edit lists, indexes, encryption state, rendering geometry, and provenance — in
-[container invariants](docs/container-invariants.md). Cleanup replaces the selected box with
+[container invariants](docs/container-invariants.md) and, for PDF, the
+[object graph](docs/pdf-object-graph.md) — a PDF 1.5+ cross-reference stream carries metadata a
+lexical scan never sees. Cleanup replaces the selected box with
 same-length `free` padding, so nothing moves and no offset needs correcting; the file keeps its
 size, and a container carrying a C2PA manifest is refused outright.
 
@@ -313,7 +315,8 @@ live in a separate adapter.
 
 More detail: [architecture](docs/architecture.md), [detectors](docs/detectors.md),
 [benchmarks](docs/benchmarks.md) — measured wall time, memory, cache hit rate, and
-determinism at 10,000 and 100,000 files — and
+determinism at 10,000 and 100,000 files — [fuzzing](docs/fuzzing.md), which covers every parsing
+boundary and states what the coverage guidance is measurably worth, and
 [progress and cancellation](docs/progress-and-cancellation.md), which the engine offers as two
 one-member protocols so no interface library reaches the core.
 
@@ -344,7 +347,8 @@ reading the schema diff.
 Adding an optional property or an enum member is compatible. Removing or renaming either, changing
 a type, or changing whether a property is required requires a new schema version. Consumers must
 ignore unknown keys and tolerate unknown enum members. See
-[schema compatibility](docs/schema-compatibility.md).
+[schema compatibility](docs/schema-compatibility.md). The HTML output has its own constraints — one file, no script, and a policy the document itself declares: see
+[the HTML report](docs/html-report.md).
 
 ## Exit codes
 

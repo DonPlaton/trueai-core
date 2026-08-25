@@ -12,6 +12,35 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A documentation gate**
+
+- `scripts/check_docs.py` fails when a document names a command, an option, or a
+  file that does not exist, or when a page under `docs/` is linked from nowhere.
+  It covers the README, the backlog, `CONTRIBUTING`, `SECURITY`, `AGENTS`, the
+  Codex skill, the examples, and every page in `docs/`.
+- It does not check whether the prose is *true* — that needs a reader. It checks
+  whether the nouns exist, which is the part that rots first: prose has no
+  compiler, so a renamed flag leaves a sentence describing the old one
+  confidently, and the reader who is hurt is the one who trusts it.
+- Options are checked only on lines where `trueai` is followed by whitespace. A
+  first version looked at every long option and reported pip's `--all-extras` and
+  docker's `--build-arg`; an allowlist of other tools' flags would rot faster
+  than the documentation it guards.
+- A command resolves against the command *tree* rather than by longest prefix. A
+  group takes no positional arguments, so the word after one must be a
+  subcommand — prefix-popping let `trueai scna` fall back to bare `trueai` and
+  pass, which is how a typo becomes invisible.
+- The gate found five orphaned pages: `dom-features`, `fuzzing`, `html-report`,
+  `models`, and `pdf-object-graph`. All are now linked from somewhere.
+
+### Fixed
+
+- The gate's own invocation pattern contained a literal backspace for one
+  revision — a heredoc collapsed `\b` — so it matched nothing and the option
+  check skipped every line while still reporting success. A test now asserts the
+  word boundary is there, because a pattern that can never match is a check that
+  quietly does nothing.
+
 **A catalogue of everything TrueAI can remove**
 
 - `trueai/core/remediation_catalog.py` declares all twenty removal operations:

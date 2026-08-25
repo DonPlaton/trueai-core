@@ -306,6 +306,10 @@ jobs:
           python -m pip_audit --strict --no-deps --requirement audit-requirements.txt --progress-spinner off
       - name: Enforce the dependency license allowlist
         run: python scripts/check_licenses.py
+      # Prose has no compiler. This checks that the nouns exist: commands,
+      # options, links, and the files a completed backlog item cites.
+      - name: Check the documentation names things that exist
+        run: python scripts/check_docs.py
       # pip-audit above answers "is there a known CVE right now". This answers
       # "has anybody looked, and does the ledger still describe this build" —
       # including the standard-library parsers no dependency audit mentions.

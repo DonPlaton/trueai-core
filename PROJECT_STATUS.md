@@ -528,8 +528,21 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   through the integrity gate. An uncatalogued identifier falls back to the strictest class in the
   planner and raises in `safety_for`, since a planner is not the place to fail a scan but a caller
   that can handle the error should not be handed a guess. 47 tests; `docs/findings.md`.
-- [ ] `QA-04` Keep documentation, schemas, CLI help, the Codex skill, and this backlog aligned with
-  demonstrated behavior.
+- [x] `QA-04` `scripts/check_docs.py` fails when a document names a command, an option, or a file
+  that does not exist, or when a page under `docs/` is linked from nowhere — across the README,
+  this backlog, `CONTRIBUTING`, `SECURITY`, `AGENTS`, the Codex skill, the examples, and every page
+  in `docs/`. It cannot check whether the prose is *true*; it checks whether the nouns exist, which
+  is the part that rots first, because prose has no compiler and the reader who is hurt is the one
+  who trusts it. Two scoping decisions, both from findings the first version produced: options are
+  checked only on lines where `trueai` is followed by whitespace, since checking every long option
+  reported pip's `--all-extras` and docker's `--build-arg` and an allowlist of other tools' flags
+  would rot faster than the docs it guards; and a command resolves against the *tree* rather than by
+  longest prefix, since a group takes no positional arguments and prefix-popping let a misspelt
+  subcommand fall back to bare `trueai` and pass. The gate found five orphaned pages — `dom-features`,
+  `fuzzing`, `html-report`, `models`, `pdf-object-graph` — now linked. It also caught its own
+  regression: a heredoc turned `\b` into a literal backspace, so the pattern matched nothing and the
+  option check skipped every line while reporting success; a test now pins the word boundary.
+  16 tests; `CONTRIBUTING.md`.
 - [ ] `QA-05` Define support and disclosure processes for security reports, plugin incidents, trust
   store compromise, certificate revocation, and release rollback.
 
