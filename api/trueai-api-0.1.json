@@ -2449,6 +2449,28 @@
             "introspectable": true,
             "parameters": []
           },
+          "enforce_budget": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "eviction_order": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "inventory",
+                "required": false
+              }
+            ]
+          },
+          "generation": {
+            "introspectable": true,
+            "parameters": []
+          },
+          "inspect": {
+            "introspectable": true,
+            "parameters": []
+          },
           "key": {
             "introspectable": true,
             "parameters": [
@@ -2489,6 +2511,26 @@
               }
             ]
           },
+          "prune": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "unreachable_only",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "older_than_generation",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "to_fit",
+                "required": false
+              }
+            ]
+          },
           "statistics": {
             "introspectable": true,
             "parameters": []
@@ -2507,6 +2549,10 @@
                 "required": true
               }
             ]
+          },
+          "stored_bytes": {
+            "introspectable": true,
+            "parameters": []
           }
         }
       },

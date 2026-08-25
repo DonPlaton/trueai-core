@@ -1645,6 +1645,104 @@ def cache_path(
     console.print(str(_default_cache_directory(target)))
 
 
+@cache_app.command("inspect")
+def cache_inspect(
+    target: Annotated[Path, typer.Argument(help="Scanned file, directory, or repository.")] = Path(
+        "."
+    ),
+    show_entries: Annotated[
+        int,
+        typer.Option("--entries", help="List this many entries, oldest generation first."),
+    ] = 0,
+) -> None:
+    """Report what the incremental cache holds, including what it should not."""
+
+    from trueai.core.cache import ScanCache
+
+    directory = _default_cache_directory(target)
+    cache = ScanCache(directory)
+    inventory = cache.inspect()
+    console.print(f"[bold]{escape(str(directory))}[/bold]")
+    console.print(escape(inventory.explain()))
+    console.print(
+        f"Budget: {cache.max_bytes / (1024 * 1024):.0f} MB; "
+        f"used {inventory.total_bytes / (1024 * 1024):.1f} MB"
+    )
+    if inventory.generations():
+        generations = inventory.generations()
+        console.print(f"Generations present: {generations[0]}–{generations[-1]}")
+    for name in inventory.damaged:
+        console.print(f"[yellow]damaged[/yellow] {escape(name)}")
+    for name in inventory.foreign:
+        # Named, never deleted: a cache directory is not a place to be confident
+        # about what is safe to remove.
+        console.print(f"[yellow]not written by TrueAI, left in place[/yellow] {escape(name)}")
+    if show_entries:
+        table = Table(title="Eviction order", show_lines=False)
+        table.add_column("Key")
+        table.add_column("Generation", justify="right")
+        table.add_column("Bytes", justify="right")
+        table.add_column("Reachable")
+        for entry in cache.eviction_order(inventory)[:show_entries]:
+            table.add_row(
+                entry.key[:16],
+                str(entry.generation),
+                str(entry.size_bytes),
+                "yes" if entry.reachable() else "no (older build)",
+            )
+        console.print(table)
+
+
+@cache_app.command("prune")
+def cache_prune(
+    target: Annotated[Path, typer.Argument(help="Scanned file, directory, or repository.")] = Path(
+        "."
+    ),
+    unreachable: Annotated[
+        bool,
+        typer.Option("--unreachable", help="Remove entries written by another build."),
+    ] = False,
+    older_than: Annotated[
+        int | None,
+        typer.Option("--older-than", help="Remove entries below this generation."),
+    ] = None,
+    to_fit: Annotated[
+        int | None,
+        typer.Option("--to-fit", help="Evict in order until the cache is at most this many bytes."),
+    ] = None,
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Required: pruning deletes cached results."),
+    ] = False,
+) -> None:
+    """Remove cache entries under an explicit rule."""
+
+    from trueai.core.cache import ScanCache
+
+    if not (unreachable or older_than is not None or to_fit is not None):
+        # No rule removes nothing. A prune that defaulted to deleting everything
+        # would make a mistyped command destructive, and this is the one place a
+        # wrong deletion is silent: the next scan is merely slower.
+        console.print(
+            "[red]Nothing selected.[/red] Pass --unreachable, --older-than, or --to-fit. "
+            "To delete everything, use `trueai cache clear`."
+        )
+        raise typer.Exit(code=2)
+    if not yes:
+        console.print("[red]Refusing to prune without --yes.[/red] Pruning deletes stored results.")
+        raise typer.Exit(code=2)
+
+    directory = _default_cache_directory(target)
+    result = ScanCache(directory).prune(
+        unreachable_only=unreachable,
+        older_than_generation=older_than,
+        to_fit=to_fit,
+    )
+    console.print(escape(result.explain()))
+    for name, reason in result.refused:
+        console.print(f"[yellow]refused[/yellow] {escape(name)}: {escape(reason)}")
+
+
 @cache_app.command("clear")
 def cache_clear(
     target: Annotated[Path, typer.Argument(help="Scanned file, directory, or repository.")] = Path(

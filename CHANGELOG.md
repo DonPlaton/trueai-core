@@ -12,6 +12,37 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A bounded cache with a defined eviction order**
+
+- `ScanCache` takes a `max_bytes` budget, 256 MB by default, and the engine
+  enforces it at the end of every scan. An unbounded cache beside a repository is
+  a disk-space bug waiting for a large enough checkout.
+- Eviction is deterministic in the sense that matters: the same inventory, the
+  same budget, and the same run remove the same entries. Entries written under a
+  different package, schema, or cache format version go first — those versions
+  are part of the key, so the entry is unreachable rather than merely stale —
+  then entries this run did not touch, then the rest, oldest generation first,
+  with the key breaking ties so the order is never ambiguous.
+- A *generation* is one scan. An instance takes the next number from a small
+  counter file on first write and stamps every entry with it, so "which entries
+  are older" is recorded data rather than file metadata that a copy or a restore
+  destroys. Hits are remembered in memory rather than written back: one write per
+  hit would cost about what a miss costs.
+- `ScanCache.inspect()` separates three things a single listing would blur —
+  entries, damaged files at an entry location, and files under the cache
+  directory that TrueAI did not write. The last are reported and **left in
+  place**.
+- `ScanCache.eviction_order()` and `trueai cache inspect --entries N` answer
+  "what would go" before it goes rather than after.
+- `ScanCache.prune()` and `trueai cache prune` take an explicit rule —
+  `--unreachable`, `--older-than`, `--to-fit` — and no rule removes nothing. A
+  prune that defaulted to deleting everything would make a mistyped command
+  destructive, and this is the one place a wrong deletion is silent: the next
+  scan is merely slower. `--yes` is required on top.
+- Link safety is re-checked at deletion time, not only at inspection time; a
+  refusal is reported with its reason rather than counted as a success.
+- `docs/cache.md`.
+
 **Repository-scale benchmarks, and what they found**
 
 - `trueai/core/benchmark.py` and `scripts/benchmark_scale.py`. A seeded synthetic

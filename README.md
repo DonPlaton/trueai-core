@@ -66,6 +66,8 @@ trueai policies list
 trueai policies bundle-create strict --output policy.json --signing-key issuer.pem --issuer "Security"
 trueai policies bundle-verify policy.json --public-key issuer.pub.pem
 trueai plugins list
+trueai cache inspect ./repository                   # entries, budget, eviction order
+trueai cache prune ./repository --unreachable --yes # remove entries from an older build
 trueai cache clear ./repository
 trueai doctor
 ```
@@ -317,7 +319,9 @@ maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).
   rather than in completion order.
 - `--cache` reuses detector output for content that has not changed. The key covers the artifact
   digest, its path, the detector set, the resource limits, and the package and schema versions, so a
-  hit is only ever an exact match. Failed and incomplete scans are never cached.
+  hit is only ever an exact match. Failed and incomplete scans are never cached. The cache is
+  bounded and evicted in a defined order, and pruning requires an explicit rule; see
+  [the cache](docs/cache.md).
 - `.gitignore` and `.trueaiignore` are applied with Git's directory-relative semantics: a nested
   ignore file applies only beneath its own directory, a deeper rule overrides a shallower one
   including through negation, and an ignored directory is not descended into.

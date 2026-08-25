@@ -330,7 +330,19 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   capped count that reads as a result is the failure mode a scale benchmark exists to avoid.
   Benchmarking **real consented repositories** stays `external` — it needs their owners' consent —
   but `--corpus` runs the harness against any directory and writes nothing into it.
-- [ ] `SCALE-02` Add bounded cache size, deterministic eviction, cache inspection, and safe pruning.
+- [x] `SCALE-02` `ScanCache` takes a byte budget (256 MB by default) that the engine enforces after
+  every scan, using a stat-only size check because parsing a hundred thousand entries to total them
+  would cost more than the cache saves. Eviction is deterministic in the sense that matters — the
+  same inventory, budget, and run remove the same entries, never a filesystem enumeration order or a
+  timestamp whose resolution varies by platform: entries from another build go first because their
+  key can never be produced again, then entries this run did not touch, then the rest, oldest
+  *generation* first with the key breaking ties. A generation is one scan, taken from a small counter
+  on first write, so age is recorded data rather than file metadata; hits are remembered in memory
+  because rewriting an entry per hit would cost about what a miss costs. `inspect()` separates
+  entries, damaged files, and files TrueAI did not write — the last are reported and left in place.
+  `prune()` and `trueai cache prune` require an explicit rule *and* `--yes`, because a prune that
+  defaulted to deleting everything would make a typo destructive, and link safety is re-checked at
+  deletion time rather than only at inspection time. 38 tests; `docs/cache.md`.
 - [ ] `SCALE-03` Add engine-level progress and cancellation events without coupling core code to
   Rich, a desktop UI, or a particular async framework.
 - [ ] `API-01` Stabilize detector/plugin SDK compatibility and publish minimal third-party examples.

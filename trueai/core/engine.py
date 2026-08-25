@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections import Counter, deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -257,6 +258,14 @@ class TrueAIEngine:
                         severity=Severity.CRITICAL,
                     )
                 )
+
+        if cache is not None:
+            # Housekeeping, not a scan result: an eviction changes how fast the
+            # next scan runs and nothing about this report, so it is counted in
+            # the cache statistics rather than announced as a diagnostic. A
+            # failure here must never fail a scan that already succeeded.
+            with contextlib.suppress(OSError):
+                cache.enforce_budget()
 
         ordered_findings = tuple(sorted(findings, key=self._finding_sort_key))
         decisions: tuple[PolicyDecision, ...] = ()
