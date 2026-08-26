@@ -453,6 +453,57 @@ def test_a_tampered_signed_log_reports_an_invalid_signature(
     assert result.signature_status == "invalid"
 
 
+def test_a_log_whose_maintainer_signature_fails_is_not_usable(
+    keys: tuple[Path, Path],
+) -> None:
+    """The chain carries no secret, so it cannot be what binds a log to anyone.
+
+    Any attacker can build a perfectly consistent chain over invented history --
+    that is what a hash chain with no key is. The maintainer signature is the
+    only thing that ties the log to its maintainer, and `usable` left it out, so
+    a log carrying a signature that does not verify was still reported as
+    something a trust decision could rest on. The `problems` list said otherwise,
+    which is the same disagreement between headline and detail twice over.
+    """
+
+    private_key, public_key = keys
+    signed = sign_transparency_log(build_log(), LocalKeySigningProvider(private_key))
+    tampered = signed.model_copy(update={"log_id": "someone-elses-log"})
+
+    result = verify_transparency_log(tampered, maintainer_public_key=public_key)
+
+    assert result.chain_intact, "the chain is intact, which is exactly the point"
+    assert not result.usable
+    assert any("does not verify" in problem for problem in result.problems)
+
+
+def test_an_unsigned_log_is_still_usable() -> None:
+    """Nobody signed, so nothing failed. Refusing here would break the format."""
+
+    result = verify_transparency_log(build_log())
+
+    assert result.signature_status == "absent"
+    assert result.usable
+
+
+def test_a_signed_log_nobody_supplied_a_key_for_is_still_usable(
+    keys: tuple[Path, Path],
+) -> None:
+    """`unverified` is nobody asking, which is not the check coming back no.
+
+    A caller who wants the stronger answer supplies the key; one who does not
+    can read `signature_status` and see that they did not.
+    """
+
+    private_key, _ = keys
+    signed = sign_transparency_log(build_log(), LocalKeySigningProvider(private_key))
+
+    result = verify_transparency_log(signed)
+
+    assert result.signature_status == "unverified"
+    assert result.usable
+
+
 # -- attestations reuse these primitives ---------------------------------------------
 
 

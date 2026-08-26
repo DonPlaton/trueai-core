@@ -126,6 +126,15 @@ pretending otherwise.
 Appending clears any maintainer signature, because a maintainer signs a state,
 not a prefix of one.
 
+The chain is what makes an edit or a removal detectable. It is not what binds the
+log to anybody: it carries no secret, so a chain over invented history is as
+consistent as a chain over real history. The maintainer signature is the only
+thing that ties a log to its maintainer, so `TransparencyVerification.usable` is
+false when a signature is present and does not verify — and true when there is no
+signature, or when nobody supplied a key to check one with, because neither of
+those is the check coming back no. `signature_status` reports which of the four
+it was.
+
 ## Fleet history: retention, access, privacy, export
 
 These are the contracts a commercial fleet product must honour. They are stated

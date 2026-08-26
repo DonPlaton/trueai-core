@@ -123,6 +123,19 @@ directory produced it.
 
 ### Security
 
+**A transparency log with a broken maintainer signature was still "usable"**
+
+`TransparencyVerification.usable` was the chain being intact, the sequence being
+contiguous, and no rollback — and not the maintainer signature. The chain carries
+no secret, so a chain over invented history is exactly as consistent as a chain
+over real history; the maintainer signature is the only thing that ties a log to
+its maintainer. A log whose signature was present and did not verify was reported
+as something a trust decision could rest on, while `problems` said the opposite.
+
+`absent` and `unverified` are deliberately still usable: nobody signed, or nobody
+supplied a key to check with, and neither is the check coming back no.
+
+
 **A signed certificate could have its signature removed and still verify**
 
 `signature_ok` was `certificate.signature is None or signature_verified is True`,

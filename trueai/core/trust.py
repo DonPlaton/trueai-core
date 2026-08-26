@@ -659,9 +659,26 @@ class TransparencyVerification(FrozenModel):
 
     @property
     def usable(self) -> bool:
-        """Whether the log can be relied on for a trust decision."""
+        """Whether the log can be relied on for a trust decision.
 
-        return self.chain_intact and self.sequence_contiguous and not self.rolled_back
+        The chain is what makes an edit or a removal detectable, and it is not
+        what binds the log to its maintainer: it carries no secret, so anyone can
+        build a perfectly consistent chain over invented history. The maintainer
+        signature is the only thing that does, and a *present* signature that
+        does not verify is that binding failing.
+
+        ``absent`` and ``unverified`` are deliberately not failures. Nobody
+        signed, or nobody supplied a key to check with -- neither is the check
+        coming back no, and collapsing the three would make an unsigned log
+        unusable, which is not what the format says.
+        """
+
+        return (
+            self.chain_intact
+            and self.sequence_contiguous
+            and not self.rolled_back
+            and self.signature_status != "invalid"
+        )
 
 
 def verify_transparency_log(
