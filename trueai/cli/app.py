@@ -86,6 +86,30 @@ class ExitCode(IntEnum):
     INTERNAL_ERROR = 4
 
 
+def prepare_output(output: Path | None) -> None:
+    """Make an output path usable, or refuse before any work is done.
+
+    Called at the top of a command rather than at the write, because a command
+    that scans a repository, renders a report, prints it, and *then* discovers
+    that `-o` names a directory nobody created has charged the operator a full
+    scan for a typo -- and told them about it underneath output they did not ask
+    to read.
+
+    The parent is created, which is what `clean --output` already did. Anything
+    that cannot be prepared is a refusal naming the path, not an internal error:
+    the tool is working exactly as it should when it declines to write there.
+    """
+
+    if output is None:
+        return
+    if output.is_dir():
+        raise RemediationError(f"Output path is a directory: {output}")
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RemediationError(f"Cannot write to {output}: {exc}") from exc
+
+
 class OutputFormat(StrEnum):
     """Supported report formats."""
 
@@ -262,6 +286,7 @@ def scan(
     try:
         if output is not None and path.exists() and output.resolve() == path.resolve():
             raise RemediationError("Report output must not overwrite the scanned artifact")
+        prepare_output(output)
         if (trust_anchors is not None or allow_remote_manifests) and not (
             verify_authenticated_provenance
         ):

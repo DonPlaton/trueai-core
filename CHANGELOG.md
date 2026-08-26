@@ -12,6 +12,19 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**`--output` reported a typo as an internal error, after doing all the work**
+
+`trueai scan notes.md -o no/where/out.json` scanned the tree, rendered the
+report, printed all of it, and then said `Internal error: FileNotFoundError`
+with exit 4 — the code the exit table reserves for the tool breaking, for what
+was an operator naming a directory that does not exist.
+
+The output path is prepared before the scan now. Its parent is created, which is
+what `clean --output` already did, so the same option no longer means two things;
+a path that genuinely cannot be written is refused by name with exit 3, before
+any work, rather than reported underneath output nobody asked to read.
+
+
 **A README example that could not be followed**
 
 `certificates revoke` was demonstrated against the unsigned certificate the
