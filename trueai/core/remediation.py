@@ -169,11 +169,15 @@ class RemediationService:
                 dry_run=dry_run,
             )
         if dry_run:
+            # Both lists stay empty, because both are past tense. A dry run
+            # applied no remediation and changed no field, and filling
+            # `changed_fields` with the operations that *would* run gave the same
+            # field two vocabularies: field names after a real clean, operation
+            # identifiers after a preview. What would happen is the plan, and the
+            # plan is what a caller already has.
             return RemediationResult(
                 artifact_path=str(source_path),
                 output_path=str(self._destination(source_path, output_path, in_place)),
-                applied_remediation_ids=tuple(item.id for item in relevant),
-                changed_fields=tuple(item.remediation_id for item in relevant),
                 integrity=IntegrityReport(
                     status=IntegrityStatus.NOT_MODIFIED,
                     explanation="Dry run; the remediation plan was not applied.",

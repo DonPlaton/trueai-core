@@ -459,7 +459,7 @@ def clean(
             dry_run=dry_run,
             options=options,
         )
-        terminal.render_result(result)
+        terminal.render_result(result, plan)
         delivery = None
         if not dry_run and verify_residue:
             from trueai.core.delivery import DeliveryStatus, verify_clean_delivery

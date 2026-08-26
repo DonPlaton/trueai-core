@@ -85,6 +85,31 @@ def _safe(value: object) -> str:
     return escape(str(value))
 
 
+#: Past this many names the list stops being readable and the count is what is
+#: left to say. The names are in the JSON report either way.
+_MAX_NAMED = 12
+
+
+def _operation_names(result: RemediationResult, plan: RemediationPlan | None) -> tuple[str, ...]:
+    """Turn applied remediation identifiers into the operations they name."""
+
+    if plan is None:
+        return result.applied_remediation_ids
+    named = {item.id: item.remediation_id for item in plan.remediations}
+    return tuple(named.get(identifier, identifier) for identifier in result.applied_remediation_ids)
+
+
+def _listed(label: str, names: tuple[str, ...]) -> str:
+    """Return ``label``, the count, and the names -- or why there are none."""
+
+    if not names:
+        return f"{label}: none"
+    if len(names) <= _MAX_NAMED:
+        return f"{label} ({len(names)}): {_safe(', '.join(names))}"
+    shown = ", ".join(names[:_MAX_NAMED])
+    return f"{label} ({len(names)}): {_safe(shown)}, and {len(names) - _MAX_NAMED} more"
+
+
 class TerminalReporter:
     """Render findings without sensational authorship language."""
 
@@ -190,13 +215,27 @@ class TerminalReporter:
         if plan.review_findings:
             self.console.print(f"Manual review: {len(plan.review_findings)}")
 
-    def render_result(self, result: RemediationResult) -> None:
-        """Print an applied or dry-run result."""
+    def render_result(self, result: RemediationResult, plan: RemediationPlan | None = None) -> None:
+        """Print an applied or dry-run result, naming what changed.
+
+        A count cannot tell an operator that `Software` went and `Author`
+        stayed, and that is the question somebody sanitizing a client deliverable
+        is asking.
+
+        ``plan`` is optional and only used to name the operations. The result
+        records them by content-addressed identifier -- `rem_5f3c1dcf` -- which
+        is the right thing to keep in an audit trail and the wrong thing to show
+        a person; the plan is where those identifiers have names.
+        """
 
         title = "Dry run" if result.dry_run else "Clean result"
+        # "Output" beside a path nothing was written to reads as a file that
+        # exists. In a dry run the path is where it would go.
+        destination = "Would write" if result.dry_run else "Output"
         lines = [
-            f"Output: {_safe(result.output_path or 'not created')}",
-            f"Changed fields: {len(result.changed_fields)}",
+            f"{destination}: {_safe(result.output_path or 'not created')}",
+            _listed("Changed fields", result.changed_fields),
+            _listed("Operations applied", _operation_names(result, plan)),
             f"Integrity: {result.integrity.status.value.upper()}",
             _safe(result.integrity.explanation),
         ]

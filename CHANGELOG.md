@@ -12,6 +12,22 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**`clean` said "Changed fields: 1" and never said which one**
+
+The result carries the names and the terminal printed the length. Somebody
+sanitizing a client deliverable needs to know that `Software` went and `Author`
+stayed, and a count cannot tell them. `applied_remediation_ids` had no reader
+anywhere in the package — written into every result, rendered by nothing — and
+now names the operations, resolved through the plan, because the result records
+them as content-addressed identifiers that belong in an audit trail and not in
+front of a person.
+
+A dry run also filled `changed_fields` with the operations it *would* run, giving
+one field two vocabularies: field names after a real clean, operation identifiers
+after a preview, in a record a JSON consumer reads. A dry run changed nothing and
+applied nothing, and says so; what would happen is the plan, printed above it.
+
+
 **A SARIF rule described itself with whichever finding came first**
 
 `design.raster-metadata.v1` reports Software fields, Author fields, and several
