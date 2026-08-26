@@ -117,6 +117,22 @@ testpaths = ["tests"]
 pythonpath = ["."]
 xfail_strict = true
 
+# The plugin worker, the manifest inspector, and the capability guards run only
+# in helper processes -- that is the whole point of them -- so a coverage run
+# that measures one process reports 0% for the three modules that enforce the
+# plugin sandbox. An auditor reading the uploaded coverage.xml would conclude
+# they are untested, and a maintainer would conclude the same and delete a test.
+# `parallel` writes one data file per process and pytest-cov combines them;
+# `COVERAGE_PROCESS_START` is what the coverage .pth hook looks for, and the
+# host passes its environment to every helper it starts.
+[tool.coverage.run]
+source = ["trueai"]
+parallel = true
+sigterm = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

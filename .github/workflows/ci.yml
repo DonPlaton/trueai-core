@@ -65,6 +65,10 @@ jobs:
       # cases must execute there instead of silently skipping. See
       # tests/support.py for the enforcement helper.
       TRUEAI_REQUIRE_PRIVILEGED_TESTS: ${{ matrix.os == 'windows-latest' && '0' || '1' }}
+      # The plugin worker, the manifest inspector and the capability guards run
+      # only in helper processes, so without this the uploaded coverage report
+      # says 0% for the three modules that enforce the plugin sandbox.
+      COVERAGE_PROCESS_START: pyproject.toml
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:

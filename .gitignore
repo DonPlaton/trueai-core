@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .coverage
+# One data file per process, because the plugin worker and the manifest
+# inspector are measured where they actually run.
+.coverage.*
 .mypy_cache/
 .pytest_cache/
 .pytest-tmp/
