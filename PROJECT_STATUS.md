@@ -29,11 +29,19 @@ audit certificates, enterprise trust primitives, process attestations (`TAIP1`),
 projections, research governance contracts, supply-chain gates, reproducible packaging, and incident
 response runbooks.
 
-Four validation gates remain and all are external: hosted cross-platform CI, PyPI/TestPyPI trusted
-publishing, hosted release signatures/attestations, and consented design-partner pilots. The code and
-local gates for those workflows exist. Platform claims are still deliberately bounded: Windows
-restricted tokens are not AppContainer, macOS confinement has not been exercised on a hosted runner,
-and no trained AI-authorship classifier or secret/statistical watermark remover is shipped.
+The hosted cross-platform matrix now passes in full: Linux, macOS, and Windows across Python
+3.12, 3.13, and 3.14, plus the container reproducibility, supply-chain, plugin trust boundary,
+authenticated C2PA, schema, and distribution jobs. Getting there found eleven defects that no amount
+of local work could have surfaced, and the audit that followed found a further eight, seven of them
+denial-of-service paths a hostile artifact could reach through `trueai scan`. All nineteen are fixed
+and each has a regression test. The detail is in `CHANGELOG.md`.
+
+Three validation gates remain and all are external: PyPI/TestPyPI trusted publishing, hosted release
+signatures and attestations, and consented design-partner pilots. The code and local gates for those
+workflows exist. Platform claims are still deliberately bounded: Windows restricted tokens are not
+AppContainer, two operating-system controls cannot be exercised on a hosted runner and report `SKIP`
+rather than pass there, and no trained AI-authorship classifier or secret/statistical watermark
+remover is shipped.
 
 ## Current work board
 
@@ -63,16 +71,15 @@ This section is the operational source of truth for the active development cycle
 - No implementation block is currently incomplete. The next block starts with the remaining
   priorities below.
 
-The three unchecked `P0` items are all `external`: they need hosted GitHub Actions runners, a
-configured PyPI trusted publisher, and release signing from hosted CI. Nothing in the repository
-can complete them, and a local run must not be presented as having done so.
+The three unchecked `P0` items are all `external`. Nothing in the repository can complete them, and
+a local run must not be presented as having done so.
 
 **Every backlog item that can be completed from this repository is complete.** Four remain, all
 `external` and all for the same reason — they need something the repository does not contain:
 
 | Item | What it needs that a working tree cannot supply |
 |---|---|
-| `REL-01` | Hosted Linux, macOS, and Windows runners for the full matrix. |
+| `REL-01` | A machine that can provide the two operating-system controls a hosted runner refuses: a container permitting an unprivileged mount namespace, and an interactive or self-hosted Windows session whose window station accepts a restricted token. The matrix itself is green. |
 | `REL-02` | Configured TestPyPI/PyPI trusted publishers and protected environments. |
 | `REL-03` | Release signing and provenance attestation from hosted CI. |
 | `PROC-12` | Design partners who have consented to a pilot, and who will disagree with the rubric. |
@@ -110,9 +117,20 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   other; they did not run in any non-interactive Windows session, because a restricted token cannot
   attach to the creator's desktop; `--plugin-confinement required` on Windows meant "no plugin ever
   runs"; and the Windows confinement report claimed a restriction it never measured. All are fixed,
-  and the worker now runs on a desktop of its own. What is still outstanding for this item is the
-  same as before: hosted Linux cannot exercise the mount-namespace control, so a container run with
-  `TRUEAI_REQUIRE_CONFINEMENT=1` is still required before this can be ticked.
+  and the worker now runs on a desktop of its own.
+  **Green.** The whole matrix passes: three operating systems, three Python versions, every optional
+  job. The last defect it caught was the most interesting one — `html.parser` in CPython up to 3.12
+  rescans from every `<` that never closes, so a document of them made the 3.12 jobs hang for
+  thirty-five minutes while 3.13 and 3.14 finished in five. That is a denial of service against any
+  user on a supported interpreter, not a runner problem, and it was caught by a complexity test
+  written earlier the same night for a different family of the same bug.
+  What is still outstanding is what a green run cannot claim on its own. Two operating-system
+  controls report `SKIP` on hosted runners rather than pass: the Linux read-only mount namespace,
+  because unprivileged user namespaces are restricted there, and the Windows restricted-token spawn,
+  because a non-interactive session's window station refuses the token. Both are honest skips —
+  `TRUEAI_REQUIRE_CONFINEMENT=1` turns either back into a failure — and both need a machine that can
+  provide the control before this item is ticked: a container for the first, an interactive or
+  self-hosted Windows session for the second.
 - [ ] `REL-02` (`external`) Configure protected `testpypi` and `pypi` environments plus their
   trusted publishers, then exercise the release workflow against TestPyPI.
 - [ ] `REL-03` (`external`) Attest and sign the wheel, sdist, SBOM, build-input record, and checksums
