@@ -1551,6 +1551,7 @@
         "abstract_methods": [],
         "attributes": [
           "attests_only",
+          "authenticated",
           "certificate_id",
           "checks",
           "expires_at",
@@ -1559,6 +1560,7 @@
           "scan_complete",
           "scanner",
           "subject",
+          "unchecked",
           "valid"
         ],
         "bases": [],

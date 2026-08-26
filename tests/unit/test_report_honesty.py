@@ -242,3 +242,45 @@ def test_two_separate_metadata_blocks_are_still_two_findings(tmp_path: Path) -> 
     metadata = [item for item in report.findings if item.title == "SVG metadata element"]
 
     assert len(metadata) == 2
+
+
+# -- the same distinction, for anything that is not the terminal ------------------------
+
+
+def test_an_integration_can_see_the_qualification_the_cli_shows(tmp_path: Path) -> None:
+    """Otherwise every other surface repeats the mistake the CLI just stopped making.
+
+    A desktop or IDE integration renders `CertificateView`. If the only verdict
+    it carries is `valid`, the green tick comes back somewhere else.
+    """
+
+    from trueai.adapters.views import certificate_view
+    from trueai.core.certificates import load_certificate, verify_certificate
+
+    _, certificate_path, _ = issue(tmp_path, signed=False)
+    certificate = load_certificate(certificate_path)
+
+    view = certificate_view(certificate, verify_certificate(certificate))
+
+    assert view.valid is True
+    assert view.authenticated is False
+    assert view.unchecked
+    assert view.to_dict()["authenticated"] is False
+    assert view.to_dict()["unchecked"] == list(view.unchecked)
+
+
+def test_a_signed_and_bound_certificate_reads_as_authenticated_everywhere(
+    tmp_path: Path,
+) -> None:
+    from trueai.adapters.views import certificate_view
+    from trueai.core.certificates import load_certificate, verify_certificate
+
+    artifact, certificate_path, public_key = issue(tmp_path, signed=True)
+    certificate = load_certificate(certificate_path)
+
+    view = certificate_view(
+        certificate,
+        verify_certificate(certificate, public_key=public_key, artifact=artifact),
+    )
+
+    assert view.authenticated is True

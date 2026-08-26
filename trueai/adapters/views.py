@@ -243,7 +243,16 @@ class CertificateView:
     scan_complete: bool = True
     #: Every check, so a green tick cannot stand in for four of them.
     checks: dict[str, bool | None] = field(default_factory=dict)
+    #: "Nothing that was checked came back false." Not "everything was checked":
+    #: an unsigned certificate nobody compared to a file is `valid` and says
+    #: almost nothing, which is why the two fields below exist beside it.
     valid: bool = False
+    #: The issuer was authenticated and the artifact bytes matched. The predicate
+    #: a reader means by "this checks out", and the one a badge should use.
+    authenticated: bool = False
+    #: What nobody looked at, one clause each, so a surface rendering this cannot
+    #: reproduce the mistake of putting `valid` under a green tick on its own.
+    unchecked: tuple[str, ...] = ()
     explanations: tuple[str, ...] = ()
 
     #: What a TrueAI certificate never asserts, restated wherever one is shown.
@@ -263,6 +272,8 @@ class CertificateView:
             "scan_complete": self.scan_complete,
             "checks": dict(self.checks),
             "valid": self.valid,
+            "authenticated": self.authenticated,
+            "unchecked": list(self.unchecked),
             "explanations": list(self.explanations),
             "attests_only": self.attests_only,
         }
@@ -354,6 +365,8 @@ def certificate_view(
     checks: dict[str, bool | None] = {}
     explanations: tuple[str, ...] = ()
     valid = False
+    authenticated = False
+    unchecked: tuple[str, ...] = ()
     if verification is not None:
         checks = {
             "identity_matches_contents": verification.certificate_id_valid,
@@ -366,6 +379,8 @@ def certificate_view(
         }
         explanations = tuple(verification.explanations)
         valid = verification.valid
+        authenticated = verification.authenticated
+        unchecked = verification.unchecked()
     return CertificateView(
         certificate_id=certificate.certificate_id,
         subject=certificate.artifact.path,
@@ -375,6 +390,8 @@ def certificate_view(
         scan_complete=certificate.scan_complete,
         checks=checks,
         valid=valid,
+        authenticated=authenticated,
+        unchecked=unchecked,
         explanations=explanations,
     )
 

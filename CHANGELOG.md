@@ -40,6 +40,16 @@ exit-code table defines them.
 
 ### Changed
 
+**Integrations could only see `valid`, so the green tick would have come back**
+
+`CertificateView` is what a desktop or IDE surface renders. It carried every
+check separately — which is why it exists — and one verdict, `valid`, meaning
+"nothing that was checked came back false". Any surface reducing that to a badge
+would have reproduced exactly the mistake the CLI stopped making a commit
+earlier. It carries `authenticated` and `unchecked` now, so the qualified verdict
+is available to something other than the terminal.
+
+
 **`--plugin-confinement required` stopped discovering plugins on macOS**
 
 Making the confinement level decide whether a refused resource limit is fatal was
