@@ -14,6 +14,7 @@ from trueai.core.errors import CorruptArtifactError, RemediationError
 from trueai.core.integrity import svg_outer_misc, verify_svg_visible_structure
 from trueai.core.models import Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
+from trueai.core.xml_serialization import serialize_like
 from trueai.detectors.documents.opc import local_name
 
 _EDITOR_MARKERS = ("inkscape", "sodipodi", "adobe", "serif", "sketch")
@@ -149,7 +150,7 @@ class SVGCleaner:
             suffix_misc = self._filter_outer_comments(suffix_misc, comment_matches, changed)
         if not changed:
             raise RemediationError("No planned SVG metadata matched the current artifact")
-        after = self._serialize_with_outer_misc(root, prefix_misc, suffix_misc)
+        after = self._serialize_with_outer_misc(root, prefix_misc, suffix_misc, before)
         destination.write_bytes(after)
         integrity = verify_svg_visible_structure(before, after, changed)
         return CleanerOutcome(changed_fields=tuple(changed), integrity=integrity)
@@ -199,8 +200,9 @@ class SVGCleaner:
         root: Element,
         prefix_misc: tuple[bytes, ...],
         suffix_misc: tuple[bytes, ...],
+        source: bytes,
     ) -> bytes:
-        serialized = ElementTree.tostring(root, encoding="utf-8", xml_declaration=True)
+        serialized = serialize_like(root, source)
         declaration_end = serialized.find(b"?>")
         if declaration_end < 0:
             raise RemediationError("SVG serializer omitted the XML declaration")

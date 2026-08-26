@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from typing import cast
 from xml.etree import ElementTree
 
 from trueai.cleaners.base import CleanerOutcome
@@ -26,6 +25,7 @@ from trueai.core.errors import RemediationError
 from trueai.core.integrity import sha256_bytes
 from trueai.core.models import IntegrityReport, IntegrityStatus, Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
+from trueai.core.xml_serialization import serialize_like
 from trueai.detectors.documents.odf import CONTENT_PART, META_PART, MIMETYPE_PART
 from trueai.detectors.documents.opc import (
     local_name,
@@ -133,7 +133,7 @@ class OpenDocumentCleaner:
             raise RemediationError(
                 f"OpenDocument metadata changed after scan; missing fields: {sorted(missing)}"
             )
-        return cast(bytes, ElementTree.tostring(root, encoding="utf-8", xml_declaration=True))
+        return serialize_like(root, data)
 
     def _verify(
         self, before_path: Path, after_path: Path, changed_fields: list[str]

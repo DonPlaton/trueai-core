@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from typing import cast
 from xml.etree import ElementTree
 
 from trueai.cleaners.base import CleanerOutcome
@@ -24,6 +23,7 @@ from trueai.core.integrity import (
 )
 from trueai.core.models import Remediation, ScanOptions
 from trueai.core.provenance import contains_protected_provenance_marker
+from trueai.core.xml_serialization import serialize_like
 from trueai.detectors.documents.ooxml import CUSTOM_PROPERTIES_PART
 from trueai.detectors.documents.opc import (
     local_name,
@@ -145,7 +145,11 @@ class OfficeOpenXmlCleaner:
                 f"{self.format_label} metadata changed after scan; "
                 f"missing fields: {sorted(missing)}"
             )
-        return cast(bytes, ElementTree.tostring(root, encoding="utf-8", xml_declaration=True))
+        # Serialized with the prefixes the part declared. Without that, removing
+        # one property rewrote `<cp:coreProperties>` as `<ns0:coreProperties>`
+        # and every element under it, which is equivalent XML and a diff of the
+        # whole part.
+        return serialize_like(root, data)
 
     def _remove_custom_fields(self, data: bytes, fields: set[str]) -> bytes:
         root = parse_xml_preserving_misc(data, CUSTOM_PROPERTIES_PART)
@@ -172,7 +176,7 @@ class OfficeOpenXmlCleaner:
                 f"{self.format_label} custom properties changed after scan; "
                 f"missing: {sorted(missing)}"
             )
-        return cast(bytes, ElementTree.tostring(root, encoding="utf-8", xml_declaration=True))
+        return serialize_like(root, data)
 
 
 class DOCXCleaner(OfficeOpenXmlCleaner):

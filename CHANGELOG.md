@@ -12,6 +12,23 @@ change is called out explicitly and governed by
 
 ### Changed
 
+**Rewriting one field renamed every element in the document**
+
+`ElementTree.tostring` invents a prefix for every namespace it was not told
+about, so removing one comment from an SVG returned
+`<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg">` with every child renamed to
+match, and removing one Word property rewrote `<cp:coreProperties>` as
+`<ns0:coreProperties>`. Equivalent XML, and a diff showing the whole part
+changed — a strange thing to hand back from a project whose case for its cleanup
+is that an edit touches what it says it touches.
+
+`tostring` has a `default_namespace` parameter for exactly this and refuses a
+document with unqualified attribute names, which every SVG and OOXML attribute
+is. `trueai.core.xml_serialization` reads the prefixes out of the document being
+rewritten and installs them for the length of one call, under a lock, instead of
+imposing a convention on the process. Parts that are not rewritten are still not
+rewritten at all.
+
 **Three places the output was accurate line by line and overstated as a whole**
 
 None of these was a wrong value. Each was a headline, a total, or a count that a
