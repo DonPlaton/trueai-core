@@ -716,6 +716,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--self-check", action="store_true", help="Check that the harness can fail."
     )
+    parser.add_argument(
+        "--write-findings",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Write each failing input here as a file. The printed preview stops at "
+            "200 bytes, so a longer one cannot be handed to a debugger or a "
+            "regression test without this."
+        ),
+    )
     arguments = parser.parse_args(argv)
 
     if arguments.self_check:
@@ -734,8 +745,13 @@ def main(argv: list[str] | None = None) -> int:
     elapsed = time.monotonic() - started
 
     if findings:
-        for finding in findings:
+        for index, finding in enumerate(findings):
             print(finding.render(seed))
+            if arguments.write_findings is not None:
+                arguments.write_findings.mkdir(parents=True, exist_ok=True)
+                written = arguments.write_findings / f"{finding.target}-{seed}-{index}.bin"
+                written.write_bytes(finding.payload)
+                print(f"    written: {written}")
         print(f"FAILED: {len(findings)} finding(s) in {elapsed:.1f}s, {lines} lines reached")
         return 1
     print(f"PASSED: no findings in {elapsed:.1f}s, {lines} lines reached")

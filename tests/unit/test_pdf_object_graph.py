@@ -481,3 +481,64 @@ def test_which_reader_found_a_finding_is_recorded(tmp_path) -> None:
     readers = {item.evidence.get("reader") for item in modern if "reader" in item.evidence}
 
     assert readers == {"object-graph"}
+
+
+# -- what /W is allowed to say ----------------------------------------------------------
+
+
+def xref_stream_with_widths(widths: list[int]) -> bytes:
+    """A minimal PDF whose only cross-reference is a stream declaring ``widths``."""
+
+    entries = bytes(max(sum(width for width in widths[:3] if width > 0), 1))
+    payload = zlib.compress(entries)
+    body = (
+        f"1 0 obj\n<< /Type /XRef /Size 1 /W {widths} /Root 1 0 R "
+        f"/Filter /FlateDecode /Length {len(payload)} >>\nstream\n".encode()
+    )
+    out = b"%PDF-1.5\n"
+    offset = len(out)
+    out += body + payload + b"\nendstream\nendobj\n"
+    out += f"startxref\n{offset}\n%%EOF\n".encode()
+    return out
+
+
+def test_fewer_than_three_field_widths_is_refused_not_an_index_error() -> None:
+    """`/W` has three elements, and three reads assumed it without checking.
+
+    A file declaring two reached `values[2]` and raised an `IndexError` out of a
+    parser whose whole contract is to refuse rather than raise. Found by the
+    fuzzer, which draws exactly that distinction: a `ValueError`, a `TrueAIError`
+    or a validation error is an answer; an unguarded subscript is a bug.
+    """
+
+    model = model_pdf(xref_stream_with_widths([1, 4]))
+
+    assert not model.modelled
+
+
+def test_three_field_widths_are_read() -> None:
+    """The refusal must not swallow the shape the specification actually defines."""
+
+    model = model_pdf(xref_stream_with_widths([1, 4, 2]))
+
+    assert model is not None
+
+
+def test_a_negative_field_width_is_refused() -> None:
+    """`int.from_bytes` on a negative slice reads nothing and says nothing."""
+
+    model = model_pdf(xref_stream_with_widths([1, -4, 2]))
+
+    assert not model.modelled
+
+
+def test_more_than_three_field_widths_does_not_refuse_the_file() -> None:
+    """The extra elements have no meaning, and a conservative reader ignores them.
+
+    Refusing a file some producer really emits would be a worse answer than
+    reading the three fields the specification defines.
+    """
+
+    model = model_pdf(xref_stream_with_widths([1, 4, 2, 8]))
+
+    assert model is not None

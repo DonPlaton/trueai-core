@@ -189,6 +189,27 @@ directory produced it.
 
 ### Security
 
+**A PDF cross-reference stream could raise an `IndexError` out of the parser**
+
+`/W` gives the byte width of each field in a cross-reference entry and has three
+elements. The reader checked that it was a list of integers and then read
+`values[0]`, `values[1]` and `values[2]` from a list of however many the file
+declared, so two widths reached the third read and raised an unguarded
+`IndexError` — out of a parser whose whole contract is to refuse rather than
+raise.
+
+Found by the fuzzer, which draws exactly that distinction: a `ValueError`, a
+`TrueAIError`, or a validation error is an answer, and an unchecked subscript is
+a bug. More than three elements is still accepted, because the extras have no
+meaning in the specification and refusing a file some producer really emits
+would be the worse answer.
+
+`scripts/fuzz_parsers.py` also gained `--write-findings`, because the printed
+preview stops at 200 bytes and the input that found this was 417 — replaying the
+seed reproduced it inside the harness while leaving no way to hand the exact
+bytes to a debugger or a regression test.
+
+
 **An HTML document of unclosed tags did not finish scanning on Python 3.12**
 
 CPython's `html.parser` rescans from every `<` that never reaches a `>`, so the

@@ -46,6 +46,10 @@ _DELIMITERS: Final = b"()<>[]{}/%"
 
 _OBJECT_HEADER = re.compile(rb"(\d+)\s+(\d+)\s+obj\b")
 
+#: Fields in one cross-reference stream entry: type, then two numbers whose
+#: meaning depends on it. ISO 32000-1 7.5.8.2.
+_XREF_FIELDS = 3
+
 
 class PdfLimitExceeded(ValueError):
     """Raised when a document asks for more resources than the budget allows.
@@ -485,6 +489,16 @@ class PdfDocument:
         if not isinstance(widths, list) or not all(isinstance(item, int) for item in widths):
             raise PdfStructureError("A cross-reference stream has no usable /W")
         field_widths = [int(item) for item in widths if isinstance(item, int)]
+        # ISO 32000-1 7.5.8.2: three fields, and the three reads below assume it.
+        # Without this a file declaring two widths reaches `values[2]` and raises
+        # an IndexError out of a parser whose contract is to refuse.
+        if len(field_widths) < _XREF_FIELDS:
+            raise PdfStructureError(
+                f"A cross-reference stream declares {len(field_widths)} field widths; "
+                f"an entry has {_XREF_FIELDS}"
+            )
+        if any(width < 0 for width in field_widths):
+            raise PdfStructureError("A cross-reference stream declares a negative field width")
         size = dictionary.get("Size")
         index = dictionary.get("Index")
         if isinstance(index, list) and all(isinstance(item, int) for item in index):
@@ -494,7 +508,7 @@ class PdfDocument:
         else:
             raise PdfStructureError("A cross-reference stream has neither /Index nor /Size")
 
-        row = sum(field_widths)
+        row = sum(field_widths[:_XREF_FIELDS])
         if row <= 0:
             raise PdfStructureError("A cross-reference stream declares zero-width fields")
         cursor = 0
@@ -505,7 +519,10 @@ class PdfDocument:
                 if cursor + row > len(payload):
                     raise PdfStructureError("A cross-reference stream is shorter than it declares")
                 values: list[int] = []
-                for width in field_widths:
+                # Only the three the specification defines. A file may carry more
+                # elements in /W; they have no meaning and a conservative reader
+                # does not act on them.
+                for width in field_widths[:_XREF_FIELDS]:
                     values.append(int.from_bytes(payload[cursor : cursor + width], "big"))
                     cursor += width
                 kind = values[0] if field_widths[0] else 1
