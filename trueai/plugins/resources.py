@@ -28,6 +28,14 @@ class PluginResourceLimits(BaseModel):
 
     max_memory_bytes: int = Field(default=512 * 1024 * 1024, ge=64 * 1024 * 1024)
     max_cpu_seconds: int = Field(default=30, ge=1, le=3600)
+    #: Whether a helper process must refuse to start when the platform declines
+    #: one of these. Off by default, because a platform that cannot cap address
+    #: space -- macOS declines `RLIMIT_AS` outright -- would otherwise be a
+    #: platform with no plugins rather than one with a reported gap. Kept here
+    #: rather than derived from `ConfinementLevel` because they are different
+    #: mechanisms: the Linux confinement report says so itself, listing "memory
+    #: and CPU" among the things it does not cover.
+    required: bool = False
 
 
 class ResourceLimitReport(BaseModel):
@@ -62,19 +70,16 @@ class ResourceLimitsUnavailableError(RuntimeError):
 _WINDOWS_JOB_HANDLE: Any | None = None
 
 
-def apply_process_resource_limits(
-    limits: PluginResourceLimits, *, require_all: bool = False
-) -> ResourceLimitReport:
+def apply_process_resource_limits(limits: PluginResourceLimits) -> ResourceLimitReport:
     """Install CPU and memory limits before importing a plugin.
 
     Returns what was installed. Raises :class:`ResourceLimitsUnavailableError`
-    when nothing could be, or when ``require_all`` is set and the platform
-    refused any of it -- the caller that insists on operating-system confinement
-    is the caller that should not proceed unconfined.
+    when nothing could be, or when ``limits.required`` is set and the platform
+    refused any of it.
     """
 
     report = _apply_windows_job_limits(limits) if os.name == "nt" else _apply_posix_limits(limits)
-    if require_all and report.not_enforced:
+    if limits.required and report.not_enforced:
         raise ResourceLimitsUnavailableError(
             "These process limits could not be installed: " + "; ".join(report.not_enforced)
         )

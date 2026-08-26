@@ -12,6 +12,20 @@ change is called out explicitly and governed by
 
 ### Changed
 
+**`--plugin-confinement required` stopped discovering plugins on macOS**
+
+Making the confinement level decide whether a refused resource limit is fatal was
+a shortcut, and it redefined a documented setting: `docs/plugins.md` says
+`required` refuses to run a plugin "when confinement cannot be established", and
+the Linux backend's own report lists "memory and CPU" among the things
+confinement does *not* cover. Since macOS declines `RLIMIT_AS` outright, the
+coupling turned "confine my plugins" into "do not run plugins" on every Mac.
+
+Strictness now lives on the budget — `PluginResourceLimits(required=True)` — and
+is off by default, so a platform that cannot cap address space is one with a
+reported gap rather than one without plugins. `InspectionRequest.confinement`,
+added a commit earlier and read by nothing after this, is gone with it.
+
 **A cleaned file said its content had not changed**
 
 `shutil.copystat` copies permission bits and timestamps together, and it is what

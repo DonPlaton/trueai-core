@@ -653,7 +653,6 @@ class PluginHost:
                 entry_point=entry_point.value,
                 fallback_detector_id=entry_point.name,
                 resource_limits=self.resource_limits,
-                confinement=self.confinement,
             )
             request_path.write_text(request.model_dump_json(), encoding="utf-8")
             environment = dict(os.environ)

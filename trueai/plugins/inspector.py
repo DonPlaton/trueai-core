@@ -73,15 +73,11 @@ def main(argv: list[str]) -> int:
         )
         return 1
 
-    from trueai.plugins.confinement import ConfinementLevel
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.resources import apply_process_resource_limits
 
     try:
-        resource_limits = apply_process_resource_limits(
-            request.resource_limits,
-            require_all=request.confinement == ConfinementLevel.REQUIRED,
-        )
+        resource_limits = apply_process_resource_limits(request.resource_limits)
     except Exception as exc:
         _write(
             response_path,

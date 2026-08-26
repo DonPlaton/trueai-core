@@ -94,21 +94,17 @@ def main(argv: list[str]) -> int:
 
     from trueai.core.artifact import Artifact
     from trueai.core.models import ScanContext
-    from trueai.plugins.confinement import ConfinementLevel
     from trueai.plugins.guards import apply_guards
     from trueai.plugins.loader import load_entry_point
     from trueai.plugins.resources import apply_process_resource_limits
 
     try:
-        resource_limits = apply_process_resource_limits(
-            request.resource_limits,
-            # A caller that insists on operating-system confinement is the caller
-            # that must not run with half of it. Everywhere else a limit the
-            # platform refuses is reported rather than fatal, because refusing to
-            # scan is a worse answer than scanning with a CPU ceiling and saying
-            # the memory ceiling is missing.
-            require_all=request.confinement == ConfinementLevel.REQUIRED,
-        )
+        # Strictness travels with the budget rather than with the confinement
+        # level. A limit the platform refuses is reported and not fatal unless
+        # the budget says otherwise, because refusing to scan is a worse answer
+        # than scanning with a CPU ceiling and saying the memory ceiling is
+        # missing -- and macOS refuses `RLIMIT_AS` on every machine.
+        resource_limits = apply_process_resource_limits(request.resource_limits)
     except Exception as exc:
         return _fail(
             response_path,

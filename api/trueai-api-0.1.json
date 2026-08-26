@@ -6741,6 +6741,9 @@
           },
           "max_memory_bytes": {
             "required": false
+          },
+          "required": {
+            "required": false
           }
         }
       },

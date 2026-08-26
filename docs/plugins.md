@@ -271,6 +271,16 @@ machine, not of the code: unprivileged user namespaces are disabled on some
 distributions, and a container policy can block `seccomp`. The level is how an
 operator says which outcome they want when that happens.
 
+The level governs confinement and nothing else. CPU and memory ceilings are a
+separate mechanism — the Linux confinement report says so in its own
+`not_enforced` list — and their strictness lives on the budget:
+`PluginResourceLimits(required=True)` makes a helper refuse to start when the
+platform declines one of them. It is off by default because macOS declines
+`RLIMIT_AS` outright, and coupling the two turned "confine my plugins" into "do
+not run plugins" on every Mac. What the kernel accepted is reported per plugin
+by `trueai plugins`, and a ceiling that is not in place is printed rather than
+assumed.
+
 ### Linux — seccomp and namespaces
 
 Applied by the worker to itself, before the plugin is imported, because import

@@ -88,9 +88,6 @@ class InspectionRequest(BaseModel):
     entry_point: str
     fallback_detector_id: str
     resource_limits: PluginResourceLimits = PluginResourceLimits()
-    #: Mirrors the worker's own setting. `required` makes the inspector refuse
-    #: rather than import a plugin under limits the platform would not install.
-    confinement: ConfinementLevel = ConfinementLevel.BEST_EFFORT
 
 
 class InspectionResponse(BaseModel):

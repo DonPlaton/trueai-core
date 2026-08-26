@@ -190,15 +190,15 @@ def whatever_this_platform_does(
     monkeypatch.setattr(resources, "_apply_windows_job_limits", lambda limits: report)
 
 
-def test_require_all_refuses_when_any_limit_is_missing(
+def test_a_required_budget_refuses_when_any_limit_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`required` confinement means every control, not the ones that were easy."""
+    """A budget marked required means every limit in it, not the easy ones."""
 
     whatever_this_platform_does(monkeypatch, PARTIAL)
 
     with pytest.raises(ResourceLimitsUnavailableError, match="address space"):
-        apply_process_resource_limits(LIMITS, require_all=True)
+        apply_process_resource_limits(LIMITS.model_copy(update={"required": True}))
 
 
 def test_the_default_caller_proceeds_with_what_it_got(
@@ -214,13 +214,31 @@ def test_the_default_caller_proceeds_with_what_it_got(
     assert report.not_enforced
 
 
-def test_require_all_accepts_a_platform_that_granted_everything(
+def test_the_confinement_level_does_not_decide_this(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """They are different mechanisms and were briefly the same setting.
+
+    Deriving the strictness from `ConfinementLevel.REQUIRED` meant that asking
+    for operating-system confinement on macOS -- where the kernel declines
+    `RLIMIT_AS` outright -- stopped plugins being discovered at all. The Linux
+    confinement report says the same thing in its own words, listing "memory and
+    CPU" among the controls it does not cover.
+    """
+
+    whatever_this_platform_does(monkeypatch, PARTIAL)
+
+    assert apply_process_resource_limits(LIMITS).not_enforced
+    assert not LIMITS.required
+
+
+def test_a_required_budget_accepts_a_platform_that_granted_everything(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     complete = ResourceLimitReport(mechanism="test", established=("everything",))
     whatever_this_platform_does(monkeypatch, complete)
 
-    assert apply_process_resource_limits(LIMITS, require_all=True) is complete
+    assert apply_process_resource_limits(LIMITS.model_copy(update={"required": True})) is complete
 
 
 # -- the report itself -----------------------------------------------------------------
