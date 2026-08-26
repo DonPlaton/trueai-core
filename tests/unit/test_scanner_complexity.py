@@ -181,3 +181,82 @@ def test_a_comment_that_never_closes_is_still_not_a_comment(tmp_path: Path) -> N
     spans = extract_comments("/* Generated with ChatGPT", Path("notes.js"))
 
     assert spans == []
+
+
+# -- the interpreter's own quadratic scan --------------------------------------------
+
+
+def test_a_document_of_unclosed_tags_is_refused_rather_than_parsed(tmp_path: Path) -> None:
+    """CPython's `html.parser` rescans from every `<` that never closes, up to 3.12.
+
+    Measured there: 1,000 unclosed tags in 6 kB take 0.07 seconds, 4,000 in 24 kB
+    take 2.0, and 8,000 in 48 kB take 15.6. A hundred thousand does not finish,
+    which is what made the 3.12 jobs in the test matrix hang while 3.13 and 3.14
+    passed in five minutes. 3.13 fixed the parser; 3.12 is a supported
+    interpreter, so the input is bounded rather than the interpreter version.
+    """
+
+    artifact = tmp_path / "tags.html"
+    artifact.write_text("<path " * 100_000, encoding="utf-8")
+
+    report = TrueAIEngine(create_default_registry()).scan(artifact)
+
+    assert [item.code for item in report.diagnostics] == ["scan_limit_exceeded"]
+    assert any("never close" in item.message for item in report.diagnostics)
+
+
+def test_ordinary_html_is_not_refused(tmp_path: Path) -> None:
+    """The bound has to leave real documents alone or it is not a bound."""
+
+    artifact = tmp_path / "page.html"
+    artifact.write_text(
+        "<!DOCTYPE html><html><body>" + "<p>Generated with ChatGPT</p>" * 20_000 + "</body></html>",
+        encoding="utf-8",
+    )
+
+    report = TrueAIEngine(create_default_registry()).scan(artifact)
+
+    assert not [item for item in report.diagnostics if item.code == "scan_limit_exceeded"]
+    assert report.findings
+
+
+def test_one_stray_opening_bracket_in_a_large_document_is_still_scanned(
+    tmp_path: Path,
+) -> None:
+    """The bound is a product, because one of them is cheap and many are not.
+
+    Kept under `max_parser_events` on purpose: that budget already refuses a
+    document carrying 50,000 markup events, and a fixture tripping it would be
+    measuring the wrong guard.
+    """
+
+    artifact = tmp_path / "stray.html"
+    artifact.write_text("<p>x</p>" * 10_000 + "<broken ", encoding="utf-8")
+
+    report = TrueAIEngine(create_default_registry()).scan(artifact)
+
+    assert not [item for item in report.diagnostics if item.code == "scan_limit_exceeded"]
+
+
+def test_the_counter_is_linear_in_the_length_of_the_document() -> None:
+    """Searching for `>` from every `<` would be the scan this is measuring."""
+
+    from trueai.core.spans import unclosed_tag_count
+
+    small = elapsed(lambda: unclosed_tag_count("<path " * 200_000))
+    large = elapsed(lambda: unclosed_tag_count("<path " * 400_000))
+
+    assert large < max(small * 8, 1.0)
+
+
+def test_the_counter_counts_what_it_says() -> None:
+    from trueai.core.spans import unclosed_tag_count
+
+    assert unclosed_tag_count("<a><b></b></a>") == 0
+    assert unclosed_tag_count("<path <path <path ") == 3
+    assert unclosed_tag_count("<a>text<b") == 1
+    assert unclosed_tag_count("") == 0
+    assert unclosed_tag_count("no markup at all") == 0
+    # A comparison in prose, which is genuinely an unclosed opener as far as the
+    # parser is concerned, and is why the bound is a product rather than a count.
+    assert unclosed_tag_count("a > b < c") == 1

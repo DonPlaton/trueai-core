@@ -99,4 +99,40 @@ def _line_end(text: str, start: int) -> int:
     return min(candidates) if candidates else len(text)
 
 
-__all__ = ["Delimiter", "scan_delimited"]
+def unclosed_tag_count(text: str) -> int:
+    """Count the ``<`` that never reach a ``>`` before the next ``<``.
+
+    The number CPython's ``html.parser`` charges for. Up to 3.12 it rescans from
+    every such position, so a document made of them costs roughly the count times
+    the length -- 8,000 of them in 48 kB take fifteen seconds, and a hundred
+    thousand do not finish. 3.13 fixed the parser; 3.12 is supported, so the
+    scanner has to bound the input itself.
+
+    Counted with a cursor that only moves forward, for the same reason
+    :func:`scan_delimited` exists: searching for the closing character from every
+    opening one would be the quadratic scan this is measuring.
+    """
+
+    count = 0
+    index = text.find("<")
+    closing = -2  # -2 means "not looked yet", -1 means "none remain"
+    while index >= 0:
+        following = text.find("<", index + 1)
+        if closing != -1 and closing < index:
+            closing = text.find(">", index + 1)
+        if closing == -1:
+            # No ``>`` remains anywhere, so this opener and every later one is
+            # unclosed. Counting them without searching again is what keeps this
+            # linear.
+            remaining = 1
+            while following >= 0:
+                remaining += 1
+                following = text.find("<", following + 1)
+            return count + remaining
+        if following >= 0 and following < closing:
+            count += 1
+        index = following
+    return count
+
+
+__all__ = ["Delimiter", "scan_delimited", "unclosed_tag_count"]

@@ -25,6 +25,9 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Final
 
+from trueai.core.errors import ScanLimitExceededError
+from trueai.core.spans import unclosed_tag_count
+
 DEFAULT_MAX_NODES: Final = 200_000
 DEFAULT_MAX_DEPTH: Final = 256
 DEFAULT_MAX_RETAINED_BYTES: Final = 8 * 1024 * 1024
@@ -167,6 +170,31 @@ class DomTopology:
         }
 
 
+#: The largest `unclosed tags x document length` this scanner will hand to
+#: `html.parser`. Up to CPython 3.12 the parser rescans from every `<` that never
+#: closes, so the cost is that product: measured on 3.12, 1,000 unclosed tags in
+#: 6 kB take 0.07s, 4,000 in 24 kB take 2.0s, and 8,000 in 48 kB take 15.6s.
+#: 3.13 fixed the parser and 3.12 is supported, so the input is bounded rather
+#: than the interpreter.
+#:
+#: A product rather than a count, because the two cases are not alike: one stray
+#: `<` in a megabyte of real HTML is ordinary and cheap, and a hundred thousand
+#: of them is not a document. At this value a 25 MB artifact may carry six
+#: unclosed tags and a 100 kB one may carry fifteen hundred.
+MAX_UNCLOSED_TAG_WORK = 150_000_000
+
+
+def guard_html_parsing(text: str) -> None:
+    """Refuse a document whose unclosed tags would make parsing quadratic."""
+
+    unclosed = unclosed_tag_count(text)
+    if unclosed * len(text) > MAX_UNCLOSED_TAG_WORK:
+        raise ScanLimitExceededError(
+            f"The document has {unclosed} tags that never close in {len(text)} characters. "
+            "Parsing it costs the product of those two, so it is refused rather than scanned."
+        )
+
+
 class _TopologyParser(HTMLParser):
     """Walk the document once, charging the budget at every step."""
 
@@ -301,6 +329,7 @@ def extract_dom_topology(text: str, budget: FeatureBudget | None = None) -> DomT
     which is what ``complete`` is for.
     """
 
+    guard_html_parsing(text)
     allowance = budget or FeatureBudget()
     parser = _TopologyParser(allowance)
     truncated: str | None = None

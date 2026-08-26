@@ -133,6 +133,26 @@ directory produced it.
 
 ### Security
 
+**An HTML document of unclosed tags did not finish scanning on Python 3.12**
+
+CPython's `html.parser` rescans from every `<` that never reaches a `>`, so the
+cost is the number of them multiplied by the length of what follows. Measured on
+3.12: 1,000 unclosed tags in 6 kB take 0.07 seconds, 4,000 in 24 kB take 2.0, and
+8,000 in 48 kB take 15.6. A hundred thousand does not finish. 3.13 fixed the
+parser, which is why the hosted test matrix passed on 3.13 and 3.14 and hung on
+3.12 — for thirty-five minutes, against five for the jobs beside it.
+
+3.12 is a supported interpreter, so the input is bounded rather than the
+interpreter version. `unclosed_tag_count` counts them in one forward pass, and a
+document whose count times its length exceeds the budget is refused with a
+diagnostic rather than parsed. The bound is a product because the two cases are
+not alike: one stray `<` in a megabyte of real HTML is ordinary and cheap, and a
+hundred thousand of them is not a document.
+
+Found by the complexity suite added two commits earlier, which is what it was
+for.
+
+
 **A transparency log with a broken maintainer signature was still "usable"**
 
 `TransparencyVerification.usable` was the chain being intact, the sequence being

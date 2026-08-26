@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 
 from trueai.core.artifact import Artifact
-from trueai.core.dom_features import FeatureBudget, extract_dom_topology
+from trueai.core.dom_features import FeatureBudget, extract_dom_topology, guard_html_parsing
 from trueai.core.errors import ScanLimitExceededError
 from trueai.core.models import (
     ArtifactType,
@@ -87,6 +87,7 @@ class HTMLDetector(BaseDetector):
 
     def scan(self, artifact: Artifact, context: ScanContext) -> list[Finding]:
         text = artifact.read_text(context.options.max_file_size)
+        guard_html_parsing(text)
         parser = _ForensicHTMLParser(context.options.max_parser_events)
         parser.feed(text)
         parser.close()
