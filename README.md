@@ -61,7 +61,9 @@ trueai scan design.png --verify-provenance --trust-anchors roots.pem --format js
 trueai certificates issue deliverable.pdf --output deliverable.audit.json
 trueai certificates verify deliverable.audit.json --artifact deliverable.pdf
 trueai certificates keygen --private-key issuer.pem --public-key issuer.pub.pem
-trueai certificates revoke deliverable.audit.json --revocation-list issuer.crl.json --signing-key issuer.pem
+# Revocation needs an authenticated issuer, so the certificate has to be signed.
+trueai certificates issue deliverable.pdf --output signed.audit.json --signing-key issuer.pem
+trueai certificates revoke signed.audit.json --revocation-list issuer.crl.json --signing-key issuer.pem
 trueai certificates schema --output trueai-certificate-0.1.schema.json
 trueai certificates revocation-schema --output trueai-revocation-list-0.1.schema.json
 trueai schema --output trueai-report-0.1.schema.json

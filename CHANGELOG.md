@@ -10,6 +10,21 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Fixed
+
+**A README example that could not be followed**
+
+`certificates revoke` was demonstrated against the unsigned certificate the
+example two lines above had just produced, and revocation needs an authenticated
+issuer — so a reader copying the block got "unsigned certificates have no
+authenticated issuer to revoke them". `scripts/check_docs.py` could not see it:
+every command and option in the line existed, and existing is not working.
+
+`tests/integration/test_readme_commands.py` now runs each `trueai …` line from
+the README's console blocks, in order, in one directory, against real fixtures —
+the way a reader follows it — and fails on exit code 3 or 4 as the README's own
+exit-code table defines them.
+
 ### Changed
 
 **`--plugin-confinement required` stopped discovering plugins on macOS**
