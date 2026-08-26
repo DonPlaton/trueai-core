@@ -344,7 +344,13 @@ def test_an_unlisted_endpoint_is_refused_before_a_socket_is_opened() -> None:
 
 
 def test_the_listed_endpoint_is_the_one_that_is_attempted() -> None:
-    """The allowlist decides; failing to connect afterwards is a different problem."""
+    """The allowlist decides; failing to connect afterwards is a different problem.
+
+    Checked against the socket's actual peer rather than against `connect`
+    merely returning. Without that, a broker that ignored the host it was asked
+    for and dialled the first allowlisted endpoint instead would pass a test
+    named for the opposite.
+    """
 
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -354,7 +360,10 @@ def test_the_listed_endpoint_is_the_one_that_is_attempted() -> None:
 
     try:
         connection = broker.connect("127.0.0.1", port, timeout=5.0)
-        connection.close()
+        try:
+            assert connection.getpeername() == ("127.0.0.1", port)
+        finally:
+            connection.close()
     finally:
         listener.close()
 

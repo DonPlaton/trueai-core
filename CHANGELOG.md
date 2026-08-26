@@ -12,6 +12,24 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**`trueai cache clear` deleted files the cache had not written**
+
+`prune` re-derives the key from the path before deleting anything and refuses
+what does not resolve to a slot this cache writes — there is a test named for it.
+`clear` walked `*.json` and unlinked whatever it found. An operator may point
+`--cache-dir` at a directory the cache does not own, and deleting a stranger's
+file there is not something a scanner should do quietly. Both commands ask the
+same question now.
+
+**A broker test was named for a property it did not check**
+
+`test_the_listed_endpoint_is_the_one_that_is_attempted` opened a listening
+socket, asked the broker to connect, closed the connection, and asserted
+nothing — so a broker that ignored the host it was asked for and dialled the
+first allowlisted endpoint instead would have passed it. It checks the socket's
+actual peer now.
+
+
 **`clean` said "Changed fields: 1" and never said which one**
 
 The result carries the names and the terminal printed the length. Somebody

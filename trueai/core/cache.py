@@ -603,14 +603,24 @@ class ScanCache:
         )
 
     def clear(self) -> int:
-        """Delete every cache entry and return how many were removed."""
+        """Delete every cache entry and return how many were removed.
+
+        Every *entry*, not every file. `prune` re-derives the key from the path
+        before deleting anything, and refuses what does not resolve to a slot
+        this cache writes; `clear` walked `*.json` and unlinked whatever it
+        found. An operator may point `--cache-dir` at a directory the cache does
+        not own, and deleting a stranger's file there is not something a scanner
+        should do quietly.
+        """
 
         removed = 0
         if not self.directory.is_dir() or self._contains_link(self.directory):
             return 0
-        for entry in sorted(self.directory.rglob("*.json")):
+        for candidate in sorted(self.directory.rglob("*.json")):
+            if self._key_at(candidate) is None or self._is_link(candidate):
+                continue
             try:
-                entry.unlink()
+                candidate.unlink()
                 removed += 1
             except OSError:
                 continue

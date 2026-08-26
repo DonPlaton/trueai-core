@@ -408,6 +408,41 @@ def test_pruning_never_touches_a_file_the_cache_did_not_write(tmp_path: Path) ->
     assert cache.inspect().entries == ()
 
 
+def test_clearing_never_touches_a_file_the_cache_did_not_write(tmp_path: Path) -> None:
+    """`prune` already refused these. `clear` walked `*.json` and unlinked them.
+
+    An operator may point `--cache-dir` at a directory the cache does not own,
+    and deleting a stranger's file there is not something a scanner should do
+    quietly. Both commands ask the same question now: is this a slot this cache
+    writes.
+    """
+
+    directory = tmp_path / "cache"
+    cache = ScanCache(directory)
+    stored(cache, "a")
+    (directory / "notes.json").write_text('{"mine": true}', encoding="utf-8")
+    shard = next(child for child in directory.iterdir() if child.is_dir())
+    (shard / "not-a-key.json").write_text("{}", encoding="utf-8")
+
+    removed = cache.clear()
+
+    assert removed == 1
+    assert (directory / "notes.json").is_file()
+    assert (shard / "not-a-key.json").is_file()
+    assert cache.inspect().entries == ()
+
+
+def test_clearing_still_removes_every_entry(tmp_path: Path) -> None:
+    """The refusal must not turn into a cache that cannot be emptied."""
+
+    cache = ScanCache(tmp_path / "cache")
+    for name in ("a", "b", "c"):
+        stored(cache, name)
+
+    assert cache.clear() == 3
+    assert cache.inspect().entries == ()
+
+
 def test_a_prune_explains_what_it_did(tmp_path: Path) -> None:
     cache = ScanCache(tmp_path / "cache")
     aged(cache, "a", 1, build="0.0.1-ancient")
