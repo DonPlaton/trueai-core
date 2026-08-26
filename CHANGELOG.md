@@ -12,6 +12,26 @@ change is called out explicitly and governed by
 
 ### Changed
 
+**A cleaned file said its content had not changed**
+
+`shutil.copystat` copies permission bits and timestamps together, and it is what
+both cleanup paths reached for, so `trueai clean` handed back a file whose
+modification time was the one it had before the edit. Nothing recorded that as a
+decision and no test covered it, which is how a default that nobody chose
+becomes behaviour.
+
+Permission bits describe the file's place in the filesystem and still survive.
+The modification time is a claim about when the content last changed, and it just
+did — putting it back hides the edit from rsync, from build systems, and from
+anybody reading timestamps as evidence, which in a forensic tool is the behaviour
+being complained about rather than performed. The backup keeps the original
+timestamp, because the backup really is the original content.
+
+The in-place write is also documented now: it writes into the original file
+rather than renaming a temporary over it, because `os.replace` would give the
+artifact a new inode and break hard links and open handles. The backup is what
+makes a torn write recoverable.
+
 **Rewriting one field renamed every element in the document**
 
 `ElementTree.tostring` invents a prefix for every namespace it was not told

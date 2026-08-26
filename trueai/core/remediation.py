@@ -217,16 +217,22 @@ class RemediationService:
                 backup_path = self._backup_path(source_path)
                 shutil.copy2(source_path, backup_path)
                 try:
+                    # Written into the original file rather than renamed over it.
+                    # `os.replace` would be atomic and would give the artifact a
+                    # new inode, breaking hard links and anything holding the old
+                    # one open. The backup taken a line above is what makes a
+                    # torn write recoverable, and the copy in the `except` is
+                    # what performs the recovery.
                     with temporary.open("rb") as cleaned, source_path.open("wb") as original:
                         shutil.copyfileobj(cleaned, original, length=1024 * 1024)
                         original.flush()
                         os.fsync(original.fileno())
-                    shutil.copystat(backup_path, source_path, follow_symlinks=False)
+                    _carry_permissions(backup_path, source_path)
                 except Exception:
                     shutil.copy2(backup_path, source_path)
                     raise
             else:
-                shutil.copystat(source_path, temporary, follow_symlinks=False)
+                _carry_permissions(source_path, temporary)
                 os.replace(temporary, destination)
         finally:
             if temporary.exists():
@@ -360,6 +366,21 @@ class RemediationService:
             if not candidate.exists():
                 return candidate
             index += 1
+
+
+def _carry_permissions(source: Path, destination: Path) -> None:
+    """Copy the permission bits across an edit, and not the timestamps.
+
+    ``shutil.copystat`` copies both, which is how a cleaned file came back with
+    a modification time saying its content had not changed. Permission bits
+    describe where the file sits in the filesystem and should survive an edit;
+    the modification time is a claim about when the content last changed, and it
+    just did. Resetting it hides the edit from rsync, from build systems, and
+    from anyone reading timestamps as evidence -- which, in a forensic tool, is
+    the behaviour being complained about rather than performed.
+    """
+
+    shutil.copymode(source, destination)
 
 
 def _remediation_identifier(
