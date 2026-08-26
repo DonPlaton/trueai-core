@@ -4408,6 +4408,24 @@
             }
           ]
         }
+      },
+      "evidence_limits": {
+        "kind": "callable",
+        "signature": {
+          "introspectable": true,
+          "parameters": [
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "confidence_type",
+              "required": true
+            },
+            {
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "name": "provenance_class",
+              "required": true
+            }
+          ]
+        }
       }
     },
     "trueai.core.policy": {

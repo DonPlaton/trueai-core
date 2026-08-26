@@ -12,6 +12,28 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**A SARIF rule described itself with whichever finding came first**
+
+`design.raster-metadata.v1` reports Software fields, Author fields, and several
+other tags. Its rule carried `shortDescription: "Image metadata: Software"` — the
+title of whichever finding created the entry — and a code scanning dashboard
+groups alerts by rule and prints exactly that line, so every alert under it read
+"Software", including the ones about Author. A rule is a class of check and a
+result is one instance of it; the two had been collapsed into the first instance
+that arrived.
+
+`fullDescription` was absent entirely. That is the field an alert page renders as
+the explanation of a rule, which makes it the surface in this integration most
+likely to be read by somebody who has never seen the README — and therefore the
+one place a caveat has to be. It now carries the evidence-class limits: that a
+deterministic observation does not establish AI generation, and that metadata is
+editable by anyone who can open the file.
+
+Those sentences moved to `trueai.core.models`, beside the enums they describe, so
+the terminal, the desktop and IDE views, and SARIF all read one table. Two copies
+of these in particular would be the worst thing in the project to let drift, and
+only one surface had them.
+
 **`--output` reported a typo as an internal error, after doing all the work**
 
 `trueai scan notes.md -o no/where/out.json` scanned the tree, rendered the
