@@ -482,7 +482,20 @@ def verify_certificate(
         revocation_list_valid = False
         explanations.append("Revocation status was required but no revocation list was supplied.")
 
-    signature_ok = certificate.signature is None or signature_verified is True
+    if certificate.signature is not None:
+        # A signature is a claim about who issued this, so it has to be checked
+        # before the record can be called valid. Without a public key it cannot
+        # be, and "I could not check the issuer" is not a pass.
+        signature_ok = signature_verified is True
+    else:
+        # Nothing claims an issuer, so there is nothing to authenticate -- unless
+        # the caller supplied a key, which is them saying they expected one.
+        # `certificate.signature is None or signature_verified is True` read this
+        # the other way and let a signed certificate be *stripped* of its
+        # signature and still pass: the claims and the content ID survive the
+        # strip, so everything else still matched and the supplied key was
+        # quietly ignored.
+        signature_ok = public_key is None
     artifact_ok = artifact_verified is not False
     revocation_ok = (
         revocation_list_valid is not False

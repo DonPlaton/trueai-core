@@ -110,6 +110,28 @@ directory produced it.
 
 ### Security
 
+**A signed certificate could have its signature removed and still verify**
+
+`signature_ok` was `certificate.signature is None or signature_verified is True`,
+which reads the absence of a signature as nothing to check rather than as the
+check failing. Stripping the signature from a signed certificate leaves the
+claims and the content identifier intact, so everything else still matched, the
+supplied public key was quietly ignored, and `verify_certificate` returned
+`valid=True`.
+
+Found by tampering with each field of a signed certificate in turn and asking the
+verifier the same question it is asked in production. Six of the seven edits were
+refused; that one was not.
+
+The two rules are written separately now, because they are different rules. A
+certificate carrying a signature is claiming an issuer, and an unchecked claim is
+not a pass: without a public key there is no verdict. A certificate carrying none
+claims no issuer and is valid on its content identifier alone — unless the caller
+supplied a key, which is them saying they expected one.
+
+`tests/unit/test_certificate_tampering.py` makes each edit an attacker would make
+and checks the verifier's answer to each.
+
 **Seven regular expressions a file could stall the scanner with**
 
 Quadratic in the length of the artifact, all of them reachable from
