@@ -8,6 +8,31 @@ an exact match and a changed byte can never return a stale result.
 Everything below is about the other half: what happens when the cache grows,
 which entries go first, and what a prune will refuse to touch.
 
+## What it saves, and what it does not
+
+A hit skips the detectors. It does not skip reading the artifact, and that is
+worth knowing before choosing to turn it on.
+
+Every artifact is opened and hashed to build the key — a cache that trusted a
+path and a timestamp instead would return a stale result for a changed byte,
+which is the one thing it must never do. It is then hashed again after its
+detectors run, because a result derived from bytes that changed underneath the
+scan must not be stored, and once more at the end of the scan, because an
+artifact can change after it was scanned and before the report is written. Those
+two re-reads are the mutation detection the report depends on, not overhead that
+could be removed.
+
+So the saving is exactly the detector work, and how much that is depends
+entirely on what is being scanned. Measured on a seeded 20,000-file corpus of
+small Markdown, Python, text, and HTML files on Windows: a second scan with a
+100% hit rate took 211 seconds against 231 for the first — around 9%, because
+reading and hashing four small text files costs about what inspecting them does.
+The same cache is worth far more on PDFs, media containers, and Office packages,
+where parsing dominates and re-reading the bytes is the cheap part.
+
+`trueai cache inspect` reports the hit rate; the wall clock is the operator's own
+to measure, and it will not look like the hit rate.
+
 ## It has a ceiling
 
 An unbounded cache beside a repository is a disk-space bug waiting for a large
