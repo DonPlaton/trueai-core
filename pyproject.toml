@@ -40,7 +40,7 @@ attestation = ["cryptography>=50,<51"]
 dev = [
   # Generates the throwaway certificate chain that signs synthetic C2PA fixtures.
   "cryptography>=50,<51",
-  "mypy>=1.14,<2",
+  "mypy>=1.14,<3",
   "pytest>=8.3,<10",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
