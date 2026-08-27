@@ -27,7 +27,7 @@ dependencies = [
   "Pillow>=11.1,<13",
   "pydantic>=2.10,<3",
   "PyYAML>=6.0.2,<7",
-  "rich>=13.9,<15",
+  "rich>=13.9,<16",
   "typer>=0.15,<1",
 ]
 
@@ -40,7 +40,7 @@ attestation = ["cryptography>=50,<51"]
 dev = [
   # Generates the throwaway certificate chain that signs synthetic C2PA fixtures.
   "cryptography>=50,<51",
-  "mypy>=1.14,<2",
+  "mypy>=1.14,<3",
   "pytest>=8.3,<10",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
@@ -56,7 +56,7 @@ release = [
   "hatchling>=1.27,<2",
   "pip-audit>=2.10,<3",
   "pip-licenses>=5.5,<6",
-  "twine>=6.2,<7",
+  "twine>=6.2,<8",
 ]
 
 [project.scripts]

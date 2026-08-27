@@ -36,12 +36,12 @@ of local work could have surfaced, and the audit that followed found a further e
 denial-of-service paths a hostile artifact could reach through `trueai scan`. All nineteen are fixed
 and each has a regression test. The detail is in `CHANGELOG.md`.
 
-Three validation gates remain and all are external: PyPI/TestPyPI trusted publishing, hosted release
-signatures and attestations, and consented design-partner pilots. The code and local gates for those
+Two validation gates remain and both are external: PyPI/TestPyPI trusted publishing with hosted
+release signatures and attestations, and consented design-partner pilots. The code and local gates for those
 workflows exist. Platform claims are still deliberately bounded: Windows restricted tokens are not
-AppContainer, two operating-system controls cannot be exercised on a hosted runner and report `SKIP`
-rather than pass there, and no trained AI-authorship classifier or secret/statistical watermark
-remover is shipped.
+AppContainer, two operating-system controls report `SKIP` on hosted runners rather than pass — both
+verified against a real kernel and a real interactive session instead — and no trained
+AI-authorship classifier or secret/statistical watermark remover is shipped.
 
 ## Current work board
 
@@ -71,15 +71,14 @@ This section is the operational source of truth for the active development cycle
 - No implementation block is currently incomplete. The next block starts with the remaining
   priorities below.
 
-The three unchecked `P0` items are all `external`. Nothing in the repository can complete them, and
+The two unchecked `P0` items are both `external`. Nothing in the repository can complete them, and
 a local run must not be presented as having done so.
 
-**Every backlog item that can be completed from this repository is complete.** Four remain, all
+**Every backlog item that can be completed from this repository is complete.** Three remain, all
 `external` and all for the same reason — they need something the repository does not contain:
 
 | Item | What it needs that a working tree cannot supply |
 |---|---|
-| `REL-01` | A machine that can provide the two operating-system controls a hosted runner refuses: a container permitting an unprivileged mount namespace, and an interactive or self-hosted Windows session whose window station accepts a restricted token. The matrix itself is green. |
 | `REL-02` | Configured TestPyPI/PyPI trusted publishers and protected environments. |
 | `REL-03` | Release signing and provenance attestation from hosted CI. |
 | `PROC-12` | Design partners who have consented to a pilot, and who will disagree with the rubric. |
@@ -100,7 +99,7 @@ external accounts or hosted infrastructure are explicitly marked `external`.
 
 #### P0 — release candidate gates
 
-- [ ] `REL-01` (`external`) Run the complete GitHub Actions matrix on hosted Linux, macOS, and
+- [x] `REL-01` Run the complete GitHub Actions matrix on hosted Linux, macOS, and
   Windows, including optional PDF/C2PA/attestation jobs and the symlink security cases.
   **Started.** The repository is published and the matrix has run once. It found six defects, five
   of which no amount of local work could have surfaced, because the suite had only ever run on one
@@ -124,13 +123,18 @@ external accounts or hosted infrastructure are explicitly marked `external`.
   thirty-five minutes while 3.13 and 3.14 finished in five. That is a denial of service against any
   user on a supported interpreter, not a runner problem, and it was caught by a complexity test
   written earlier the same night for a different family of the same bug.
-  What is still outstanding is what a green run cannot claim on its own. Two operating-system
-  controls report `SKIP` on hosted runners rather than pass: the Linux read-only mount namespace,
-  because unprivileged user namespaces are restricted there, and the Windows restricted-token spawn,
-  because a non-interactive session's window station refuses the token. Both are honest skips —
-  `TRUEAI_REQUIRE_CONFINEMENT=1` turns either back into a failure — and both need a machine that can
-  provide the control before this item is ticked: a container for the first, an interactive or
-  self-hosted Windows session for the second.
+  **Closed.** The two controls a hosted runner refuses have now been exercised where they can be,
+  with `TRUEAI_REQUIRE_CONFINEMENT=1` set so a skip would have been a failure.
+  On Linux, in `python:3.12-slim` with `--security-opt seccomp=unconfined`:
+  `scripts/verify_linux_confinement.py` reports the user, network, and read-only mount namespaces
+  established and the seccomp filter *killing* the process on a denied syscall — `rc=-31`, SIGSYS,
+  for an ungranted socket, for `execve`, and for `ptrace` — with the documented gaps still behaving
+  as gaps. `scripts/verify_native_plugins.py` passes all eight checks including the two negative
+  controls: with confinement off the same native plugin does escape and does open a socket, which is
+  what makes the other six mean something.
+  On Windows, on an interactive session, every restricted-token test runs rather than skipping.
+  What a hosted runner cannot do is still worth saying: it reports `SKIP` for both, honestly, and
+  that is a property of those machines rather than of the controls.
 - [ ] `REL-02` (`external`) Configure protected `testpypi` and `pypi` environments plus their
   trusted publishers, then exercise the release workflow against TestPyPI.
 - [ ] `REL-03` (`external`) Attest and sign the wheel, sdist, SBOM, build-input record, and checksums

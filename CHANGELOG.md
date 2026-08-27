@@ -96,6 +96,21 @@ exit-code table defines them.
 
 ### Changed
 
+**Dependency upper bounds widened, in one commit with the lock file**
+
+`rich<16`, `mypy<3`, `twine<8`. Each was verified against the real suite rather
+than accepted on trust: rich 15.0.0 passes every test, mypy 2.3.1 passes strict
+type checking on both platforms, and twine 7.0.0 accepts both built
+distributions under `--strict`.
+
+Dependabot proposed the three separately, and each edits `pyproject.toml` while
+leaving `uv.lock` describing the old constraint — so `uv lock --check` fails in
+the distributions job, and merging any one of them would have staled the other
+two. The resolved versions are deliberately unchanged: widening a constraint is
+not an upgrade, and moving the locked closure would need the advisory ledger
+reviewed against the new set.
+
+
 **Integrations could only see `valid`, so the green tick would have come back**
 
 `CertificateView` is what a desktop or IDE surface renders. It carried every
