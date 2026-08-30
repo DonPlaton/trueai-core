@@ -156,9 +156,16 @@ class TerminalReporter:
         if report.diagnostics:
             self.console.print("\n[bold]Diagnostics[/bold]")
             for diagnostic in report.diagnostics:
+                # A diagnostic is about a file the scan could not fully read, and
+                # a HIGH one decides the exit code. Printing it without the path
+                # gave an operator a failed build and nothing to open. The path
+                # is optional on the model, so it is appended only when present
+                # rather than rendered as an em dash the way the table does it.
+                where = f" · {_safe(diagnostic.artifact_path)}" if diagnostic.artifact_path else ""
                 self.console.print(
                     f"[{_SEVERITY_STYLE[diagnostic.severity]}]"
-                    f"{diagnostic.severity.value.upper()}[/] {_safe(diagnostic.message)}"
+                    f"{diagnostic.severity.value.upper()}[/] "
+                    f"{_safe(diagnostic.message)}{where}"
                 )
         if report.provenance_verifications:
             # Four columns rather than one status, because a marker existing, its

@@ -22,6 +22,12 @@ which of the files it came from, while the JSON and SARIF renderings of the same
 finding both carried the path all along. The path is printed always now, with
 `:line` appended when there is one.
 
+Diagnostics had the same gap, and it costs more there: a diagnostic says the
+scan could not fully read something, and a `HIGH` one sets the exit code to
+`UNSUPPORTED_OR_CORRUPT`. Printing it without the path gave an operator a failed
+build and nothing to open. The HTML report had an Artifact column for both all
+along; the terminal was the only rendering that dropped it.
+
 
 **A model manifest verified without opening a file looked like one that matched**
 
