@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -374,6 +376,35 @@ class ScanSummary(FrozenModel):
     review_count: int = Field(default=0, ge=0)
     violation_count: int = Field(default=0, ge=0)
 
+    @classmethod
+    def over(
+        cls,
+        findings: Sequence[Finding],
+        *,
+        artifact_count: int,
+        review_count: int = 0,
+        violation_count: int = 0,
+    ) -> Self:
+        """Build the counts that a set of findings implies.
+
+        The derived fields have one correct value each, so they are computed in
+        one place rather than assembled by every caller that needs a report.
+        ``review_count`` and ``violation_count`` are not derivable — they depend
+        on a policy — and stay arguments.
+        """
+
+        return cls(
+            artifact_count=artifact_count,
+            finding_count=len(findings),
+            by_confidence_type=dict(
+                sorted(Counter(item.confidence_type.value for item in findings).items())
+            ),
+            by_category=dict(sorted(Counter(item.category.value for item in findings).items())),
+            by_severity=dict(sorted(Counter(item.severity.value for item in findings).items())),
+            review_count=review_count,
+            violation_count=violation_count,
+        )
+
 
 class IntegrityReport(FrozenModel):
     """Evidence that remediation changed only approved material."""
@@ -411,6 +442,32 @@ class ScanReport(FrozenModel):
             explanation="Scan-only operation; the artifact was not modified.",
         )
     )
+
+    @model_validator(mode="after")
+    def summary_agrees_with_the_findings(self) -> Self:
+        """Refuse a report whose summary contradicts the list beside it.
+
+        The summary exists so a client does not have to recount, and that only
+        works if it cannot disagree. A document declaring two findings and
+        carrying none loaded happily and made every reader of the headline —
+        `trueai explain`, the terminal, any consumer of `JSONReporter.load` —
+        report a number nothing in the document supports.
+
+        Only the derivable fields are checked. ``artifact_count`` counts files
+        rather than findings, and ``review_count`` and ``violation_count``
+        depend on a policy, so none of the three is recomputable from here.
+        """
+
+        expected = ScanSummary.over(self.findings, artifact_count=self.summary.artifact_count)
+        mismatches = [
+            f"{name}: the summary says {getattr(self.summary, name)!r} and the findings give "
+            f"{getattr(expected, name)!r}"
+            for name in ("finding_count", "by_confidence_type", "by_category", "by_severity")
+            if getattr(self.summary, name) != getattr(expected, name)
+        ]
+        if mismatches:
+            raise ValueError("The summary disagrees with the findings — " + "; ".join(mismatches))
+        return self
 
 
 class Remediation(FrozenModel):

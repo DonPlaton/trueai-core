@@ -267,6 +267,27 @@ directory produced it.
 
 ### Security
 
+**A report could claim a finding count its own findings contradict**
+
+Found by `scripts/fuzz_parsers.py --target report`. A document declaring
+`finding_count: 2` with an empty `findings` list validated cleanly, and every
+reader of the headline then reported a number nothing in the document supported —
+`trueai explain`, the terminal renderer, any consumer of `JSONReporter.load`.
+
+The summary exists so a client does not have to recount, which only works if it
+cannot disagree with the list beside it. `finding_count` and the category,
+severity, and confidence maps are derivable, so they are checked against the
+findings and a report that contradicts itself is refused at load.
+`artifact_count`, `review_count`, and `violation_count` are not checked: the
+first counts files rather than findings and the other two depend on a policy the
+report does not carry.
+
+`ScanSummary.over()` builds the derivable fields in one place. The engine had
+assembled them inline and `trueai explain` had edited `finding_count` alone while
+narrowing a report to one finding — leaving three maps describing the whole
+report, which the new rule catches. Both call it now.
+
+
 **Three MP4 and WebM documents a cleaner could not finish reading**
 
 `trueai clean` hands every MP4 and WebM to the invariant models before it writes

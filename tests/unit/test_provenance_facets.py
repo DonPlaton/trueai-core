@@ -370,7 +370,7 @@ def report_with(*verifications: ProvenanceVerification, findings: tuple[Finding,
     return ScanReport(
         artifact=descriptor,
         artifacts=(descriptor,),
-        summary=ScanSummary(artifact_count=1, finding_count=len(findings)),
+        summary=ScanSummary.over(findings, artifact_count=1),
         findings=findings,
         provenance_verifications=verifications,
     )

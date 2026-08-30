@@ -1,6 +1,6 @@
 # TrueAI Core: Project Overview and Status
 
-Status date: 2026-08-25
+Status date: 2026-08-30
 Package version: `0.1.0-dev`  
 Public report schema: `0.1`  
 License: Apache-2.0
@@ -33,8 +33,22 @@ The hosted cross-platform matrix now passes in full: Linux, macOS, and Windows a
 3.12, 3.13, and 3.14, plus the container reproducibility, supply-chain, plugin trust boundary,
 authenticated C2PA, schema, and distribution jobs. Getting there found eleven defects that no amount
 of local work could have surfaced, and the audit that followed found a further eight, seven of them
-denial-of-service paths a hostile artifact could reach through `trueai scan`. All nineteen are fixed
-and each has a regression test. The detail is in `CHANGELOG.md`.
+denial-of-service paths a hostile artifact could reach through `trueai scan`.
+
+A second audit pass then read the modules that had not been touched since they were written, and
+found twelve more. Three are denial-of-service paths reachable through `trueai clean`, all of them
+work quadratic in a count the file chooses from an input of a few hundred kilobytes: the MP4 and
+WebM models scanned their whole element list once per track, cluster, cue point, seek entry, and
+attachment, and an `stsc` table whose `first_chunk` rewinds re-swept the chunk list once per entry.
+The fuzzer had covered both models since the harness landed and found none of them, because nothing
+raises and nothing corrupts — the process simply does not come back. A fourth let an EBML leaf
+declaring an unknown size hide every element after it from the model, which then reported itself
+complete. The rest are honesty and reporting defects of the kind this project holds itself to: a
+manifest verified without opening a file looked like one whose files matched, a finding without a
+line number never said which file it was in, and a green post-clean verdict printed over findings
+its own rescan was holding.
+
+All thirty-one are fixed and each has a regression test. The detail is in `CHANGELOG.md`.
 
 Two validation gates remain and both are external: PyPI/TestPyPI trusted publishing with hosted
 release signatures and attestations, and consented design-partner pilots. The code and local gates for those

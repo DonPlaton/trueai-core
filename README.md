@@ -109,8 +109,8 @@ style findings can therefore remain after cleaning; post-clean verification repo
 | SVG | Metadata/RDF/XMP, comments, editor attributes, hidden/off-canvas elements, scripts, duplicated geometry | Metadata, standalone generator comments, editor attributes | Canonical visible/active structure including processing instructions |
 | PNG / JPEG | Text chunks, EXIF, XMP/comments exposed by Pillow, provenance markers | Surgical chunk/segment/tag editing; no pixel recompression | Compressed pixel-bearing payload; rendering-critical orientation preserved |
 | WAV / MP3 / FLAC | RIFF INFO/BEXT, ID3v1/v2, Vorbis comments, encoder/vendor and literal provider attribution | Selected textual fields and whole XML metadata chunks | Exact planned transform plus byte-identical audio-bearing payload |
-| M4A | ISO BMFF keyed/legacy metadata and XMP UUID boxes | Inspection only | Not modified |
-| MP4 / MOV / WebM | ISO BMFF keyed/legacy metadata, XMP UUID boxes, EBML writing/muxing applications and tags | Inspection only | Not modified |
+| M4A | ISO BMFF keyed/legacy metadata and XMP UUID boxes | Same-length `free` padding; no built-in policy selects it | Seven container invariants, or a refusal |
+| MP4 / MOV / WebM | ISO BMFF keyed/legacy metadata, XMP UUID boxes, EBML writing/muxing applications and tags | Same-length `free`/`Void` padding; no built-in policy selects it | Seven container invariants, or a refusal |
 
 Office, SVG, raster, PDF, Git, and recursive filesystem inputs are treated as hostile. Archive,
 parser-event, finding, Git-output, file-count, file-size, path, XML, and image-pixel limits are
@@ -223,6 +223,18 @@ timing, edit lists, indexes, encryption state, rendering geometry, and provenanc
 lexical scan never sees. Cleanup replaces the selected box with
 same-length `free` padding, so nothing moves and no offset needs correcting; the file keeps its
 size, and a container carrying a C2PA manifest is refused outright.
+
+Every built-in profile maps `media_metadata` to `review`, or to `error` under `strict`. So
+`trueai clean` leaves a container alone until a policy says otherwise, and cleaning one is a
+decision an operator makes explicitly:
+
+```yaml
+policy: media-clean
+default_action: report
+rules:
+  media_metadata: remove
+  c2pa_provenance: preserve
+```
 
 OpenDocument packages are inspected and cleaned on the same ZIP safety layer as Office Open XML.
 Legacy binary Office (`.doc`, `.xls`, `.ppt`) is identified and reported as *not inspected* rather

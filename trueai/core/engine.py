@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from collections import Counter, deque
+from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -331,18 +331,9 @@ class TrueAIEngine:
             review_count = evaluation.review_count
             violation_count = evaluation.violation_count
 
-        summary = ScanSummary(
+        summary = ScanSummary.over(
+            ordered_findings,
             artifact_count=len(descriptors),
-            finding_count=len(ordered_findings),
-            by_confidence_type=dict(
-                sorted(Counter(item.confidence_type.value for item in ordered_findings).items())
-            ),
-            by_category=dict(
-                sorted(Counter(item.category.value for item in ordered_findings).items())
-            ),
-            by_severity=dict(
-                sorted(Counter(item.severity.value for item in ordered_findings).items())
-            ),
             review_count=review_count,
             violation_count=violation_count,
         )

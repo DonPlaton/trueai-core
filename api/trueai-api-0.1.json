@@ -1045,7 +1045,12 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "summary_agrees_with_the_findings": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
         "model_fields": {
           "artifact": {
             "required": true
@@ -3162,7 +3167,12 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "summary_agrees_with_the_findings": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
         "model_fields": {
           "artifact": {
             "required": true
@@ -3223,7 +3233,33 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "over": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "findings",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "artifact_count",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "review_count",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "violation_count",
+                "required": false
+              }
+            ]
+          }
+        },
         "model_fields": {
           "artifact_count": {
             "required": true
@@ -4245,7 +4281,12 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "summary_agrees_with_the_findings": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
         "model_fields": {
           "artifact": {
             "required": true
@@ -4306,7 +4347,33 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "over": {
+            "introspectable": true,
+            "parameters": [
+              {
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "name": "findings",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "artifact_count",
+                "required": true
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "review_count",
+                "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "violation_count",
+                "required": false
+              }
+            ]
+          }
+        },
         "model_fields": {
           "artifact_count": {
             "required": true
@@ -5200,7 +5267,12 @@
           "trueai.core.models.FrozenModel"
         ],
         "kind": "class",
-        "methods": {},
+        "methods": {
+          "summary_agrees_with_the_findings": {
+            "introspectable": true,
+            "parameters": []
+          }
+        },
         "model_fields": {
           "artifact": {
             "required": true

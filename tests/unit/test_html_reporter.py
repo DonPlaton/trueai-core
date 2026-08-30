@@ -103,7 +103,7 @@ def report(**extra: Any) -> ScanReport:
     fields: dict[str, Any] = {
         "artifact": descriptor,
         "artifacts": (descriptor,),
-        "summary": ScanSummary(artifact_count=1, finding_count=len(findings)),
+        "summary": ScanSummary.over(findings, artifact_count=1),
         "findings": findings,
         "integrity": IntegrityReport(
             status=IntegrityStatus.NOT_MODIFIED, explanation="Scan-only operation."

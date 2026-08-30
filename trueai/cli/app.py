@@ -30,7 +30,7 @@ from trueai.core.errors import (
     RemediationError,
     TrueAIError,
 )
-from trueai.core.models import ScanOptions, Severity
+from trueai.core.models import ScanOptions, ScanSummary, Severity
 from trueai.core.policy import PolicyProfile, PolicyStore
 from trueai.core.policy_bundle import (
     EnterprisePolicyBundle,
@@ -572,10 +572,19 @@ def explain(
         if finding is None:
             error_console.print(f"[red]Finding not present in report: {finding_id}[/red]")
             raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT)
+        # The summary has to be rebuilt rather than edited: narrowing the
+        # findings to one leaves the category, severity, and confidence maps
+        # describing the whole report, and those are now checked against the
+        # list they are meant to count.
         single_report = report.model_copy(
             update={
                 "findings": (finding,),
-                "summary": report.summary.model_copy(update={"finding_count": 1}),
+                "summary": ScanSummary.over(
+                    (finding,),
+                    artifact_count=report.summary.artifact_count,
+                    review_count=report.summary.review_count,
+                    violation_count=report.summary.violation_count,
+                ),
             }
         )
         TerminalReporter(console).render(single_report, verbose=True)
