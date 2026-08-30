@@ -414,3 +414,47 @@ def test_the_counts_in_the_headline_agree_with_themselves(tmp_path: Path) -> Non
     count, artifacts = (int(value) for value in re.findall(r"\d+", headline))
     assert ("findings" in headline) == (count != 1)
     assert ("artifacts" in headline) == (artifacts != 1)
+
+
+# -- a green residue verdict over findings it did not count ----------------------------
+
+
+def test_a_clear_residue_verdict_names_what_it_did_not_cover(tmp_path: Path) -> None:
+    """CLEAR is scoped, and the same rescan can be holding findings outside it.
+
+    `safe-clean` removes the generator fields and leaves personal metadata to a
+    privacy policy, so a PNG with both comes back CLEAR with an `Author` still in
+    it. The status is right and its scope sentence is accurate; printing them
+    with nothing else said left a reader to conclude the file was clean, which is
+    the shape of overstatement this file exists to catch.
+    """
+
+    from PIL import Image, PngImagePlugin
+
+    metadata = PngImagePlugin.PngInfo()
+    metadata.add_text("Software", "Generated with ChatGPT")
+    metadata.add_text("Author", "Jane Doe")
+    artifact = tmp_path / "art.png"
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(artifact, pnginfo=metadata)
+
+    result = runner.invoke(app, ["clean", str(artifact), "--policy", "safe-clean"])
+
+    assert "CLEAR" in result.stdout, result.stdout
+    assert "Outside that scope" in result.stdout, result.stdout
+    assert "personal_metadata" in result.stdout, result.stdout
+
+
+def test_a_fully_cleaned_artifact_says_nothing_extra(tmp_path: Path) -> None:
+    """Paired with the test above: the line appears because something is there."""
+
+    artifact = tmp_path / "logo.svg"
+    artifact.write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">'
+        '<!-- Created with Figma --><rect width="4" height="4"/></svg>',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["clean", str(artifact), "--policy", "safe-clean"])
+
+    assert "CLEAR" in result.stdout, result.stdout
+    assert "Outside that scope" not in result.stdout, result.stdout

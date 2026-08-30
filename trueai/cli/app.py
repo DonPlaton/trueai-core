@@ -52,6 +52,7 @@ from trueai.core.remediation import RemediationPlanner, RemediationService
 from trueai.plugins.confinement import ConfinementLevel
 from trueai.plugins.host import PluginIsolation
 from trueai.reporters import HTMLReporter, JSONReporter, SARIFReporter, TerminalReporter
+from trueai.reporters.terminal import count_noun
 
 
 class AttestationPresentation(StrEnum):
@@ -479,6 +480,23 @@ def clean(
             if delivery.indicator_finding_ids:
                 console.print(
                     f"Remaining indicator findings: {len(delivery.indicator_finding_ids)}"
+                )
+            # CLEAR is scoped to machine, generator, watermark, and style
+            # indicators. The same rescan can hold findings outside that scope —
+            # personal metadata a delivery policy left in place, most often — and
+            # printing a green verdict while silently holding them is the shape
+            # of overstatement this tool exists to refuse. The status does not
+            # change; what was not in its scope is named beside it.
+            outside_scope = tuple(
+                item
+                for item in delivery.report.findings
+                if item.id not in set(delivery.indicator_finding_ids)
+            )
+            if outside_scope:
+                categories = ", ".join(sorted({item.category.value for item in outside_scope}))
+                console.print(
+                    f"Outside that scope the rescan still reports "
+                    f"{count_noun(len(outside_scope), 'finding')}: {escape(categories)}."
                 )
             if certificate_output is not None:
                 from trueai.core.certificates import certificate_json, issue_certificate

@@ -85,7 +85,7 @@ def _safe(value: object) -> str:
     return escape(str(value))
 
 
-def _count(total: int, noun: str) -> str:
+def count_noun(total: int, noun: str) -> str:
     """Render a count with its noun agreeing.
 
     "1 findings across 9 artifact(s)" is the first line of the first report a
@@ -137,8 +137,8 @@ class TerminalReporter:
         # renders one it loaded from a file without scanning anything at all.
         self.console.print(f"Target: [bold]{_safe(report.artifact.path)}[/bold]")
         self.console.print(
-            f"{_count(report.summary.finding_count, 'finding')} across "
-            f"{_count(report.summary.artifact_count, 'artifact')}"
+            f"{count_noun(report.summary.finding_count, 'finding')} across "
+            f"{count_noun(report.summary.artifact_count, 'artifact')}"
         )
         self.console.print()
         summary = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))

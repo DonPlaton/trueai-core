@@ -12,6 +12,19 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**A green residue verdict over findings it had not counted**
+
+`clean` rescans what it wrote and prints `Post-clean residue verification:
+CLEAR`, which is scoped to machine-assistance, generator-tool, watermark, and
+style indicators — the sentence under it says so. But the same rescan can be
+holding findings outside that scope: `safe-clean` removes the generator fields
+and leaves personal metadata to a privacy policy, so a PNG with both comes back
+CLEAR with an `Author` still in it, and a reader concludes the file is clean.
+
+The status and its scope are unchanged. What was outside that scope is now named
+beside it, with its categories, because the rescan already knew.
+
+
 **The report header said "Scanning:" over a report nobody was scanning**
 
 `explain` loads a saved JSON report and renders one finding from it through the
