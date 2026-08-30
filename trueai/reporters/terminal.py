@@ -85,6 +85,17 @@ def _safe(value: object) -> str:
     return escape(str(value))
 
 
+def _count(total: int, noun: str) -> str:
+    """Render a count with its noun agreeing.
+
+    "1 findings across 9 artifact(s)" is the first line of the first report a
+    buyer reads. Every noun here is regular, so a plural `s` is the whole rule
+    and a table of exceptions would be more code than the problem.
+    """
+
+    return f"{total} {noun}" if total == 1 else f"{total} {noun}s"
+
+
 #: Past this many names the list stops being readable and the count is what is
 #: left to say. The names are in the JSON report either way.
 _MAX_NAMED = 12
@@ -122,10 +133,12 @@ class TerminalReporter:
         self.console.print(Text("TRUEAI", style="bold bright_cyan"))
         self.console.print(Text("Artifact Forensics", style="dim"))
         self.console.print()
-        self.console.print(f"Scanning: [bold]{_safe(report.artifact.path)}[/bold]")
+        # "Target", not "Scanning": this renders a finished report, and `explain`
+        # renders one it loaded from a file without scanning anything at all.
+        self.console.print(f"Target: [bold]{_safe(report.artifact.path)}[/bold]")
         self.console.print(
-            f"{report.summary.finding_count} findings across "
-            f"{report.summary.artifact_count} artifact(s)"
+            f"{_count(report.summary.finding_count, 'finding')} across "
+            f"{_count(report.summary.artifact_count, 'artifact')}"
         )
         self.console.print()
         summary = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))

@@ -11,6 +11,7 @@ a document nobody signed and nothing was compared to.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -179,7 +180,7 @@ def test_the_evidence_class_table_adds_up_to_the_finding_count(tmp_path: Path) -
 
     assert result.exit_code in {0, 3}, result.output
     counts = [int(value) for value in re.findall(r"^\s+[A-Z]+\s+(\d+)\s*$", result.stdout, re.M)]
-    total = int(re.search(r"(\d+) findings across", result.stdout).group(1))
+    total = int(re.search(r"(\d+) findings? across", result.stdout).group(1))
     assert counts, result.stdout
     assert sum(counts) == total, result.stdout
 
@@ -374,3 +375,42 @@ def test_every_surface_draws_its_caveats_from_one_table(tmp_path: Path) -> None:
     expected = evidence_limits(finding.confidence_type, finding.provenance_class)
 
     assert explanation.does_not_claim == expected
+
+
+# -- the header over a report nobody is scanning ---------------------------------------
+
+
+def test_explain_does_not_say_it_is_scanning(tmp_path: Path) -> None:
+    """`explain` reads a saved report. The header said "Scanning:" over it.
+
+    The renderer is shared with `scan`, which prints it after the scan has
+    already finished, so the tense was wrong there too — but only `explain` made
+    it a false statement about what the tool had just done.
+    """
+
+    artifact = tmp_path / "notes.md"
+    artifact.write_text("Generated with ChatGPT\n", encoding="utf-8")
+    report_path = tmp_path / "report.json"
+    runner.invoke(app, ["scan", str(artifact), "--format", "json", "--output", str(report_path)])
+    finding_id = json.loads(report_path.read_text(encoding="utf-8"))["findings"][0]["id"]
+
+    result = runner.invoke(app, ["explain", finding_id, "--report", str(report_path)])
+
+    assert "Scanning:" not in result.stdout
+    assert "Target:" in result.stdout
+
+
+def test_the_counts_in_the_headline_agree_with_themselves(tmp_path: Path) -> None:
+    """ "1 findings across 9 artifact(s)" is the first line of the first report."""
+
+    artifact = tmp_path / "notes.md"
+    artifact.write_text("Generated with ChatGPT\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["scan", str(artifact)])
+
+    headline = next(line for line in result.stdout.splitlines() if " across " in line)
+    assert "artifact(s)" not in headline
+    assert re.fullmatch(r"\d+ findings? across \d+ artifacts?", headline.strip()), headline
+    count, artifacts = (int(value) for value in re.findall(r"\d+", headline))
+    assert ("findings" in headline) == (count != 1)
+    assert ("artifacts" in headline) == (artifacts != 1)

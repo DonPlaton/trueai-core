@@ -12,6 +12,17 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**The report header said "Scanning:" over a report nobody was scanning**
+
+`explain` loads a saved JSON report and renders one finding from it through the
+same renderer `scan` uses, so it printed `Scanning: <path>` over a file it never
+opened. The tense was wrong in `scan` too — the line is printed after the scan
+finishes — so both now read `Target:`.
+
+The line under it read `1 findings across 9 artifact(s)`. Every noun in that
+sentence is regular, so the counts agree with themselves now.
+
+
 **A finding without a line number did not say which file it was in**
 
 The terminal printed the artifact path only when the finding carried a line, and
