@@ -36,7 +36,7 @@ of local work could have surfaced, and the audit that followed found a further e
 denial-of-service paths a hostile artifact could reach through `trueai scan`.
 
 A second audit pass then read the modules that had not been touched since they were written, and
-found twelve more. Three are denial-of-service paths reachable through `trueai clean`, all of them
+found thirteen more. Three are denial-of-service paths reachable through `trueai clean`, all of them
 work quadratic in a count the file chooses from an input of a few hundred kilobytes: the MP4 and
 WebM models scanned their whole element list once per track, cluster, cue point, seek entry, and
 attachment, and an `stsc` table whose `first_chunk` rewinds re-swept the chunk list once per entry.
@@ -46,9 +46,10 @@ declaring an unknown size hide every element after it from the model, which then
 complete. The rest are honesty and reporting defects of the kind this project holds itself to: a
 manifest verified without opening a file looked like one whose files matched, a finding without a
 line number never said which file it was in, and a green post-clean verdict printed over findings
-its own rescan was holding.
+its own rescan was holding, and a saved report could declare a finding count its own findings
+contradicted — that last one found by the fuzzer, which mutates a real report and reloads it.
 
-All thirty-one are fixed and each has a regression test. The detail is in `CHANGELOG.md`.
+All thirty-two are fixed and each has a regression test. The detail is in `CHANGELOG.md`.
 
 Two validation gates remain and both are external: PyPI/TestPyPI trusted publishing with hosted
 release signatures and attestations, and consented design-partner pilots. The code and local gates for those
@@ -912,29 +913,28 @@ The implementation currently satisfies the v0.1 development definition of done:
   skill exist;
 - wheel and source distributions pass Twine validation and are byte-reproducible.
 
-Latest local verification on Windows 11 with Python 3.14.4 (2026-08-25):
+Latest local verification on Windows 11 (2026-08-30):
 
-- `1469 passed`, `7 skipped` with PDF, C2PA, and attestation extras installed. Four skips require
-  symlink privileges unavailable to this account, one is Linux-only, and two require Windows
-  restricted-token spawning unavailable on this machine. POSIX CI promotes expected capabilities
-  to failures rather than silently accepting a skip.
-- Ruff lint and Ruff format passed; strict mypy passed for 122 source files.
+- Python 3.14.4: `1621 passed`, `8 skipped` with PDF, C2PA, and attestation extras installed.
+  Five skips require symlink privileges unavailable to this account, two are POSIX permission
+  bits, and one is Linux-only. POSIX CI promotes expected capabilities to failures rather than
+  silently accepting a skip.
+- Python 3.12.10: `1595 passed`, `34 skipped`. The wider skip count is the C2PA runtime closure,
+  which is not installed in that environment; the suite says so rather than passing quietly.
+- Ruff lint and Ruff format passed; strict mypy passed for 124 source files on both
+  `--platform linux` and `--platform win32`.
 - Report and Python API snapshots match their emitted contracts; the full suite also validates the
   certificate, revocation, policy-bundle, and process-attestation schemas.
-- The documentation gate validated 42 Markdown documents and 19 of its own failure-path tests.
-- Parser and plugin fuzz campaigns each completed 20,000 seeded iterations without a finding; the
-  full suite includes short self-checking campaigns for every supported boundary.
-- Wheel and sdist were built twice under one fixed `SOURCE_DATE_EPOCH`; both pairs were byte-identical,
-  passed `twine check --strict`, and passed the packaged-source manifest gate.
-- A clean environment installed the rebuilt `trueai-core[pdf,c2pa,attestation]` wheel; `pip check`,
-  `trueai --version`, `trueai --help`, and `trueai doctor` passed with pikepdf, C2PA, and Ed25519
-  support available.
-- The hash-locked runtime closure passed `pip-audit` with no known vulnerabilities; all 64 runtime
-  distributions passed the license allowlist, and the reproducible CycloneDX SBOM contains 36
-  complete components.
-- The local Docker client has no reachable daemon, so the pinned-container reproduction was not
-  rerun in this review. The Dockerfile and comparison gate are present; hosted execution remains
-  part of `REL-01` rather than being claimed from this machine.
+- The documentation gate validated 42 Markdown documents and its own failure-path tests.
+- A ten-minute coverage-guided parser campaign found one defect — a loaded report whose summary
+  contradicted its findings — which is fixed, has a regression test, and replays clean. A
+  five-minute plugin campaign found nothing. Both are recorded here rather than rounded to "no
+  findings", because a campaign that finds something is the campaign working.
+- The pinned container built the wheel and sdist twice under one fixed `SOURCE_DATE_EPOCH` and
+  both were byte-identical. This ran on this machine against a real Docker daemon, not as a
+  documented intention.
+- All four supply-chain gates passed; 36 runtime distributions passed the license allowlist and
+  40 components are current in the advisory ledger, whose next review is due 2026-11-23.
 
 ## Known limitations and post-RC directions
 
