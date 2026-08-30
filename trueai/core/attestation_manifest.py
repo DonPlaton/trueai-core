@@ -257,7 +257,6 @@ def redact_for_public(attestation: ProcessAttestation) -> ProcessAttestation:
             "decisions": redacted_decisions,
             # A signature covers the unredacted bytes and cannot cover these.
             "signatures": (),
-            "attestation_id": attestation.attestation_id,
         }
     )
     from trueai.core.attestation import compute_attestation_id

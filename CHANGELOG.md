@@ -12,6 +12,28 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**A model manifest verified without opening a file looked like one that matched**
+
+`verify_manifest(root=...)` defaulted to `None`, meaning "check the signature,
+do not read the files". The signature proves the digests are the ones the signer
+recorded; only reading the files proves the bytes on this disk are those digests.
+`may_expose` receives the verdict as a `(valid, problems)` pair it cannot
+interrogate, so a manifest whose files were never opened reached the gate
+indistinguishable from one whose files matched — the weaker check being the one a
+caller got by writing less.
+
+`root` has no default now. Passing `None` still means "signature only" and is
+still allowed; it is a decision visible at the call site, which is the rule this
+module already applied to a skipped regression check.
+
+**A redaction that read as preserving the identifier it replaces**
+
+`redact_for_public` set `attestation_id` to the value it already had, one line
+before recomputing it — a no-op that contradicted the docstring above it, which
+says the identifier changes because a redacted record makes narrower statements.
+Removed.
+
+
 **`trueai cache clear` deleted files the cache had not written**
 
 `prune` re-derives the key from the path before deleting anything and refuses

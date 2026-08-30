@@ -271,9 +271,20 @@ def verify_manifest(
     manifest: ModelManifest,
     *,
     public_key: str | Path,
-    root: Path | None = None,
+    root: Path | None,
 ) -> tuple[bool, tuple[str, ...]]:
-    """Check a manifest's identity, signature, and — when given a root — its files."""
+    """Check a manifest's identity, signature, and — when given a root — its files.
+
+    ``root`` has no default. A signature proves the digests in the manifest are
+    the ones the signer recorded; only reading the files proves the bytes on
+    this disk are those digests. Defaulting to ``None`` made the weaker check
+    the one a caller got by writing less, and :func:`may_expose` receives the
+    verdict as a pair it cannot interrogate — a manifest whose files were never
+    opened reached the gate indistinguishable from one whose files matched.
+    Passing ``None`` is still allowed and still means "signature only"; it is
+    now a decision visible at the call site, which is the same rule this module
+    already applies to a skipped regression check.
+    """
 
     problems: list[str] = []
     if compute_manifest_id(manifest) != manifest.manifest_id:

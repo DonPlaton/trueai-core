@@ -272,7 +272,9 @@ def test_an_unsigned_manifest_is_refused(tmp_path: Path) -> None:
 
     generate_ed25519_keypair(tmp_path / "k", tmp_path / "k.pub")
 
-    valid, problems = verify_manifest(manifest(tmp_path), public_key=tmp_path / "k.pub")
+    # Signature only, and said so: there is nothing to check the files against
+    # until the manifest is signed.
+    valid, problems = verify_manifest(manifest(tmp_path), public_key=tmp_path / "k.pub", root=None)
 
     assert not valid
     assert "the manifest is unsigned" in problems
