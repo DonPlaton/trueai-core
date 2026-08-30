@@ -33,6 +33,7 @@ short slice, and recursion is depth-limited.
 from __future__ import annotations
 
 import hashlib
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final
@@ -297,6 +298,17 @@ def read_elements(
         # An all-ones size means "unknown length", used for live-streamed
         # Segments and Clusters. It runs to the end of the parent.
         unknown = size == (1 << (7 * size_width)) - 1
+        if unknown and identifier not in MASTER_ELEMENTS:
+            # RFC 8794 allows an unknown size on Master Elements only, and the
+            # restriction is load-bearing here. A leaf is not walked into, so an
+            # unknown-size leaf ran to the end of its parent and every element
+            # after it — Clusters, Cues, an attachment carrying provenance — was
+            # never seen. The model came back complete, and every invariant
+            # computed over the half of the document that remained visible held.
+            raise EbmlError(
+                f"Element {identifier:#x} at {offset} is not a master element and may not "
+                "declare an unknown size"
+            )
         element_end = limit if unknown else payload_start + size
         if element_end > limit:
             raise EbmlError(
@@ -355,15 +367,32 @@ def void_element(length: int) -> bytes:
 
 
 def _children(elements: list[Element], parent: Element) -> list[Element]:
-    return [
-        item
-        for item in elements
-        if item.depth == parent.depth + 1 and parent.start < item.start < parent.end
-    ]
+    return [item for item in _descendants(elements, parent) if item.depth == parent.depth + 1]
 
 
 def _descendants(elements: list[Element], parent: Element) -> list[Element]:
-    return [item for item in elements if parent.start < item.start < parent.end]
+    """Return every element nested inside ``parent``.
+
+    ``elements`` must be in document order, which is what :func:`read_elements`
+    produces: an element is appended before its children, and every start offset
+    is larger than the last. That makes a parent's descendants the run that
+    begins after it and ends at its boundary, findable by bisection.
+
+    The obvious implementation — filter the whole list on
+    ``parent.start < item.start < parent.end`` — is what this replaces, and it
+    was quadratic in the element count. Modelling calls it once per TrackEntry,
+    Cluster, CuePoint, Seek, and AttachedFile, and an empty Cluster costs five
+    bytes to write: a half-megabyte document of 100,000 of them cost 10^10 list
+    steps, minutes of CPU inside a cleaner that is handed untrusted files. A
+    fuzzer could not see it, because nothing crashes; it just never finishes.
+    """
+
+    position = bisect_right(elements, parent.start, key=lambda item: item.start)
+    found: list[Element] = []
+    while position < len(elements) and elements[position].start < parent.end:
+        found.append(elements[position])
+        position += 1
+    return found
 
 
 def _uint(data: bytes, element: Element) -> int:

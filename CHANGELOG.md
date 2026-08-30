@@ -204,6 +204,50 @@ directory produced it.
 
 ### Security
 
+**Three MP4 and WebM documents a cleaner could not finish reading**
+
+`trueai clean` hands every MP4 and WebM to the invariant models before it writes
+anything, and three inputs made that step quadratic in a count the file chooses:
+
+* a WebM of empty `Cluster` elements, five bytes each. Modelling scanned the
+  whole element list once per cluster, per cue point, per seek entry, and per
+  attachment — 100,000 clusters in half a megabyte cost 10^10 list steps.
+* an MP4 of empty `trak` boxes, eight bytes each, with the same scan per track.
+* an `stsc` table whose `first_chunk` rewinds instead of advancing. ISO/IEC
+  14496-12 orders the table, and each entry runs to the chunk before the next
+  begins; an unordered one has no such reading, and walking it anyway re-swept
+  the whole chunk list per entry while consuming no samples.
+
+The first two are one mistake in two formats and have one fix: the element and
+box lists come out of the readers in document order, so a parent's descendants
+are the run that follows it, found by bisection rather than by filtering
+everything. The third is refused, which is both what the format requires and
+what bounds the walk to the number of chunks.
+
+The fuzzer has covered both models since the fuzzing harness landed and found
+none of these, because nothing raises and nothing corrupts. The process just
+does not come back. Reading found them; the regression tests assert a complexity
+class rather than a speed, and each one takes minutes on the old code.
+
+**An EBML leaf could hide the rest of the document from the model**
+
+RFC 8794 permits an unknown size on master elements only, and the restriction is
+load-bearing: a leaf is never walked into, so an unknown-size leaf ran to the end
+of its parent and every element after it — clusters, cues, an attachment
+carrying provenance — was never seen. The model reported itself complete, and
+every invariant held over the half of the document that remained visible. A
+five-byte element in front of a file was enough to make the gate agree with
+whatever came after it.
+
+**The MP4 gate blamed the edit for a file that arrived broken**
+
+A sample table in the *original* that already pointed past the end of its own
+file was reported as `violated` with "points outside the file after the edit",
+sending the reader to look for a bug in the cleaner. It is `indeterminate` now
+and names the original. Indeterminate is still unsafe to apply, so accuracy
+costs nothing here.
+
+
 **A PDF cross-reference stream could raise an `IndexError` out of the parser**
 
 `/W` gives the byte width of each field in a cross-reference entry and has three

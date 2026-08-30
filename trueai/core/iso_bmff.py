@@ -42,6 +42,7 @@ file is a parse refusal rather than a slice that silently returns short.
 from __future__ import annotations
 
 import hashlib
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final
@@ -435,15 +436,28 @@ def model_iso_bmff(data: bytes) -> IsoBmffModel:
 def _children(boxes: list[Box], parent: Box) -> list[Box]:
     """Return the boxes nested directly inside a parent."""
 
-    return [
-        box
-        for box in boxes
-        if box.depth == parent.depth + 1 and parent.start < box.start < parent.end
-    ]
+    return [box for box in _descendants(boxes, parent) if box.depth == parent.depth + 1]
 
 
 def _descendants(boxes: list[Box], parent: Box) -> list[Box]:
-    return [box for box in boxes if parent.start < box.start < parent.end]
+    """Return every box nested inside ``parent``.
+
+    ``boxes`` must be in document order, which is what :func:`read_boxes`
+    produces. A parent's descendants are then the run that begins after it and
+    ends at its boundary, so this bisects rather than filtering the whole list.
+
+    Filtering was quadratic in the box count, and modelling calls this once per
+    `trak`. An empty `trak` is eight bytes, so 100,000 of them fit in 800 KB and
+    cost 10^10 list steps — the same defect as in the EBML model, in the other
+    container format.
+    """
+
+    position = bisect_right(boxes, parent.start, key=lambda box: box.start)
+    found: list[Box] = []
+    while position < len(boxes) and boxes[position].start < parent.end:
+        found.append(boxes[position])
+        position += 1
+    return found
 
 
 def _parse_mvhd(data: bytes, box: Box, unresolved: list[str]) -> tuple[int, int]:
@@ -628,9 +642,18 @@ def _resolve_sample_ranges(draft: _TrackDraft) -> tuple[tuple[int, int], ...] | 
     sample = 0
     total = len(draft.sample_sizes)
     entries = draft.sample_to_chunk
+    previous_first_chunk = 0
     for index, (first_chunk, per_chunk, _description) in enumerate(entries):
-        if first_chunk < 1 or per_chunk < 0:
+        if first_chunk <= previous_first_chunk or per_chunk < 0:
+            # ISO/IEC 14496-12 orders `stsc` by first_chunk, and each entry runs
+            # to the chunk before the next entry begins. A table that repeats or
+            # rewinds an index has no such reading, and walking it anyway
+            # re-sweeps the whole chunk list once per entry while consuming no
+            # samples: 100,000 entries over 100,000 chunks is 10^10 steps from a
+            # three-megabyte file. Ordering is both what the format requires and
+            # what bounds the walk to the number of chunks.
             return None
+        previous_first_chunk = first_chunk
         last_chunk = (
             entries[index + 1][0] - 1 if index + 1 < len(entries) else len(draft.chunk_offsets)
         )
@@ -735,8 +758,20 @@ def _check_samples(
 
     details: list[str] = []
     for source, result in _paired(original, candidate):
+        # Which side failed decides what to report. A table in the *original*
+        # that points outside its own file is a broken input, not an edit that
+        # broke it, and calling that a violation sends the reader looking for a
+        # bug in the cleaner. Indeterminate is still unsafe to apply, so nothing
+        # is let through by saying so accurately.
         try:
             expected = source.sample_digest(before)
+        except IsoBmffError as exc:
+            return InvariantResult(
+                Invariant.SAMPLES,
+                InvariantStatus.INDETERMINATE,
+                f"track {source.track_id} of the original already points outside the file: {exc}",
+            )
+        try:
             actual = result.sample_digest(after)
         except IsoBmffError as exc:
             return InvariantResult(
