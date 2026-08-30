@@ -537,9 +537,14 @@ class TerminalReporter:
 
     def _finding(self, finding: Finding, *, verbose: bool) -> None:
         style = _SEVERITY_STYLE[finding.severity]
-        location = ""
+        # The path is printed whether or not there is a line to go with it. Most
+        # findings are about a whole file — a container box, a document
+        # property, an editor namespace — and printing the path only when a line
+        # existed meant a directory scan reported "SVG generator comment" with no
+        # way to tell which of the files it came from.
+        location = f" · {_safe(finding.artifact_path)}"
         if finding.location and finding.location.line:
-            location = f" · {_safe(finding.artifact_path)}:{finding.location.line}"
+            location += f":{finding.location.line}"
         provider = f" · {_safe(finding.provider)}" if finding.provider else ""
         self.console.print()
         self.console.print(

@@ -12,6 +12,17 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**A finding without a line number did not say which file it was in**
+
+The terminal printed the artifact path only when the finding carried a line, and
+most findings do not carry one: a container box, a document property, an editor
+namespace, a generator comment in an XML document are about a whole file. So a
+scan over a directory printed `LOW SVG generator comment` with nothing saying
+which of the files it came from, while the JSON and SARIF renderings of the same
+finding both carried the path all along. The path is printed always now, with
+`:line` appended when there is one.
+
+
 **A model manifest verified without opening a file looked like one that matched**
 
 `verify_manifest(root=...)` defaulted to `None`, meaning "check the signature,
