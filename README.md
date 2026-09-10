@@ -9,7 +9,7 @@ TrueAI does **not** decide whether content is "AI-generated." Style is not prove
 field is not authenticated authorship, and a C2PA marker is not a verified signature. The engine
 keeps those evidence classes separate in its public models, policies, CLI, and reports.
 
-Version: `0.1.0-dev` · report schema: `0.1` · license: Apache-2.0
+Version: `0.1.0` · report schema: `0.1` · license: Apache-2.0
 
 ## Who this is for
 

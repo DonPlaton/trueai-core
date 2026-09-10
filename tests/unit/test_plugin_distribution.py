@@ -508,7 +508,7 @@ def test_a_core_version_outside_the_declared_range_is_refused(
     distribution = published(plugin_root, keys, minimum_core_version="9.0")
 
     result = verify_distribution(
-        distribution, root=plugin_root, public_key=keys[1], now=NOW, core_version="0.1.0-dev"
+        distribution, root=plugin_root, public_key=keys[1], now=NOW, core_version="0.1.0"
     )
 
     assert result.core_compatible is False

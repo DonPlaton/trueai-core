@@ -298,3 +298,33 @@ def test_the_manifest_gate_runs_where_the_distributions_have_been_built() -> Non
     for job_name, _ in enforcing:
         builds = " ".join(str(step.get("run", "")) for step in document["jobs"][job_name]["steps"])
         assert "-m build" in builds, f"{job_name} enforces the gate without building anything"
+
+
+def test_the_version_in_a_report_is_the_version_of_the_installed_package() -> None:
+    """Two files name the version and nothing was comparing them.
+
+    `pyproject.toml` is what pip installs and what a tag is checked against.
+    `trueai/_version.py` is what goes into every report's `package_version`,
+    every attestation's producer field, every certificate, and the cache key. A
+    consumer correlating a report against an installed distribution has to be
+    able to match those strings, and until this test they were spelled
+    differently: `0.1.0.dev0` and `0.1.0-dev`. PEP 440 calls those the same
+    release, which is why nothing broke, and which is also why a real
+    divergence at the next bump would have gone unnoticed.
+    """
+
+    import tomllib
+
+    from packaging.version import Version
+
+    from trueai._version import PACKAGE_VERSION
+
+    packaged = str(
+        tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    )
+
+    assert Version(PACKAGE_VERSION) == Version(packaged)
+    assert packaged == PACKAGE_VERSION, (
+        f"{PACKAGE_VERSION!r} and {packaged!r} are the same release spelled two ways; "
+        "a report and the distribution it came from must carry identical strings"
+    )

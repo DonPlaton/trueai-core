@@ -2,5 +2,5 @@
 
 from typing import Literal
 
-PACKAGE_VERSION = "0.1.0-dev"
+PACKAGE_VERSION = "0.1.0"
 SCHEMA_VERSION: Literal["0.1"] = "0.1"

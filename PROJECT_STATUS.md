@@ -1,7 +1,7 @@
 # TrueAI Core: Project Overview and Status
 
-Status date: 2026-08-30
-Package version: `0.1.0-dev`  
+Status date: 2026-09-10
+Package version: `0.1.0`  
 Public report schema: `0.1`  
 License: Apache-2.0
 
@@ -913,28 +913,32 @@ The implementation currently satisfies the v0.1 development definition of done:
   skill exist;
 - wheel and source distributions pass Twine validation and are byte-reproducible.
 
-Latest local verification on Windows 11 (2026-08-30):
+Latest local verification on Windows 11 (2026-09-10), at `0.1.0`:
 
-- Python 3.14.4: `1621 passed`, `8 skipped` with PDF, C2PA, and attestation extras installed.
+- Python 3.14.4: `1686 passed`, `8 skipped` with PDF, C2PA, and attestation extras installed.
   Five skips require symlink privileges unavailable to this account, two are POSIX permission
   bits, and one is Linux-only. POSIX CI promotes expected capabilities to failures rather than
   silently accepting a skip.
-- Python 3.12.10: `1595 passed`, `34 skipped`. The wider skip count is the C2PA runtime closure,
-  which is not installed in that environment; the suite says so rather than passing quietly.
-- Ruff lint and Ruff format passed; strict mypy passed for 124 source files on both
+- Ruff lint and Ruff format passed; strict mypy passed for 125 source files on both
   `--platform linux` and `--platform win32`.
-- Report and Python API snapshots match their emitted contracts; the full suite also validates the
-  certificate, revocation, policy-bundle, and process-attestation schemas.
-- The documentation gate validated 42 Markdown documents and its own failure-path tests.
-- A ten-minute coverage-guided parser campaign found one defect (a loaded report whose summary
-  contradicted its findings) which is fixed, has a regression test, and replays clean. A
-  five-minute plugin campaign found nothing. Both are recorded here rather than rounded to "no
-  findings", because a campaign that finds something is the campaign working.
-- The pinned container built the wheel and sdist twice under one fixed `SOURCE_DATE_EPOCH` and
-  both were byte-identical. This ran on this machine against a real Docker daemon, not as a
-  documented intention.
-- All four supply-chain gates passed; 36 runtime distributions passed the license allowlist and
+- Report, certificate, revocation, and Python API snapshots match their emitted contracts. The
+  three schema snapshots changed by exactly one line each at the version bump, the
+  `package_version` default, and the compatibility comparison confirms the contract itself did
+  not move.
+- The documentation gate validated 43 Markdown documents, and the README's console blocks were
+  executed in order against real fixtures, which is what caught the demo corpus needing to be
+  built before the line that scans it.
+- Wheel and sdist built at `0.1.0` under a pinned `SOURCE_DATE_EPOCH`, passed `twine check
+  --strict`, and passed the packaged-manifest gate, which now refuses a distribution built from
+  a different version than the working tree.
+- All four supply-chain gates passed; 33 runtime distributions passed the license allowlist and
   40 components are current in the advisory ledger, whose next review is due 2026-11-23.
+- The hosted release workflow ran end to end for the first time. Three dry runs: the first failed
+  because the verify job ran a gate that reads `dist/` before anything was built, the second
+  failed because the SBOM had no `serialNumber` and `actions/attest` refuses a CycloneDX document
+  without one, and the third passed every step including build provenance, the SBOM attestation,
+  and Sigstore signing with immediate verification. Both failures are fixed with tests. Nothing
+  was published: the target was `none`.
 
 ## Known limitations and post-RC directions
 
@@ -1502,7 +1506,7 @@ The five highest-value next tasks are:
 
 ## Success criteria for the next milestone
 
-TrueAI Core should move from `0.1.0-dev` to a release candidate when:
+TrueAI Core moved from `0.1.0-dev` to `0.1.0` once all of the following held. They do:
 
 - all supported Python and operating-system CI jobs pass;
 - skipped symlink/security cases execute successfully on at least one CI platform;

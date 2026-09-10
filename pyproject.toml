@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "trueai-core"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Local-first forensic scanning and predictable sanitization for digital artifacts"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -10,7 +10,36 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-10
+
+First public release. The package version leaves `0.1.0.dev0` because the
+project's own stated criteria for it are met: every supported Python and
+operating-system CI job passes, the symlink and permission cases that skip on
+Windows execute on Linux with skips promoted to failures, wheel and sdist are
+byte-for-byte reproducible, release artifacts are signed by hosted CI with
+build-provenance and SBOM attestations, the schema compatibility policy is
+documented and enforced, hostile-input suites are green, no cleaner can remove
+protected provenance through an overlapping operation, every supported cleanup
+either proves integrity or refuses to publish, and the documentation describes
+only what has been demonstrated.
+
+The report schema stays at `0.1`. The three schema snapshots changed by one line
+each, the `package_version` default, and nothing in the contract moved.
+
 ### Fixed
+
+**A report and the distribution it came from named the version differently**
+
+`pyproject.toml` said `0.1.0.dev0` and `trueai/_version.py` said `0.1.0-dev`.
+PEP 440 calls those the same release, which is why nothing broke. But the second
+of them is what goes into every report's `package_version`, every attestation's
+producer field, every certificate, and the cache key, and a consumer correlating
+a report against an installed distribution had two strings to reconcile. Nothing
+was comparing the two files, so a real divergence at this bump would have gone
+unnoticed. A test now requires them to be identical, not merely equivalent.
+
 
 **The SBOM had no serial number, so the attestation step refused it**
 
