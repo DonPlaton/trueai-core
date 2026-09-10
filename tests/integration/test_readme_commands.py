@@ -62,9 +62,28 @@ def documented_commands() -> list[str]:
 def build_fixtures(root: Path) -> None:
     """Create the files the README's placeholders name."""
 
+    import importlib.util
+    import sys
+
     from PIL import Image, PngImagePlugin
 
     from tests.fixtures_ooxml import build_pptx, build_xlsx
+
+    # The README tells the reader to build the demo corpus with a `python`
+    # command, which this test does not run because it only follows `trueai`
+    # lines. Building it here keeps the `trueai scan ./demo` line below it
+    # runnable, and means the demo in the README is executed rather than
+    # described.
+    example = REPOSITORY / "examples" / "demo_corpus" / "make_corpus.py"
+    specification = importlib.util.spec_from_file_location("readme_demo_corpus", example)
+    assert specification is not None and specification.loader is not None
+    demo = importlib.util.module_from_spec(specification)
+    # Registered before execution: a slotted dataclass resolves its own module
+    # through `sys.modules`, and finds `None` there if the module is executed
+    # while unregistered.
+    sys.modules[specification.name] = demo
+    specification.loader.exec_module(demo)
+    demo.build(root / "demo")
 
     repository = root / "repository"
     repository.mkdir()

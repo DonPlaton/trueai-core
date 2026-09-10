@@ -7277,6 +7277,11 @@
                 "kind": "KEYWORD_ONLY",
                 "name": "verbose",
                 "required": false
+              },
+              {
+                "kind": "KEYWORD_ONLY",
+                "name": "target",
+                "required": false
               }
             ]
           },

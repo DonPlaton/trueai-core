@@ -12,6 +12,77 @@ change is called out explicitly and governed by
 
 ### Added
 
+**A demo corpus, so "show me it finding something" has an answer that runs**
+
+`examples/demo_corpus/make_corpus.py` writes five small files and declares, in a
+table beside the code, exactly what was planted in each. A note carrying an
+attribution line and a zero-width character inside a word, an SVG with its
+export comment and a group nothing renders, a `.docx` naming two people and the
+application that wrote it, a PDF with `/Producer`, `/Creator`, and `/Author` in
+the trailer, and one file typed by hand so a clean result has something to look
+like.
+
+`tests/unit/test_demo_corpus.py` builds the corpus and asserts the scan finds
+every declared trace, reports nothing the corpus does not declare, produces only
+`DETERMINISTIC` findings, and writes the same bytes every time. The second of
+those caught a `dc:title` the corpus was planting without saying so. The README
+block is run by `tests/integration/test_readme_commands.py` alongside every
+other documented command.
+
+This is the honest form of "proof that it works". Every trace in it is a byte
+string that is present or absent, so finding all of them is a fact. Averaging
+observations like these into an accuracy figure would manufacture the
+probabilistic claim the product exists to refuse.
+
+### Fixed
+
+**Two scans of two directories printed the same header**
+
+A directory scan records its root as `.` so that two scans of one corpus compare
+byte for byte, which is deliberate and stays. The consequence was that the one
+line naming what was examined said `Target: .` for every directory, and two
+saved transcripts of two different trees were identical where it mattered most.
+
+`TerminalReporter.render` takes an optional `target`, and the commands that know
+what they were pointed at pass it. `explain` does not, because it renders a
+report loaded from a file and genuinely does not know where it was taken;
+printing a root there would be inventing one. The serialized report is
+unchanged, and a test asserts the root does not leak into it.
+
+**The README advertised as future work four things that had shipped**
+
+The roadmap listed MP4/MOV/M4A and WebM cleanup, richer HTML DOM and stylesheet
+extraction, and HTML report and desktop/IDE consumers as things still to come.
+All three are implemented and documented elsewhere in the same file. The
+deliberate-limitations list went further and stated that MP4/MOV/M4A/WebM
+cleanup and HTML reports "are not implemented", three sections below a table
+describing how the container cleaners pad and which invariants gate them.
+
+Understating is the safer direction to be wrong in, and it is still wrong: a
+reader reaching the bottom of the README concluded the product does less than it
+does, and noticed the file contradicting itself on the way.
+
+### Changed
+
+**The README did not say who it is for**
+
+It opened on what the program is and went straight to installation. Three
+paragraphs now name the jobs in plain terms before any jargon appears: sending a
+file without sending its history, finding out what is in a file somebody handed
+you, and being able to back up a statement about a file later.
+
+**What has not been measured now says so**
+
+The experimental style detectors have no published error rate.
+`trueai.research.evaluation` and `docs/evaluation-protocol.md` specify how one
+has to be produced and what has to travel with it, and that protocol has not
+been run against a labelled corpus. The limitations list says exactly that, and
+the roadmap carries producing one. No number was invented to fill the gap: for
+detectors that report whether a byte string is present, a rate would be a
+category error, and for the style detectors a rate quoted without its operating
+point is not a measurement, which the protocol document already says at length.
+
+
 **A terminal surface with a palette, a mascot, and motion that is a function of time**
 
 `trueai/cli/motion.py` holds the program's visual identity: five brand stops,

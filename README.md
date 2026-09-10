@@ -11,6 +11,27 @@ keeps those evidence classes separate in its public models, policies, CLI, and r
 
 Version: `0.1.0-dev` · report schema: `0.1` · license: Apache-2.0
 
+## Who this is for
+
+Three jobs, in plain terms.
+
+**You are about to send a file to somebody and you would rather not send its history with it.**
+A `.docx` carries the names of everyone who edited it, a `.pdf` names the tool that made it, an
+exported `.svg` names the editor. `trueai clean report.docx --policy client-delivery` removes the
+ones a policy names, then rescans the bytes it actually wrote and tells you what is still there.
+
+**Somebody handed you a file and you need to know what is in it.** `trueai scan` lists the traces
+one at a time: a `/Producer` field naming a tool, a zero-width character nothing renders, a C2PA
+manifest and whether its signature verifies against an anchor you supplied. Each finding says how
+it was established, so a signature check and a style measurement never end up in the same sentence.
+
+**You have to be able to back up a statement about a file later.** `trueai certificates issue`
+binds a scan result to the exact bytes it examined and signs it, so a later reader can check that
+the certificate is about the file in front of them and not a different one.
+
+What it will never do is tell you whether a person or a model wrote something. No tool can, this
+one included, and the ones that claim to are the reason people ask for this one.
+
 ## Installation
 
 Python 3.12 or newer is required.
@@ -28,6 +49,29 @@ cd trueai-core
 uv sync --all-extras
 uv run trueai --help
 ```
+
+## See it find something
+
+The corpus below is generated, not committed, and every trace in it is declared
+in the script that writes it. `tests/unit/test_demo_corpus.py` builds the same
+corpus and fails if the scan misses a declared trace or reports one the script
+never planted, so the demonstration is executed rather than remembered.
+
+```console
+python examples/demo_corpus/make_corpus.py --output ./demo
+trueai scan ./demo
+trueai clean ./demo/handoff-note.md --policy safe-clean
+```
+
+Five files: a note with an attribution line and a zero-width character inside a
+word, an SVG carrying its export comment and a group nothing renders, a `.docx`
+naming two people and the application that wrote it, a PDF with `/Producer`,
+`/Creator`, and `/Author` in the trailer, and one file typed by hand so that a
+clean result has something to look like. Every finding it reports is
+`DETERMINISTIC`, because every trace in it is a byte string that is present or
+absent. There is no accuracy figure here and there will not be one: averaging
+observations like these into a rate would manufacture exactly the probabilistic
+claim this tool refuses to make.
 
 `pip install -e ".[dev]"` is also supported.
 
@@ -395,11 +439,12 @@ and the repository [AGENTS.md](AGENTS.md) before changing parser or public-model
 
 ## Roadmap
 
-- MP4/MOV/M4A and WebM cleanup after sample-table, timing, index, and provenance invariants are implemented
-- Richer HTML DOM topology and stylesheet feature extraction
-- HTML report and desktop/IDE consumers
-- Filesystem/system-call sandboxing for third-party native code
-- Signed plugin distributions and centrally managed policy-bundle distribution
+- Filesystem and system-call sandboxing for third-party native code, so a hostile native plugin is
+  contained rather than merely caught
+- A published error rate for the experimental style detectors, produced by
+  [the evaluation protocol](docs/evaluation-protocol.md) rather than quoted without one
+- Centrally managed policy-bundle distribution; creating and verifying a signed bundle already works,
+  serving one to a fleet does not
 - Calibrated optional ML feature consumers, kept outside the core dependency set
 
 The roadmap does not promise removal of robust statistical or cryptographic watermarks.
@@ -423,6 +468,13 @@ detector evasion.
   removing anything.
 - With `--jobs` above 1, third-party detectors must be thread-safe or run under subprocess
   isolation.
-- Audio/video stream decoding, MP4/MOV/M4A/WebM cleanup, HTML reports, learned classifiers, and
-  destructive Git remediation are not implemented. WAV/MP3/FLAC cleanup edits only bounded
-  metadata structures and never decodes or re-encodes audio samples.
+- Audio and video stream decoding, learned classifiers, and destructive Git remediation are not
+  implemented. WAV/MP3/FLAC cleanup edits only bounded metadata structures and never decodes or
+  re-encodes audio samples, and MP4/MOV/M4A/WebM cleanup edits only bounded boxes and elements
+  behind the seven container invariants. No built-in policy selects the container cleaners.
+- The experimental style detectors have no published error rate. `trueai.research.evaluation` and
+  [the evaluation protocol](docs/evaluation-protocol.md) specify how one has to be produced and what
+  has to travel with it, and that protocol has not yet been run against a labelled corpus. The
+  detectors are off unless `--experimental` is passed and every finding they produce is labelled
+  `HEURISTIC` and "not provenance", but not measured is the accurate description of them, and not
+  measured is not the same as accurate.

@@ -346,6 +346,7 @@ def scan(
             verbose,
             emit=output is None or output_format == OutputFormat.TERMINAL,
             attestation_properties=attestation_properties,
+            target=str(path),
         )
         if output is not None:
             if rendered is None:
@@ -446,7 +447,7 @@ def clean(
             assert policy_key is not None
             report = apply_policy_bundle(report, bundle, public_key=policy_key)
         if _has_blocking_diagnostics(report):
-            TerminalReporter(console).render(report, verbose=True)
+            TerminalReporter(console).render(report, verbose=True, target=str(path))
             raise typer.Exit(ExitCode.UNSUPPORTED_OR_CORRUPT)
         plan = RemediationPlanner().plan(report, policy)
         terminal = TerminalReporter(console)
@@ -547,7 +548,7 @@ def inspect(
             options=ScanOptions(include_experimental=experimental),
             policy=PolicyStore.get("audit"),
         )
-        TerminalReporter(console).render(report, verbose=True)
+        TerminalReporter(console).render(report, verbose=True, target=str(path))
         raise typer.Exit(_exit_code(report))
     except typer.Exit:
         raise
@@ -2330,6 +2331,7 @@ def _render_report(
     *,
     emit: bool = True,
     attestation_properties: dict[str, object] | None = None,
+    target: str | None = None,
 ) -> str | None:
     from trueai.core.models import ScanReport
 
@@ -2357,7 +2359,7 @@ def _render_report(
         if emit:
             typer.echo(rendered)
         return rendered
-    TerminalReporter(console).render(report, verbose=verbose)
+    TerminalReporter(console).render(report, verbose=verbose, target=target)
     return None
 
 

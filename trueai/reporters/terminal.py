@@ -127,15 +127,30 @@ class TerminalReporter:
     def __init__(self, console: Console | None = None) -> None:
         self.console = console or Console()
 
-    def render(self, report: ScanReport, *, verbose: bool = False) -> None:
-        """Print a scan report."""
+    def render(
+        self, report: ScanReport, *, verbose: bool = False, target: str | None = None
+    ) -> None:
+        """Print a scan report.
+
+        ``target`` is what the caller was asked to examine. A directory scan
+        records its root as ``.`` so that two scans of one corpus compare byte
+        for byte, which means a saved report cannot say which directory it
+        describes and two terminal transcripts of two different directories
+        would otherwise be identical in the header. A caller that knows the root
+        passes it here.
+
+        It stays optional, and unset means unknown rather than none: `explain`
+        renders a report loaded from a file and genuinely does not know where it
+        was taken, so it passes nothing and the header falls back to what the
+        report itself records. Printing a root there would be inventing one.
+        """
 
         self.console.print(Text("TRUEAI", style="bold bright_cyan"))
         self.console.print(Text("Artifact Forensics", style="dim"))
         self.console.print()
         # "Target", not "Scanning": this renders a finished report, and `explain`
         # renders one it loaded from a file without scanning anything at all.
-        self.console.print(f"Target: [bold]{_safe(report.artifact.path)}[/bold]")
+        self.console.print(f"Target: [bold]{_safe(target or report.artifact.path)}[/bold]")
         self.console.print(
             f"{count_noun(report.summary.finding_count, 'finding')} across "
             f"{count_noun(report.summary.artifact_count, 'artifact')}"

@@ -458,3 +458,61 @@ def test_a_fully_cleaned_artifact_says_nothing_extra(tmp_path: Path) -> None:
 
     assert "CLEAR" in result.stdout, result.stdout
     assert "Outside that scope" not in result.stdout, result.stdout
+
+
+# -- which directory the report is about -----------------------------------------------
+
+
+def corpus(root: Path, name: str) -> Path:
+    """A directory holding one file with one trace nobody has to argue about."""
+
+    directory = root / name
+    directory.mkdir()
+    (directory / "note.md").write_text(
+        "Draft written with ChatGPT and not yet checked.\n", encoding="utf-8"
+    )
+    return directory
+
+
+def test_two_scans_of_two_directories_do_not_print_the_same_header(tmp_path: Path) -> None:
+    """A directory report records its root as `.` so two scans compare byte for byte.
+
+    That is the right choice for the document and the wrong one for the person
+    reading the transcript: saved side by side, two runs over two different
+    directories were identical in the one line that says what was examined.
+    """
+
+    first = runner.invoke(app, ["scan", str(corpus(tmp_path, "alpha"))])
+    second = runner.invoke(app, ["scan", str(corpus(tmp_path, "beta"))])
+
+    assert "alpha" in first.stdout, first.stdout
+    assert "beta" in second.stdout, second.stdout
+    assert "Target: [bold].[/bold]" not in first.stdout
+
+
+def test_naming_the_root_on_screen_does_not_put_it_in_the_report(tmp_path: Path) -> None:
+    """The comparability the `.` exists for has to survive the header being useful."""
+
+    directory = corpus(tmp_path, "gamma")
+    output = tmp_path / "report.json"
+
+    runner.invoke(app, ["scan", str(directory), "--format", "json", "--output", str(output)])
+    document = json.loads(output.read_text(encoding="utf-8"))
+
+    assert document["artifact"]["path"] == "."
+    assert "gamma" not in output.read_text(encoding="utf-8")
+
+
+def test_explain_does_not_invent_a_root_it_was_never_told(tmp_path: Path) -> None:
+    """`explain` reads a report off disk. Where it was taken is genuinely unknown."""
+
+    directory = corpus(tmp_path, "delta")
+    saved = tmp_path / "report.json"
+    runner.invoke(app, ["scan", str(directory), "--format", "json", "--output", str(saved)])
+    document = json.loads(saved.read_text(encoding="utf-8"))
+    finding_id = document["findings"][0]["id"]
+
+    result = runner.invoke(app, ["explain", finding_id, "--report", str(saved)])
+
+    assert "delta" not in result.stdout, result.stdout
+    assert "Target:" in result.stdout, result.stdout

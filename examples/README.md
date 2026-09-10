@@ -9,6 +9,7 @@ example that drifts out of the public surface fails the build.
 | Example | What it shows |
 |---|---|
 | [`acme_ticket_detector/`](acme_ticket_detector/) | A detector package: the entry point, the capability manifest, deterministic finding construction, and the imports a third party may rely on. |
+| [`demo_corpus/`](demo_corpus/) | A corpus with declared traces planted in it, for answering "show me it finding something" with a command rather than a screenshot. `tests/unit/test_demo_corpus.py` builds it and asserts the scan reports every declared trace, and reports nothing the corpus does not declare. |
 
 ## Writing a detector
 
