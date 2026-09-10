@@ -10,7 +10,39 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
-### Added
+### Fixed
+
+**The release workflow could never have completed, and a test said it could**
+
+The first dry run of `.github/workflows/release.yml` failed, which is what a dry
+run is for. Its verify job ran `scripts/check_supply_chain.py`, and that
+aggregate includes the packaged-manifest gate, which reads `dist/`. Nothing has
+been built at that point in the run, so the job failed on `no wheel found in
+dist/` after every other gate had passed. On a tag push that failure would have
+been the first thing a public release did.
+
+`tests/unit/test_release_scripts.py` had an assertion requiring the aggregate to
+appear in that job. It read the workflow as text, so it passed on a file that
+could not run, and it locked the defect in place. The assertion now requires the
+two gates that can answer from a working tree, `check_licenses.py` and
+`check_advisories.py`, and requires the aggregate to be absent from verify and
+present in the build job after the build step.
+
+**The manifest gate certified whatever happened to be in `dist/`**
+
+`scripts/check_manifest.py` globbed `dist/*.whl` and `dist/*.tar.gz` and checked
+the contents of whatever it found. In CI that directory is empty until the build
+step, so the mistake is loud. On a maintainer's machine it holds the last build,
+possibly from another commit, and the gate returned a pass having examined bytes
+that had nothing to do with the working tree. That is the failure this project
+exists to find in other people's documents.
+
+The gate now reads the version from `pyproject.toml`, which is the field the
+builder uses and the field `check_release_tag.py` compares a tag against, and
+refuses any distribution whose filename declares a different one. A matching
+version is not proof the bytes match and the message says so: it catches the
+stale build, and only rebuilding proves the rest.
+
 
 **A demo corpus, so "show me it finding something" has an answer that runs**
 

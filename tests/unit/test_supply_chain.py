@@ -515,3 +515,77 @@ def test_the_committed_ledger_declares_the_platform_for_its_conditional_entry() 
     entry = next(item for item in components if item.get("name") == "colorama")
 
     assert entry["platforms"] == ["win32"]
+
+
+# -- the packaged manifest, and the build it was actually reading -----------------------
+
+
+def test_the_version_is_read_out_of_a_distribution_filename() -> None:
+    from scripts.check_manifest import packaged_version
+
+    assert packaged_version(Path("trueai_core-0.1.0.dev0-py3-none-any.whl")) == "0.1.0.dev0"
+    assert packaged_version(Path("trueai_core-0.1.0.dev0.tar.gz")) == "0.1.0.dev0"
+    assert packaged_version(Path("trueai_core-1.2.3rc1-py3-none-any.whl")) == "1.2.3rc1"
+
+
+def test_a_name_with_no_version_field_is_not_silently_accepted() -> None:
+    from scripts.check_manifest import packaged_version, stale
+
+    assert packaged_version(Path("mystery.whl")) == ""
+    assert stale([Path("mystery.whl")], "0.1.0")
+
+
+def test_a_distribution_from_another_version_is_refused() -> None:
+    """`dist/` on a maintainer's machine holds the last build, not this one.
+
+    The gate used to read whatever was there and certify it, so a working tree
+    that had moved on since the last build got a pass over the wrong bytes. In
+    CI the directory is empty and the failure is loud; locally it was silent,
+    which is the worse of the two.
+    """
+
+    from scripts.check_manifest import stale
+
+    problems = stale([Path("trueai_core-0.0.9-py3-none-any.whl")], "0.1.0")
+
+    assert len(problems) == 1
+    assert "0.0.9" in problems[0] and "0.1.0" in problems[0]
+    assert "rebuild" in problems[0]
+
+
+def test_a_distribution_from_this_version_passes() -> None:
+    from scripts.check_manifest import stale
+
+    assert stale([Path("trueai_core-0.1.0-py3-none-any.whl")], "0.1.0") == []
+
+
+def test_the_gate_reads_the_version_the_builder_reads() -> None:
+    """Three places name the version; a gate reading a fourth would drift."""
+
+    import tomllib
+
+    from scripts.check_manifest import REPOSITORY as MANIFEST_ROOT
+
+    pyproject = tomllib.loads((MANIFEST_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert str(pyproject["project"]["version"])
+
+
+def test_the_release_workflow_runs_the_manifest_gate_only_where_a_build_exists() -> None:
+    """The gate reads `dist/`, so a job that has not built anything cannot pass it.
+
+    The first dry run of the release workflow failed here: the verify job ran
+    the aggregate supply-chain gate, which includes the packaged manifest,
+    before any build step existed in the run. Nothing about that would have
+    shown up until a tag was pushed, and a tag is a permanent public record.
+    """
+
+    raw = (REPOSITORY / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    # Comments name the gates in order to explain where they belong, so the
+    # question is what the job runs, not what it mentions.
+    workflow = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("#"))
+    verify, _, build = workflow.partition("\n  build:")
+
+    assert "check_supply_chain.py" not in verify
+    assert "check_manifest.py" not in verify
+    assert "check_supply_chain.py" in build
+    assert build.index("Build reproducible distributions") < build.index("check_manifest.py")

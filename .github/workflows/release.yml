@@ -47,12 +47,17 @@ jobs:
           python -m uv run mypy --platform linux
       - name: Run the full test suite
         run: python -m uv run pytest -rs
+      # The gates that can answer from a working tree. `check_supply_chain.py`
+      # is not among them: it includes the packaged-manifest gate, which reads
+      # `dist/`, and nothing has been built at this point in the run. It belongs
+      # to the build job below, where it runs against distributions that exist.
       - name: Run contract and documentation gates
         run: |
           python -m uv run python scripts/check_schema_snapshot.py
           python -m uv run python scripts/check_api_snapshot.py
           python -m uv run python scripts/check_docs.py
-          python -m uv run python scripts/check_supply_chain.py
+          python -m uv run python scripts/check_licenses.py
+          python -m uv run python scripts/check_advisories.py
 
   build:
     name: Build signed, attested distributions

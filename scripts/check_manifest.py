@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import sys
 import tarfile
+import tomllib
 import zipfile
 from collections.abc import Iterable
 from pathlib import Path
 
+REPOSITORY = Path(__file__).resolve().parent.parent
 DIST = Path("dist")
 
 WHEEL_REQUIRED = (
@@ -97,8 +99,53 @@ def report(problems: Iterable[str]) -> int:
     return 1
 
 
+def packaged_version(distribution: Path) -> str:
+    """Return the version a distribution's filename declares.
+
+    Both `name-version-py3-none-any.whl` and `name-version.tar.gz` put the
+    version in the second hyphen-separated field of the stem, and the packaging
+    specification requires it to be there.
+    """
+
+    stem = distribution.name
+    for suffix in (".tar.gz", ".whl"):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    parts = stem.split("-")
+    return parts[1] if len(parts) > 1 else ""
+
+
+def stale(distributions: list[Path], expected: str) -> list[str]:
+    """Name any distribution that was not built from the version in the tree.
+
+    Without this the gate reads whatever is in `dist/` and certifies it. In CI
+    that directory is empty until the build step, so the mistake is loud. On a
+    maintainer's machine `dist/` holds the last build, which may be from another
+    commit, and the gate returns a pass having examined the wrong bytes. A tool
+    whose subject is documents that claim more than was checked cannot ship a
+    gate that does it.
+
+    A matching version is not proof the bytes match, and this does not pretend
+    otherwise: it catches the stale build, and only rebuilding proves the rest.
+    """
+
+    return [
+        f"{item.name} was built from version {packaged_version(item) or 'an unreadable name'}, "
+        f"and the working tree is at {expected}; rebuild dist/ before checking it"
+        for item in distributions
+        if packaged_version(item) != expected
+    ]
+
+
 def main() -> int:
     """Check every built distribution in ``dist/``."""
+
+    # `pyproject.toml` is what the builder reads, and it is what
+    # `check_release_tag.py` compares a tag against. Reading the same field here
+    # keeps the three of them from disagreeing.
+    pyproject = tomllib.loads((REPOSITORY / "pyproject.toml").read_text(encoding="utf-8"))
+    expected = str(pyproject["project"]["version"])
 
     problems: list[str] = []
     wheels = sorted(DIST.glob("*.whl"))
@@ -107,6 +154,7 @@ def main() -> int:
         problems.append("no wheel found in dist/")
     if not sdists:
         problems.append("no source distribution found in dist/")
+    problems.extend(stale([*wheels, *sdists], expected))
 
     for wheel in wheels:
         names = wheel_names(wheel)

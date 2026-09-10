@@ -84,9 +84,22 @@ def test_release_publication_cannot_bypass_the_verification_job() -> None:
         "check_schema_snapshot.py",
         "check_api_snapshot.py",
         "check_docs.py",
-        "check_supply_chain.py",
+        # The two supply-chain gates that can answer from a working tree. The
+        # aggregate is not here: it includes the packaged-manifest gate, which
+        # reads `dist/`, and this job builds nothing. This assertion used to
+        # require the aggregate, which meant the test passed on the text of a
+        # workflow that could not run, and the first dry run of it failed here.
+        "check_licenses.py",
+        "check_advisories.py",
     ):
         assert required in verification
+    assert "check_supply_chain.py" not in verification
+    assert "check_manifest.py" not in verification
+
+    # Where it does belong: after something has been built.
+    building = str(jobs["build"])
+    assert "check_supply_chain.py" in building
+    assert building.index("python -m build") < building.index("check_manifest.py")
 
 
 def test_release_evidence_includes_runtime_sbom_and_build_inputs() -> None:
