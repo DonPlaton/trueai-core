@@ -14,6 +14,31 @@ Nothing yet.
 
 ## [0.1.0] - 2026-09-10
 
+### Fixed
+
+**A schema snapshot nobody compared locally went stale between pushes**
+
+Four committed snapshots carry `package_version` as a default, so a version bump
+changes all four. Three had a test. The process-attestation snapshot was
+compared only by a step in the CI workflow, so the bump passed every local gate,
+was pushed, and failed on a hosted runner.
+
+A snapshot is now listed in one table beside the function that emits it, one
+test asserts the table covers every file in `schema/`, and a parametrised test
+compares each. A snapshot added later without an entry fails immediately rather
+than at whatever push happens to change it. `schema/published/` stays out of the
+table on purpose: it records what was promised, and regenerating it would turn
+every incompatibility into a pass.
+
+**A new test needed the full runtime closure and did not say so**
+
+The test matrix installs a subset of the extras deliberately, so that graceful
+degradation is exercised. A test added with the SBOM work walked the whole
+runtime closure and raised there instead of skipping. It now uses the project's
+existing guard, which skips where the closure is partial and fails where
+`TRUEAI_REQUIRE_OPTIONAL_DEPENDENCIES` is set, so the gate still runs somewhere.
+
+
 First public release. The package version leaves `0.1.0.dev0` because the
 project's own stated criteria for it are met: every supported Python and
 operating-system CI job passes, the symlink and permission cases that skip on

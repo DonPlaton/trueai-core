@@ -671,7 +671,14 @@ def test_a_different_closure_gets_a_different_serial_number() -> None:
 
 
 def test_the_real_runtime_sbom_would_be_accepted_by_the_attestation_action() -> None:
-    """The check the action actually performs, against the document we actually ship."""
+    """The check the action actually performs, against the document we actually ship.
+
+    Needs the whole runtime closure, because that is what the released SBOM
+    describes. The test matrix installs a subset on purpose, so this skips
+    there and fails in the job that installs everything.
+    """
+
+    require_release_closure()
 
     from scripts.generate_sbom import build_document, runtime_components
 

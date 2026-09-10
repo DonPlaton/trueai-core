@@ -1155,7 +1155,7 @@
       "title": "Policy Context"
     },
     "producer": {
-      "default": "0.1.0-dev",
+      "default": "0.1.0",
       "title": "Producer",
       "type": "string"
     },

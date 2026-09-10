@@ -160,3 +160,72 @@ def test_reworded_description_is_not_a_change_in_the_contract() -> None:
     candidate["$defs"]["Finding"]["description"] = "Reworded."
 
     assert not compare_report_schemas(published, candidate)
+
+
+# -- every snapshot, not only the ones somebody remembered ------------------------------
+
+
+def emitters() -> dict[str, object]:
+    """Each committed snapshot, beside the function that produces it."""
+
+    from trueai.core.attestation import attestation_schema
+    from trueai.core.certificates import certificate_schema, revocation_list_schema
+    from trueai.core.policy_bundle import policy_bundle_schema
+
+    return {
+        "trueai-report-0.1.schema.json": report_schema,
+        "trueai-certificate-0.1.schema.json": certificate_schema,
+        "trueai-revocation-list-0.1.schema.json": revocation_list_schema,
+        "trueai-policy-bundle-0.1.schema.json": policy_bundle_schema,
+        "trueai-process-attestation-0.1.schema.json": attestation_schema,
+    }
+
+
+def test_every_committed_snapshot_has_something_comparing_it() -> None:
+    """The gap this closes cost a failed release run.
+
+    Four snapshots embed `package_version` as a default, so a version bump
+    changes all four. Three had a test. The process-attestation one was compared
+    only by a step in the CI workflow, so the bump passed locally, was pushed,
+    and failed on a hosted runner. A snapshot nobody compares locally is a
+    snapshot that goes stale between pushes.
+    """
+
+    directory = REPOSITORY_ROOT / "schema"
+    committed = {path.name for path in directory.glob("*.schema.json")}
+
+    assert committed == set(emitters()), (
+        "a schema snapshot exists with no emitter beside it in this test; "
+        f"on disk: {sorted(committed)}"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(emitters()))
+def test_a_committed_snapshot_matches_what_the_code_emits(name: str) -> None:
+    snapshot = REPOSITORY_ROOT / "schema" / name
+    emit = emitters()[name]
+
+    committed = json.loads(snapshot.read_text(encoding="utf-8"))
+
+    assert committed == emit(), f"Regenerate schema/{name}"
+
+
+def test_the_published_contract_is_history_and_is_not_regenerated() -> None:
+    """`schema/published/` records what was promised, not what is emitted now.
+
+    It still carries the version it was published under, and it has to: the
+    backward-compatibility test reads it as the contract the current models must
+    not break. Regenerating it would turn every incompatibility into a pass.
+    """
+
+    published = load_published()
+    directory = REPOSITORY_ROOT / "schema" / "published"
+
+    # Nothing in this directory is regenerated, so nothing in it belongs to the
+    # table above. That is what keeps a bump from quietly rewriting the contract
+    # it is supposed to be checked against.
+    assert {path.name for path in directory.glob("*.schema.json")}.isdisjoint(
+        {name for name in emitters() if (REPOSITORY_ROOT / "schema" / name).exists()}
+        - {SCHEMA_SNAPSHOT_PATH.name}
+    )
+    assert not breaking_changes(published, report_schema())
