@@ -328,3 +328,27 @@ def test_the_version_in_a_report_is_the_version_of_the_installed_package() -> No
         f"{PACKAGE_VERSION!r} and {packaged!r} are the same release spelled two ways; "
         "a report and the distribution it came from must carry identical strings"
     )
+
+
+def test_the_lockfile_records_the_version_the_project_is_at() -> None:
+    """A fourth file carries the version, and only CI was checking it.
+
+    `uv.lock` pins the project's own version alongside its dependencies, so a
+    bump that misses it fails `uv lock --check` on a hosted runner and nowhere
+    else. Reading the file directly needs no `uv` on PATH, which the test
+    environment does not guarantee.
+    """
+
+    import re
+    import tomllib
+
+    packaged = str(
+        tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    )
+    lock = Path("uv.lock").read_text(encoding="utf-8")
+    entry = re.search(r'\[\[package\]\]\nname = "trueai-core"\nversion = "([^"]+)"', lock)
+
+    assert entry is not None, "uv.lock has no trueai-core package entry"
+    assert entry.group(1) == packaged, (
+        f"uv.lock is at {entry.group(1)!r} and pyproject.toml at {packaged!r}; run `uv lock`"
+    )
