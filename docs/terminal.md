@@ -57,7 +57,7 @@ PDF. Time-based phase looks the same either way, and it makes every curve a pure
 function that a test can evaluate without a terminal.
 
 The scanning head sweeps a seven-cell track on a raised cosine. Any round trip
-has to stop somewhere in order to reverse, so the question is how long that stop
+has to stop somewhere to reverse, so the question is how long that stop
 lasts: at twelve frames a second this curve holds the end column for four
 frames, and the cubic ease it replaced held it for six. A third of a second
 reads as a turn. Half a second reads as a hung process.

@@ -981,8 +981,8 @@ Latest local verification on Windows 11 (2026-09-10), at `0.1.0`:
 ### Plugin and enterprise architecture
 
 - Execute the Linux namespace/seccomp, macOS SBPL, and Windows restricted-token suites on hosted
-  runners. AppContainer-grade Windows filesystem/network confinement and comprehensive read
-  confinement remain unproven and are not claimed.
+  runners. AppContainer-grade Windows filesystem and network confinement, and read confinement
+  covering every path a plugin can reach, remain unproven and are not claimed.
 - Signed plugin distributions and signed policy bundles are implemented; fleet distribution and
   history storage remain premium service concerns.
 - Signed policy bundles, baselines, suppressions, finite exceptions, and per-report audit trails are

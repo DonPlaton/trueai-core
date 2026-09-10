@@ -1010,7 +1010,7 @@ def _strongest_evidence_status(attestation: ProcessAttestation) -> EvidenceStatu
     """Return the best-supported claim's status, for presentation only.
 
     This is not a score. It answers "what is the strongest support anywhere in
-    this record", which a reader needs in order to not over-read a weak record,
+    this record", which a reader needs so as not to over-read a weak record,
     and it deliberately says nothing about the other claims.
     """
 

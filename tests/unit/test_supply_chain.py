@@ -580,7 +580,7 @@ def test_the_release_workflow_runs_the_manifest_gate_only_where_a_build_exists()
     """
 
     raw = (REPOSITORY / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    # Comments name the gates in order to explain where they belong, so the
+    # Comments name the gates to explain where they belong, so the
     # question is what the job runs, not what it mentions.
     workflow = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("#"))
     verify, _, build = workflow.partition("\n  build:")

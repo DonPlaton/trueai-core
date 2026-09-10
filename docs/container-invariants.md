@@ -108,7 +108,7 @@ after:   ... [free 0000000000000000000000] [mdat ...]
 ```
 
 `free` is the format's own "ignore this" padding, understood by every demuxer.
-The metadata is gone (the payload is zeroed, not merely relabelled) the file
+The metadata is gone (the payload is zeroed, not merely relabelled), the file
 length is unchanged, and **no offset needs correcting because nothing moved**. A
 whole category of corruption is avoided by not creating the situation that
 causes it.
