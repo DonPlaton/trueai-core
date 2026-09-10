@@ -5,16 +5,16 @@
 anything. Three inputs below made that step take time quadratic in a count the
 file chooses, and all three are cheap to write:
 
-* a WebM of many empty `Cluster` elements — five bytes each, and modelling
+* a WebM of many empty `Cluster` elements: five bytes each, and modelling
   scanned the whole element list once per cluster;
-* an MP4 of many empty `trak` boxes — eight bytes each, with the same scan per
+* an MP4 of many empty `trak` boxes: eight bytes each, with the same scan per
   track;
 * an `stsc` table whose `first_chunk` rewinds instead of advancing, which swept
   the entire chunk list once per entry while consuming no samples.
 
 The fuzzer runs against both models already and found none of them, because
 nothing raises and nothing corrupts: the process simply does not come back. The
-budgets here are loose on purpose — the fixed code answers in milliseconds and
+budgets here are loose on purpose. The fixed code answers in milliseconds and
 the broken code took minutes to hours, so what is asserted is the complexity
 class rather than a speed.
 
@@ -124,7 +124,7 @@ def test_an_unknown_size_leaf_is_refused_rather_than_swallowing_the_document() -
     """RFC 8794 allows an unknown size on master elements only.
 
     A leaf is never walked into, so an unknown-size leaf ran to the end of its
-    parent and hid every element after it — here a Cluster that the model would
+    parent and hid every element after it. Here a Cluster that the model would
     then never see, in a document it would still call complete.
     """
 

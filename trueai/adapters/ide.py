@@ -3,7 +3,7 @@
 An editor extension wants one thing: diagnostics keyed by file, with ranges,
 severities, and a message. The Language Server Protocol already specifies that
 shape, so this emits plain dictionaries in it rather than inventing a fourth
-one — and takes no dependency, because a scanner should not pull an LSP
+one, and takes no dependency, because a scanner should not pull an LSP
 implementation into a CI image that will never open an editor.
 
 Two decisions worth stating.
@@ -11,7 +11,7 @@ Two decisions worth stating.
 **A missing range is omitted, not invented.** Most detectors report a byte
 offset, and an editor needs a line and a character. Converting one to the other
 needs the file, its encoding, and its line endings, and getting any of them wrong
-puts a squiggle under the wrong text — which is worse than no squiggle, because
+puts a squiggle under the wrong text, which is worse than no squiggle, because
 it looks authoritative. A finding without line information gets a
 zero-length range at the start of the file and says so in the message.
 

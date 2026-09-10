@@ -10,13 +10,42 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Changed
+
+**Punctuation that read as machine output**
+
+The repository used a spaced em dash as a general-purpose connective: 687 of
+them across 120 files, in prose, in docstrings, and in lines the tool prints.
+That density is the most recognisable signature of generated text, and a
+forensic tool that examines documents for machine residue should not carry an
+obvious one of its own.
+
+Each site was replaced by the punctuation the grammar actually called for: a
+period where both halves stand alone, a comma for a tight aside, a colon where
+what follows enumerates or explains what came before, parentheses for a genuine
+aside. A blanket comma would have traded a stylistic tell for a comma splice,
+so the classifier decides per sentence rather than per character. Sixty-two
+curly quotation marks became straight ones.
+
+Eight dashes stayed, because in those places the character is data rather than
+punctuation: the em-dash frequency feature in `trueai/detectors/text/stylometry.py`
+counts them, two regular expressions match a typographic apostrophe, three
+report tables use a lone dash to mean an empty cell, and one is a multi-byte
+character in a test that proves the HTML writer emits UTF-8.
+
+Sentences the tool prints changed with the rest. `Remediation preview: safe-clean`
+replaces the dashed form, `Authenticated declaration:` introduces its
+explanation with a colon, and three lines that would have become comma splices
+were rewritten as two sentences. No finding identifier, exit code, schema field,
+or report key changed.
+
 ### Fixed
 
 **A green residue verdict over findings it had not counted**
 
 `clean` rescans what it wrote and prints `Post-clean residue verification:
 CLEAR`, which is scoped to machine-assistance, generator-tool, watermark, and
-style indicators — the sentence under it says so. But the same rescan can be
+style indicators. The sentence under it says so. But the same rescan can be
 holding findings outside that scope: `safe-clean` removes the generator fields
 and leaves personal metadata to a privacy policy, so a PNG with both comes back
 CLEAR with an `Author` still in it, and a reader concludes the file is clean.
@@ -29,8 +58,8 @@ beside it, with its categories, because the rescan already knew.
 
 `explain` loads a saved JSON report and renders one finding from it through the
 same renderer `scan` uses, so it printed `Scanning: <path>` over a file it never
-opened. The tense was wrong in `scan` too — the line is printed after the scan
-finishes — so both now read `Target:`.
+opened. The tense was wrong in `scan` too (the line is printed after the scan
+finishes) so both now read `Target:`.
 
 The line under it read `1 findings across 9 artifact(s)`. Every noun in that
 sentence is regular, so the counts agree with themselves now.
@@ -60,7 +89,7 @@ do not read the files". The signature proves the digests are the ones the signer
 recorded; only reading the files proves the bytes on this disk are those digests.
 `may_expose` receives the verdict as a `(valid, problems)` pair it cannot
 interrogate, so a manifest whose files were never opened reached the gate
-indistinguishable from one whose files matched — the weaker check being the one a
+indistinguishable from one whose files matched: the weaker check being the one a
 caller got by writing less.
 
 `root` has no default now. Passing `None` still means "signature only" and is
@@ -70,7 +99,7 @@ module already applied to a skipped regression check.
 **A redaction that read as preserving the identifier it replaces**
 
 `redact_for_public` set `attestation_id` to the value it already had, one line
-before recomputing it — a no-op that contradicted the docstring above it, which
+before recomputing it: a no-op that contradicted the docstring above it, which
 says the identifier changes because a redacted record makes narrower statements.
 Removed.
 
@@ -78,7 +107,7 @@ Removed.
 **`trueai cache clear` deleted files the cache had not written**
 
 `prune` re-derives the key from the path before deleting anything and refuses
-what does not resolve to a slot this cache writes — there is a test named for it.
+what does not resolve to a slot this cache writes. There is a test named for it.
 `clear` walked `*.json` and unlinked whatever it found. An operator may point
 `--cache-dir` at a directory the cache does not own, and deleting a stranger's
 file there is not something a scanner should do quietly. Both commands ask the
@@ -88,7 +117,7 @@ same question now.
 
 `test_the_listed_endpoint_is_the_one_that_is_attempted` opened a listening
 socket, asked the broker to connect, closed the connection, and asserted
-nothing — so a broker that ignored the host it was asked for and dialled the
+nothing, so a broker that ignored the host it was asked for and dialled the
 first allowlisted endpoint instead would have passed it. It checks the socket's
 actual peer now.
 
@@ -98,7 +127,7 @@ actual peer now.
 The result carries the names and the terminal printed the length. Somebody
 sanitizing a client deliverable needs to know that `Software` went and `Author`
 stayed, and a count cannot tell them. `applied_remediation_ids` had no reader
-anywhere in the package — written into every result, rendered by nothing — and
+anywhere in the package (written into every result, rendered by nothing) and
 now names the operations, resolved through the plan, because the result records
 them as content-addressed identifiers that belong in an audit trail and not in
 front of a person.
@@ -112,8 +141,8 @@ applied nothing, and says so; what would happen is the plan, printed above it.
 **A SARIF rule described itself with whichever finding came first**
 
 `design.raster-metadata.v1` reports Software fields, Author fields, and several
-other tags. Its rule carried `shortDescription: "Image metadata: Software"` — the
-title of whichever finding created the entry — and a code scanning dashboard
+other tags. Its rule carried `shortDescription: "Image metadata: Software"` (the
+title of whichever finding created the entry) and a code scanning dashboard
 groups alerts by rule and prints exactly that line, so every alert under it read
 "Software", including the ones about Author. A rule is a class of check and a
 result is one instance of it; the two had been collapsed into the first instance
@@ -121,7 +150,7 @@ that arrived.
 
 `fullDescription` was absent entirely. That is the field an alert page renders as
 the explanation of a rule, which makes it the surface in this integration most
-likely to be read by somebody who has never seen the README — and therefore the
+likely to be read by somebody who has never seen the README, and therefore the
 one place a caveat has to be. It now carries the evidence-class limits: that a
 deterministic observation does not establish AI generation, and that metadata is
 editable by anyone who can open the file.
@@ -135,7 +164,7 @@ only one surface had them.
 
 `trueai scan notes.md -o no/where/out.json` scanned the tree, rendered the
 report, printed all of it, and then said `Internal error: FileNotFoundError`
-with exit 4 — the code the exit table reserves for the tool breaking, for what
+with exit 4, the code the exit table reserves for the tool breaking, for what
 was an operator naming a directory that does not exist.
 
 The output path is prepared before the scan now. Its parent is created, which is
@@ -148,13 +177,13 @@ any work, rather than reported underneath output nobody asked to read.
 
 `certificates revoke` was demonstrated against the unsigned certificate the
 example two lines above had just produced, and revocation needs an authenticated
-issuer — so a reader copying the block got "unsigned certificates have no
+issuer, so a reader copying the block got "unsigned certificates have no
 authenticated issuer to revoke them". `scripts/check_docs.py` could not see it:
 every command and option in the line existed, and existing is not working.
 
 `tests/integration/test_readme_commands.py` now runs each `trueai …` line from
-the README's console blocks, in order, in one directory, against real fixtures —
-the way a reader follows it — and fails on exit code 3 or 4 as the README's own
+the README's console blocks, in order, in one directory, against real fixtures
+(the way a reader follows it) and fails on exit code 3 or 4 as the README's own
 exit-code table defines them.
 
 ### Changed
@@ -167,7 +196,7 @@ type checking on both platforms, and twine 7.0.0 accepts both built
 distributions under `--strict`.
 
 Dependabot proposed the three separately, and each edits `pyproject.toml` while
-leaving `uv.lock` describing the old constraint — so `uv lock --check` fails in
+leaving `uv.lock` describing the old constraint, so `uv lock --check` fails in
 the distributions job, and merging any one of them would have staled the other
 two. The resolved versions are deliberately unchanged: widening a constraint is
 not an upgrade, and moving the locked closure would need the advisory ledger
@@ -177,7 +206,7 @@ reviewed against the new set.
 **Integrations could only see `valid`, so the green tick would have come back**
 
 `CertificateView` is what a desktop or IDE surface renders. It carried every
-check separately — which is why it exists — and one verdict, `valid`, meaning
+check separately (which is why it exists) and one verdict, `valid`, meaning
 "nothing that was checked came back false". Any surface reducing that to a badge
 would have reproduced exactly the mistake the CLI stopped making a commit
 earlier. It carries `authenticated` and `unchecked` now, so the qualified verdict
@@ -193,7 +222,7 @@ the Linux backend's own report lists "memory and CPU" among the things
 confinement does *not* cover. Since macOS declines `RLIMIT_AS` outright, the
 coupling turned "confine my plugins" into "do not run plugins" on every Mac.
 
-Strictness now lives on the budget — `PluginResourceLimits(required=True)` — and
+Strictness now lives on the budget (`PluginResourceLimits(required=True)`) and
 is off by default, so a platform that cannot cap address space is one with a
 reported gap rather than one without plugins. `InspectionRequest.confinement`,
 added a commit earlier and read by nothing after this, is gone with it.
@@ -208,7 +237,7 @@ becomes behaviour.
 
 Permission bits describe the file's place in the filesystem and still survive.
 The modification time is a claim about when the content last changed, and it just
-did — putting it back hides the edit from rsync, from build systems, and from
+did: putting it back hides the edit from rsync, from build systems, and from
 anybody reading timestamps as evidence, which in a forensic tool is the behaviour
 being complained about rather than performed. The backup keeps the original
 timestamp, because the backup really is the original content.
@@ -225,7 +254,7 @@ about, so removing one comment from an SVG returned
 `<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg">` with every child renamed to
 match, and removing one Word property rewrote `<cp:coreProperties>` as
 `<ns0:coreProperties>`. Equivalent XML, and a diff showing the whole part
-changed — a strange thing to hand back from a project whose case for its cleanup
+changed: a strange thing to hand back from a project whose case for its cleanup
 is that an edit touches what it says it touches.
 
 `tostring` has a `default_namespace` parameter for exactly this and refuses a
@@ -238,7 +267,7 @@ rewritten at all.
 **Three places the output was accurate line by line and overstated as a whole**
 
 None of these was a wrong value. Each was a headline, a total, or a count that a
-reader is entitled to read one way and that meant another — which for this
+reader is entitled to read one way and that meant another, which for this
 project is the defect, not a presentation preference.
 
 - **`trueai certificates verify` printed `VALID`, in green, over a document
@@ -262,7 +291,7 @@ project is the defect, not a presentation preference.
 Report paths are also documented now: every path is relative and the root of a
 directory scan is `.`, which is what makes two scans of one corpus compare byte
 for byte and keeps the operator's directory layout out of a document that gets
-sent to somebody else — and costs a report the ability to say, on its own, which
+sent to somebody else, and costs a report the ability to say, on its own, which
 directory produced it.
 
 ### Security
@@ -271,7 +300,7 @@ directory produced it.
 
 Found by `scripts/fuzz_parsers.py --target report`. A document declaring
 `finding_count: 2` with an empty `findings` list validated cleanly, and every
-reader of the headline then reported a number nothing in the document supported —
+reader of the headline then reported a number nothing in the document supported:
 `trueai explain`, the terminal renderer, any consumer of `JSONReporter.load`.
 
 The summary exists so a client does not have to recount, which only works if it
@@ -284,7 +313,7 @@ report does not carry.
 
 `ScanSummary.over()` builds the derivable fields in one place. The engine had
 assembled them inline and `trueai explain` had edited `finding_count` alone while
-narrowing a report to one finding — leaving three maps describing the whole
+narrowing a report to one finding: leaving three maps describing the whole
 report, which the new rule catches. Both call it now.
 
 
@@ -295,7 +324,7 @@ anything, and three inputs made that step quadratic in a count the file chooses:
 
 * a WebM of empty `Cluster` elements, five bytes each. Modelling scanned the
   whole element list once per cluster, per cue point, per seek entry, and per
-  attachment — 100,000 clusters in half a megabyte cost 10^10 list steps.
+  attachment: 100,000 clusters in half a megabyte cost 10^10 list steps.
 * an MP4 of empty `trak` boxes, eight bytes each, with the same scan per track.
 * an `stsc` table whose `first_chunk` rewinds instead of advancing. ISO/IEC
   14496-12 orders the table, and each entry runs to the chunk before the next
@@ -317,8 +346,8 @@ class rather than a speed, and each one takes minutes on the old code.
 
 RFC 8794 permits an unknown size on master elements only, and the restriction is
 load-bearing: a leaf is never walked into, so an unknown-size leaf ran to the end
-of its parent and every element after it — clusters, cues, an attachment
-carrying provenance — was never seen. The model reported itself complete, and
+of its parent and every element after it (clusters, cues, an attachment
+carrying provenance) was never seen. The model reported itself complete, and
 every invariant held over the half of the document that remained visible. A
 five-byte element in front of a file was enough to make the gate agree with
 whatever came after it.
@@ -338,7 +367,7 @@ costs nothing here.
 elements. The reader checked that it was a list of integers and then read
 `values[0]`, `values[1]` and `values[2]` from a list of however many the file
 declared, so two widths reached the third read and raised an unguarded
-`IndexError` — out of a parser whose whole contract is to refuse rather than
+`IndexError`: out of a parser whose whole contract is to refuse rather than
 raise.
 
 Found by the fuzzer, which draws exactly that distinction: a `ValueError`, a
@@ -348,7 +377,7 @@ meaning in the specification and refusing a file some producer really emits
 would be the worse answer.
 
 `scripts/fuzz_parsers.py` also gained `--write-findings`, because the printed
-preview stops at 200 bytes and the input that found this was 417 — replaying the
+preview stops at 200 bytes and the input that found this was 417: replaying the
 seed reproduced it inside the harness while leaving no way to hand the exact
 bytes to a debugger or a regression test.
 
@@ -360,7 +389,7 @@ cost is the number of them multiplied by the length of what follows. Measured on
 3.12: 1,000 unclosed tags in 6 kB take 0.07 seconds, 4,000 in 24 kB take 2.0, and
 8,000 in 48 kB take 15.6. A hundred thousand does not finish. 3.13 fixed the
 parser, which is why the hosted test matrix passed on 3.13 and 3.14 and hung on
-3.12 — for thirty-five minutes, against five for the jobs beside it.
+3.12, for thirty-five minutes, against five for the jobs beside it.
 
 3.12 is a supported interpreter, so the input is bounded rather than the
 interpreter version. `unclosed_tag_count` counts them in one forward pass, and a
@@ -376,7 +405,7 @@ for.
 **A transparency log with a broken maintainer signature was still "usable"**
 
 `TransparencyVerification.usable` was the chain being intact, the sequence being
-contiguous, and no rollback — and not the maintainer signature. The chain carries
+contiguous, and no rollback, and not the maintainer signature. The chain carries
 no secret, so a chain over invented history is exactly as consistent as a chain
 over real history; the maintainer signature is the only thing that ties a log to
 its maintainer. A log whose signature was present and did not verify was reported
@@ -402,7 +431,7 @@ refused; that one was not.
 The two rules are written separately now, because they are different rules. A
 certificate carrying a signature is claiming an issuer, and an unchecked claim is
 not a pass: without a public key there is no verdict. A certificate carrying none
-claims no issuer and is valid on its content identifier alone — unless the caller
+claims no issuer and is valid on its content identifier alone, unless the caller
 supplied a key, which is them saying they expected one.
 
 `tests/unit/test_certificate_tampering.py` makes each edit an attacker would make
@@ -447,7 +476,7 @@ accident rather than by design.
 
 `tests/unit/test_scanner_complexity.py` scans each hostile shape and fails if it
 takes longer than ten seconds, plus one test that doubles the input and requires
-less than an eightfold increase — a complexity class rather than a benchmark.
+less than an eightfold increase: a complexity class rather than a benchmark.
 
 ### Fixed
 
@@ -458,8 +487,8 @@ problems; they were two platform defects, one class of test that could never hav
 run where it was pointed, and two tests that were simply wrong.
 
 - **No plugin ran on macOS at all.** `setrlimit(RLIMIT_AS, 512MB)` is refused
-  there — the interpreter has already mapped more address space than that before
-  the helper's first line — and both limits were installed inside one `try`, so
+  there. The interpreter has already mapped more address space than that before
+  the helper's first line, and both limits were installed inside one `try`, so
   one refusal discarded the CPU ceiling that *was* available and every plugin was
   rejected at discovery. Each limit is now installed and reported on its own, the
   request is clamped to the hard limit already in place rather than exceeding it,
@@ -470,8 +499,8 @@ run where it was pointed, and two tests that were simply wrong.
   `lpDesktop = NULL` inherits the creator's desktop and must pass an access check
   against its window station using its own token. The restricted token makes
   `BUILTIN\Administrators` deny-only, so wherever that station's DACL grants
-  through the administrators group — the usual shape outside an interactive
-  session, and how a service or scheduled task runs — Windows destroys the
+  through the administrators group (the usual shape outside an interactive
+  session, and how a service or scheduled task runs) Windows destroys the
   process during DLL initialisation with `STATUS_DLL_INIT_FAILED`. No output, no
   exit code of its own, and indistinguishable from a plugin that crashed. The
   worker now gets a desktop of its own, which fixes it and narrows the sandbox:
@@ -483,7 +512,7 @@ run where it was pointed, and two tests that were simply wrong.
   the one platform whose confinement is applied by somebody else. It works now.
 - **The Windows confinement report asserted a restriction without measuring it.**
   `windows_confinement_report` returned `applied=True` with "privileges are
-  dropped and administrators membership is deny-only" having read no token — and
+  dropped and administrators membership is deny-only" having read no token, and
   was never in a report at all, because the worker described itself as
   unconfined. The host now states whether it restricted the token, the worker
   reads its own token, job membership and desktop, and the two are compared
@@ -508,7 +537,7 @@ run where it was pointed, and two tests that were simply wrong.
   `test_required_confinement_reports_rather_than_silently_running` monkeypatched
   `describe_platform` in the test runner and checked a decision made in the
   worker. It passed because Windows refused `required` unconditionally and hosted
-  Linux restricts unprivileged user namespaces — two accidents, neither of them
+  Linux restricts unprivileged user namespaces: two accidents, neither of them
   the property named in the test.
 
 **Six defects the first run on hosted CI found, five of which only Linux could see**
@@ -524,7 +553,7 @@ written.
   in the pytest process. On Windows the backend is a report and nothing else, so
   nothing happened. On Linux the first of them made the whole filesystem
   read-only with an empty grant set, and every test after it died in its own
-  `tmp_path` fixture — one real failure and fourteen hundred pieces of
+  `tmp_path` fixture: one real failure and fourteen hundred pieces of
   collateral, in a run that looked like a catastrophe and was one test. The
   controls are still measured against a real kernel, now in a child process that
   is allowed to be destroyed by them (`tests.support.confinement_report`), and a
@@ -533,7 +562,7 @@ written.
   the release group into its own site-packages, and hatchling shares `pathspec`,
   `rich`, `packaging`, `pluggy` and `requests` with the runtime set. pip called
   those "already satisfied" and never wrote them into `--prefix=/runtime`, so
-  `trueai --version` in the published image died on `import pathspec` — while the
+  `trueai --version` in the published image died on `import pathspec`, while the
   build remained byte-for-byte reproducible, because a reproducible build of the
   wrong bytes is still reproducible. Fixed with `--ignore-installed`, and the
   Dockerfile now has a check of its own.
@@ -541,7 +570,7 @@ written.
   and on nothing else; `trueai/plugins/resources.py` guarded its Windows branch
   with `os.name == "nt"`, which reads the same to a person and means nothing to a
   checker. 25 errors sat in the Windows restricted-token path for as long as the
-  only Linux checker was CI and the only Windows checker was a developer — each
+  only Linux checker was CI and the only Windows checker was a developer. Each
   correct about the branch it could see. CI now runs `--platform win32` and
   `--platform linux`, and `windows_token` states the platform it needs.
 - **`trueai doctor` withheld the thing the reader has to type.** Rich elides an
@@ -551,7 +580,7 @@ written.
   about it. The Detail column folds now.
 - **The advisory ledger could not express a platform.** `colorama` is in the lock
   and installs on Windows only. Reported as `orphaned` on Linux, it invited the
-  fix that loses information — deleting a reviewed entry for a package that
+  fix that loses information: deleting a reviewed entry for a package that
   really does ship. A component may now declare `platforms`, an unreadable list
   is a ledger error rather than a silent excuse, and `check()` takes the platform
   as an argument so the answer for Linux can be interrogated from Windows.
@@ -571,7 +600,7 @@ written.
 - `docs/incident-response.md`, linked from `SECURITY.md`: a vulnerability report,
   a plugin incident, a trust-store compromise, certificate misissuance or key
   compromise, and a release rollback. Kept separate because they have different
-  blast radii and different people to tell — one combined procedure gives the
+  blast radii and different people to tell. One combined procedure gives the
   narrow incidents the heavy process and the heavy ones the narrow process.
 - Every process shares a second half that is the one usually left out: **saying
   what already-issued evidence is worth**. A forensic tool's reports stay in
@@ -581,9 +610,9 @@ written.
   was affected, or "provenance verification was broken" when only *signer trust*
   was wrong, teaches people to discount the next advisory. Precision here is not
   a courtesy; it is what keeps the channel usable.
-- Each process names mechanisms that exist — `DistributionRevocation`, the
+- Each process names mechanisms that exist: `DistributionRevocation`, the
   one-sequence-at-a-time trust-store rule, `trueai certificates revoke`, the
-  `detector_mutation` and `plugin_rejected` diagnostic codes — and tests assert
+  `detector_mutation` and `plugin_rejected` diagnostic codes, and tests assert
   each one is real. A runbook telling somebody to revoke a thing the tool cannot
   revoke is worse than no runbook, because it is read at three in the morning.
 
@@ -593,7 +622,7 @@ written.
   file that does not exist, or when a page under `docs/` is linked from nowhere.
   It covers the README, the backlog, `CONTRIBUTING`, `SECURITY`, `AGENTS`, the
   Codex skill, the examples, and every page in `docs/`.
-- It does not check whether the prose is *true* — that needs a reader. It checks
+- It does not check whether the prose is *true*. That needs a reader. It checks
   whether the nouns exist, which is the part that rots first: prose has no
   compiler, so a renamed flag leaves a sentence describing the old one
   confidently, and the reader who is hurt is the one who trusts it.
@@ -603,7 +632,7 @@ written.
   than the documentation it guards.
 - A command resolves against the command *tree* rather than by longest prefix. A
   group takes no positional arguments, so the word after one must be a
-  subcommand — prefix-popping let `trueai scna` fall back to bare `trueai` and
+  subcommand: prefix-popping let `trueai scna` fall back to bare `trueai` and
   pass, which is how a typo becomes invisible.
 - The gate found five orphaned pages: `dom-features`, `fuzzing`, `html-report`,
   `models`, and `pdf-object-graph`. All are now linked from somewhere.
@@ -611,7 +640,7 @@ written.
 ### Fixed
 
 - The gate's own invocation pattern contained a literal backspace for one
-  revision — a heredoc collapsed `\b` — so it matched nothing and the option
+  revision (a heredoc collapsed `\b`) so it matched nothing and the option
   check skipped every line while still reporting success. A test now asserts the
   word boundary is there, because a pattern that can never match is a check that
   quietly does nothing.
@@ -626,7 +655,7 @@ written.
   field cannot ship uncatalogued and a stale entry cannot survive a removal. And
   every catalogued operation must be named by a test, which is what stops a
   removable field shipping without a regression fixture.
-- `tests/unit/test_removable_field_fixtures.py` — the six fixtures that second
+- `tests/unit/test_removable_field_fixtures.py`: the six fixtures that second
   gate demanded. The suite already exercised those paths; what it could not do
   was answer "which removable fields have a fixture", so it could not notice one
   shipping without.
@@ -635,7 +664,7 @@ written.
 
 - Remediation safety was decided by a **prefix match on the identifier**, so
   `odf.remove-metadata-field` was classified as a content change for as long as
-  ODF support existed — not because anybody decided ODF metadata was content, but
+  ODF support existed, not because anybody decided ODF metadata was content, but
   because `"odf."` was never added to a tuple. `meta.xml` is a separate part
   exactly like `docProps`, so removing a field from it cannot change what a
   reader sees; it is now `safe_metadata`, declared with that reason. It happened
@@ -661,7 +690,7 @@ written.
   a green check makes it a confident one.
 - Four failure kinds: `stale`, `unreviewed` (a dependency nobody classified),
   `orphaned` (an entry describing a build that no longer exists), and `expired`.
-  An acceptance needs a reason, an owner, **and an expiry** — without one it is
+  An acceptance needs a reason, an owner, **and an expiry**, without one it is
   not an acceptance, it is a decision nobody will revisit.
 - Filling in the ledger found something the audit never mentions: `c2pa-python`
   declares `wheel`, `setuptools`, `toml`, `pytest`, and `requests` as **install**
@@ -676,7 +705,7 @@ written.
   the questions it was requested for. The timestamp is injectable so a
   reproducible build can pin it.
 - `scripts/check_supply_chain.py` runs all four gates and reports all of them
-  rather than stopping at the first — they fail together in practice.
+  rather than stopping at the first: they fail together in practice.
 - `docs/supply-chain.md`.
 
 ### Changed
@@ -684,7 +713,7 @@ written.
 - `scripts/check_licenses.py` falls back to reading installed metadata when
   `pip-licenses` is not available, instead of failing to run. A gate that quietly
   does nothing when a tool is missing is worse than one that fails, because it
-  reports success either way — and a gate that only runs inside one CI provider
+  reports success either way, and a gate that only runs inside one CI provider
   cannot be run before pushing. The fallback surfaced three licenses the two
   readers spell differently (`ISC License` vs `ISC License (ISCL)`, `PSFL` vs
   `PSF-2.0`, `Apache License` vs `Apache Software License`); the allowlist now
@@ -695,7 +724,7 @@ written.
 - `scripts/fuzz_parsers.py` covers ZIP/OPC, XML, PDF, ISO-BMFF, EBML, Git object
   scope, cache entries, policy bundles, certificates, and reports. Seeded and
   replayable: a failure prints the seed, the target, and the input.
-- Coverage guidance uses `sys.monitoring` — no native dependency, and the whole
+- Coverage guidance uses `sys.monitoring`: no native dependency, and the whole
   run reproduces from a seed.
 - **Each target declares what it may do and what must hold anyway.** A parser is
   allowed to refuse; it is not allowed to raise a `TypeError` from an unguarded
@@ -710,7 +739,7 @@ written.
 - **The guidance claim is a measurement, not an assertion.** Guided loses at
   3,000 inputs (601 vs 664 lines) and wins at 12,000 (739 vs 709) and 60,000
   (757 vs 727), so `--no-coverage` stays a real option and half of all mutations
-  start from a pristine seed even when guided — mutating a mutation of a mutation
+  start from a pristine seed even when guided: mutating a mutation of a mutation
   drifts away from anything a length-prefixed parser will accept.
 - Seeds are real artifacts from the fixture builders rather than stubs: a genuine
   MP4 with a resolved sample table, a WebM with tracks and clusters, both a
@@ -729,7 +758,7 @@ written.
   and produces **no verdict**: no `same_author` field, no probability, no score
   to threshold. A test parses the module and asserts that vocabulary is absent.
 - The list of things that move a writer's style is long and almost none of the
-  entries are "someone else wrote this" — topic, genre, co-author, editor,
+  entries are "someone else wrote this": topic, genre, co-author, editor,
   template, translation, practice, a deadline. Those travel with every result,
   because a caveat kept in documentation does not travel with the number.
 - Below eight documents or thirty days the result is `UNDETERMINED` and **no
@@ -789,19 +818,19 @@ written.
   order together.
 - `score_with()` **refuses** a vector from another feature set, and refuses a
   model that tags its output with a set it was not handed. The alternative is
-  scoring columns that changed meaning — a confident number with nothing behind
+  scoring columns that changed meaning: a confident number with nothing behind
   it and no symptom until somebody acts on it.
 - `build_vector()` will not pad a missing feature with zero (a zero is a
   measurement and an absence is not) and will not swallow an extra one (adding a
   feature changes the contract, so it has to change the version).
-- `try_score(None, …)` returns `None`, meaning **not measured**. Never "clean" —
+- `try_score(None, …)` returns `None`, meaning **not measured**. Never "clean":
   an interface rendering it as an absence of findings is making a claim the
   function did not.
 - `ModelScore` carries no author, attribution, or provenance class. The fields
   that would let a caller promote a measurement into a claim about who wrote
   something are absent, and a test asserts they are.
 - `ModelCard` requires the corpus digest, intended use, and **at least one known
-  limitation** — every model has some, and a card without them is one nobody
+  limitation**. Every model has some, and a card without them is one nobody
   looked hard at.
 - A test walks every module in the package and fails on any import of `torch`,
   `tensorflow`, `jax`, `sklearn`, `numpy`, `scipy`, `pandas`, `transformers`,
@@ -812,14 +841,14 @@ written.
 **A detector-evaluation protocol that refuses to publish a flattering number**
 
 - `trueai.research.evaluation`. The headline is the **false positive rate**, not
-  accuracy — accuracy averages the harm of telling someone their human-written
+  accuracy: accuracy averages the harm of telling someone their human-written
   document was machine-generated together with the harmless kind of mistake, and
   reports one number that hides it. `summary()` emits no accuracy figure at all.
 - A rate quoted without its operating point is not a measurement, so the
   threshold is required and appears in the summary.
 - Every rate carries a 95% **Wilson** interval. The normal approximation gives a
   zero-width interval at a rate of zero, which is exactly where a small sample
-  most needs one. A rate over fewer than 30 samples is marked unreliable —
+  most needs one. A rate over fewer than 30 samples is marked unreliable:
   printing "0.0%" for a group of five is worse than printing nothing.
 - **Subgroups.** `worst_subgroup()` reports the worst rate among groups large
   enough to score, and a gap of more than 5 points above the overall rate is a
@@ -837,14 +866,14 @@ written.
   identifier, threshold, seed, code version, and an offset-bearing timestamp. A
   number that cannot be recomputed is an anecdote.
 - `problems()` lists every reason a result must not be quoted alone, and a clean
-  evaluation produces none — a checker that always complains is one people learn
+  evaluation produces none. A checker that always complains is one people learn
   to ignore.
 - `docs/evaluation-protocol.md`.
 
 **Corpus governance as code, before there is a corpus**
 
-- `trueai.research.corpus`. Five rules — consent, licensing, domain balance,
-  contamination control, retention — written as constructors that refuse rather
+- `trueai.research.corpus`. Five rules (consent, licensing, domain balance,
+  contamination control, retention) written as constructors that refuse rather
   than guidance that advises. A `CorpusManifest` cannot be built without a
   `CorpusPolicy`: collected first and governed afterwards is the order this
   prevents. No default policy ships, for the same reason no default trust store
@@ -854,7 +883,7 @@ written.
   *and* `LicenseTerms` and either one missing refuses it. Both refusals are
   reported together rather than one submission at a time.
 - Consent is scoped to named purposes, expires, and records a
-  `withdrawal_contact` — consent nobody can revoke is not consent. A policy names
+  `withdrawal_contact`: consent nobody can revoke is not consent. A policy names
   exactly one purpose, so a narrow grant cannot authorise a broad use.
 - **Withdrawal reaches backwards.** `withdraw_consent()` returns every sample
   collected under the consent, and the audit reports the corpus unusable until
@@ -867,7 +896,7 @@ written.
   source out of training so a model cannot learn a shortcut and be scored on it.
 - Domain targets are written in advance and must sum to 1; a sample in an
   unplanned domain is refused rather than absorbed. Imbalance is reported and
-  does not block — a corpus can be imbalanced on purpose, but not quietly.
+  does not block. A corpus can be imbalanced on purpose, but not quietly.
 - Retention requires a stated deletion method, and indefinite retention has to be
   written rather than arrived at by nobody choosing.
 - `CorpusManifest.digest()` is order-independent, so a published result can cite
@@ -883,7 +912,7 @@ written.
   the sentence saying what a finding does **not** establish, it is derivable from
   the confidence and provenance classes, and it is the first thing an interface
   drops when short of space. Deriving it centrally means an interface has to
-  actively discard it — and every adapter carries it, including the two formats
+  actively discard it, and every adapter carries it, including the two formats
   that only have one line.
 - **The CI formats are injection boundaries.** A newline in a finding description
   does not malform a workflow annotation, it produces *a second command*, and
@@ -893,8 +922,8 @@ written.
 - `CRITICAL` and `HIGH` become error annotations and nothing else does. A job
   that failed on every `INFO` finding would be switched off within a week.
 - The editor adapter is LSP-shaped with **no LSP dependency**. A missing range is
-  admitted rather than guessed from a byte offset — a squiggle under the wrong
-  text is worse than none because it looks authoritative — every scanned file
+  admitted rather than guessed from a byte offset (a squiggle under the wrong
+  text is worse than none because it looks authoritative) every scanned file
   appears so stale markers can be cleared, and `INFO` never becomes an error.
 - The desktop bundle is versioned so a client can refuse one it cannot read,
   keeps coverage beside the findings (a client rendering findings alone shows a
@@ -915,7 +944,7 @@ written.
   that can fetch anything. It opens from a USB stick on an air-gapped machine.
 - Every string in a report came from the file under examination, and the report
   is opened in a browser by the person examining it. Exactly one function turns a
-  value into markup, escaping `&`, `<`, `>`, `"`, and `'` — correct in a text
+  value into markup, escaping `&`, `<`, `>`, `"`, and `'`: correct in a text
   node and in a quoted attribute alike, so there is no second one to forget.
 - The document declares a `Content-Security-Policy` it already satisfies
   (`default-src 'none'; script-src 'none'`), which turns "we escaped everything"
@@ -925,7 +954,7 @@ written.
   suite asks `HTMLParser` what elements and attributes exist. With escaping
   deliberately removed, 13 tests fail.
 - Findings are grouped by confidence class, strongest first, each group headed by
-  what that class actually claims — the reader who does not know the difference
+  what that class actually claims. The reader who does not know the difference
   is the one who will treat a heuristic as a fact.
 - Provenance renders as PROV-04's four facets, an unanswered question is styled
   as unanswered rather than as a negative, per-artifact caveats are printed under
@@ -936,13 +965,13 @@ written.
 
 **A detector SDK that is checked rather than described**
 
-- `examples/acme_ticket_detector/` — a real installable third-party detector
+- `examples/acme_ticket_detector/`: a real installable third-party detector
   package: entry point, capability manifest, and a `PluginRegistration` the host
   reads before importing anything that could run.
 - `tests/unit/test_sdk_examples.py` runs the example, signs a distribution built
   from it, and **parses its imports** to prove every one comes from a module in
   `PUBLIC_MODULES`. An example that drifts out of the frozen surface fails the
-  build — an example that drifts is worse than none, because someone copies it,
+  build: an example that drifts is worse than none, because someone copies it,
   it works locally, and it breaks on the next upgrade with the gate silent.
 - `trueai.api.SDK_CONTRACT` names what a detector author builds against, kept
   apart from `PUBLIC_MODULES` because the guarantee differs in kind: these are
@@ -974,7 +1003,7 @@ written.
   bar.
 - An observer that raises is dropped, and the report carries a
   `progress_observer_failed` diagnostic naming the exception. A formatting bug
-  in an interface must not abort a forensic run — and must not vanish either.
+  in an interface must not abort a forensic run, and must not vanish either.
 - **A cancelled scan raises `ScanCancelled`** rather than returning a shorter
   report, because a shorter report is indistinguishable from a clean one to
   whoever opens it next. It carries how far the scan got and deliberately no
@@ -998,8 +1027,8 @@ written.
   a disk-space bug waiting for a large enough checkout.
 - Eviction is deterministic in the sense that matters: the same inventory, the
   same budget, and the same run remove the same entries. Entries written under a
-  different package, schema, or cache format version go first — those versions
-  are part of the key, so the entry is unreachable rather than merely stale —
+  different package, schema, or cache format version go first (those versions
+  are part of the key, so the entry is unreachable rather than merely stale)
   then entries this run did not touch, then the rest, oldest generation first,
   with the key breaking ties so the order is never ambiguous.
 - A *generation* is one scan. An instance takes the next number from a small
@@ -1007,14 +1036,14 @@ written.
   are older" is recorded data rather than file metadata that a copy or a restore
   destroys. Hits are remembered in memory rather than written back: one write per
   hit would cost about what a miss costs.
-- `ScanCache.inspect()` separates three things a single listing would blur —
+- `ScanCache.inspect()` separates three things a single listing would blur:
   entries, damaged files at an entry location, and files under the cache
   directory that TrueAI did not write. The last are reported and **left in
   place**.
 - `ScanCache.eviction_order()` and `trueai cache inspect --entries N` answer
   "what would go" before it goes rather than after.
-- `ScanCache.prune()` and `trueai cache prune` take an explicit rule —
-  `--unreachable`, `--older-than`, `--to-fit` — and no rule removes nothing. A
+- `ScanCache.prune()` and `trueai cache prune` take an explicit rule
+  (`--unreachable`, `--older-than`, `--to-fit`) and no rule removes nothing. A
   prune that defaulted to deleting everything would make a mistyped command
   destructive, and this is the one place a wrong deletion is silent: the next
   scan is merely slower. `--yes` is required on top.
@@ -1035,8 +1064,8 @@ written.
   high-water marks to fake a per-phase RSS would produce a confident wrong
   number, so the harness does not.
 - Two determinism checks. Two identical scans must agree with only `scan_id` and
-  `generated_at` removed — a comparison that ignored everything unstable would
-  always pass — and the parallel scan must agree with the serial one.
+  `generated_at` removed (a comparison that ignored everything unstable would
+  always pass) and the parallel scan must agree with the serial one.
 - `ScanCache.statistics()` counts hits, misses, **rejections**, stores, and store
   failures. A miss and a damaged entry are different operational facts, and one
   blended hit rate hides the second.
@@ -1044,7 +1073,7 @@ written.
   its statistics back; the engine would otherwise build one and discard it.
 - `ArtifactDiscovery.inventory()` returns the logical paths under a root without
   identifying anything.
-- `--corpus` benchmarks an existing directory and writes nothing into it — not a
+- `--corpus` benchmarks an existing directory and writes nothing into it, not a
   file, not a cache entry. A benchmark that modified the repository it measured
   would be worse than useless.
 - A phase whose finding budget or file cap ran out is marked `INCOMPLETE`, and
@@ -1066,8 +1095,8 @@ written.
 
 ### Fixed
 
-- A file the first discovery pass could not identify — a permission error, or one
-  deleted between the walk and the open — was absent from that pass's inventory
+- A file the first discovery pass could not identify (a permission error, or one
+  deleted between the walk and the open) was absent from that pass's inventory
   and present in the second, and was announced as `detector_mutation` at CRITICAL
   severity: a plugin rewriting your repository. Paths the first pass already
   reported as problems are now excluded from the comparison.
@@ -1090,7 +1119,7 @@ written.
   is not `not_trusted` (a signature that failed makes the identity it carries
   meaningless).
 - `establishes_provenance` requires all three C2PA facets. The provider facet
-  cannot contribute — a watermark says which tool produced something and carries
+  cannot contribute. A watermark says which tool produced something and carries
   no signed chain.
 - `caveats()` states how a positive-looking facet is weaker than it looks, and
   `headline()` claims a verified trusted chain if and only if
@@ -1109,8 +1138,8 @@ written.
 **Managed trust stores: distribution, rotation, and offline updates**
 
 - `trueai/core/trust_store.py`. A `TrustProfile` answers "whose key is this" for
-  one signature; a trust store is what an organization deploys to a fleet — C2PA
-  roots, issuer keys, plugin publisher keys — as one signed, sequenced document
+  one signature; a trust store is what an organization deploys to a fleet (C2PA
+  roots, issuer keys, plugin publisher keys) as one signed, sequenced document
   with a lifetime.
 - **Rollback is refused.** A store is installed against the sequence this machine
   already holds, because a rollback reinstates every key the intervening
@@ -1120,7 +1149,7 @@ written.
   what it held. Otherwise the lifetime would be decorative.
 - **Rotation gaps are found.** A replacement anchor names what it replaces, and
   `rotation_problems()` reports the window where the successor starts after the
-  predecessor ended — the failure nobody connects to a key rotation, because it
+  predecessor ended: the failure nobody connects to a key rotation, because it
   surfaces months later as a signature that will not verify. Installing reports
   it as a warning, not a refusal: the gap may be deliberate, but not silent.
 - **Offline updates advance exactly one sequence.** Jumping from 4 to 6 would
@@ -1158,14 +1187,14 @@ written.
 - The audit records **refusals as well as successes**. A forensic tool needs to be
   able to prove it did not contact anything, and a log of successes cannot do
   that. A record carries endpoint, purpose, grantor, duration, response size, and
-  header *names* — never a body, never a header value, because a header value can
+  header *names*, never a body, never a header value, because a header value can
   be a credential.
 - The gate holds no credential. A caller supplies a callable invoked per request
   with the endpoint being contacted, so a credential produced for one destination
   cannot be replayed to another when an allowlist grows.
 - `AdmissionCriteria` states what a provider must publish before an adapter is
   written: a published mechanism, independently runnable, specified semantics, and
-  a stable contract — all four. Three out of four describes a watermark someone
+  a stable contract, all four. Three out of four describes a watermark someone
   reverse-engineered, and shipping that would present a guess as a verification.
 - `PROVIDER_ASSESSMENTS` records where each provider stands, in code rather than
   only in prose. C2PA is the only one admitted. An unadmitted provider reports
@@ -1214,7 +1243,7 @@ written.
 
 - `cleaner_for` had no entry for `ArtifactType.VIDEO`, so the ISO-BMFF and EBML
   cleanup added in `FMT-02` and `FMT-03` was unreachable through the remediation
-  pipeline — a plan selecting MP4 or WebM metadata failed with "no cleaner
+  pipeline. A plan selecting MP4 or WebM metadata failed with "no cleaner
   supports video". Those cleanups were tested by calling the cleaner directly,
   which is why the gap survived. A test now asserts every artifact type with a
   cleanup resolves.
@@ -1223,7 +1252,7 @@ written.
 
 - `trueai/core/dom_features.py` measures document and stylesheet shape: depth and
   tag histograms, wrapper-only elements, duplicate ids, class tokens, inline
-  styles, external references, and — for stylesheets — rules, selectors,
+  styles, external references, and (for stylesheets) rules, selectors,
   declarations, a specificity histogram, `!important` density, vendor prefixes,
   custom properties, and duplicate selectors.
 - Everything is a **count**. No thresholds, no scores, no verdicts. A structural
@@ -1238,7 +1267,7 @@ written.
   approximation.
 - The CSS parser matches braces by depth. Finding the next `}` breaks on
   `@media screen { .a { color: red } }`, where `.a { color` then parses as a
-  declaration — a parser reporting nonsense with total confidence. The tests
+  declaration, a parser reporting nonsense with total confidence. The tests
   caught it.
 - Budgets cover nodes, depth, parser events, rules, and *retained* bytes.
   Exhaustion returns partial measurements with `complete=False` rather than
@@ -1255,7 +1284,7 @@ written.
   `/Prev` through incremental updates and `/XRefStm` through hybrid files, and
   reads object streams.
 - This closes a real coverage hole. Since PDF 1.5 a producer may put the
-  cross-reference table in a stream — so `trailer` appears nowhere — and put
+  cross-reference table in a stream (so `trailer` appears nowhere) and put
   `/Info` inside a compressed object stream, so `/Author` is never plain text.
   Against those files the lexical scanner reported nothing, and reporting nothing
   looks exactly like finding nothing. Tests assert the premise directly.
@@ -1277,8 +1306,8 @@ written.
 
 **EBML/WebM invariants and cleanup**
 
-- `trueai/core/ebml.py` specifies six invariants — tracks, clusters, cues,
-  timing, seek positions, provenance — over a structural model that resolves
+- `trueai/core/ebml.py` specifies six invariants (tracks, clusters, cues,
+  timing, seek positions, provenance) over a structural model that resolves
   `SeekHead` and `Cues` positions to whatever elements are actually there.
 - The failure it exists to catch is the EBML spelling of the MP4 one: removing
   bytes from `Tags` shifts every cluster after them, while the document still
@@ -1288,7 +1317,7 @@ written.
 - `CodecPrivate` is named in the failure detail, because losing it is the
   difference between a file that plays differently and one that does not play.
 - WebM and Matroska metadata can now be removed. The selected `SimpleTag` is
-  overwritten with a same-length `Void` — EBML's own padding element — so nothing
+  overwritten with a same-length `Void` (EBML's own padding element) so nothing
   moves and no `SeekHead` or `Cues` position needs rewriting.
 - `void_element` is exact by construction and tested from 2 bytes to 5 MB. The
   whole substitution depends on the replacement being the same size.
@@ -1299,7 +1328,7 @@ written.
 
 - MP4, MOV, and M4A metadata can now be removed. The selected box is overwritten
   in place with a zero-filled `free` box of exactly the same length, so the file
-  keeps its length and **no chunk offset needs correcting** — the failure mode
+  keeps its length and **no chunk offset needs correcting**. The failure mode
   `FMT-01` specifies is avoided by not creating the situation that causes it.
 - The cost is stated rather than hidden: the file does not get smaller. The
   metadata bytes become padding.
@@ -1323,8 +1352,8 @@ written.
 - `trueai/core/iso_bmff.py` models an ISO base media file structurally: the box
   tree, and each track's sample layout resolved through `stsc`, `stsz`, and the
   chunk offsets to absolute byte ranges.
-- Seven invariants — samples, timing, edit lists, indexes, encryption state,
-  rendering-critical metadata, protected provenance — each reported separately.
+- Seven invariants: samples, timing, edit lists, indexes, encryption state,
+  rendering-critical metadata, protected provenance. Each reported separately.
   There is no single `valid` field: "the samples moved" and "the provenance box
   was dropped" need different remedies.
 - The samples invariant hashes the bytes the tables point at rather than the
@@ -1370,7 +1399,7 @@ written.
 
 - `trueai/plugins/distribution.py` signs every file of a plugin together with the
   capabilities it declares. The host reads the manifest from the signature, so a
-  plugin is never imported to find out what it wants — and because the module's
+  plugin is never imported to find out what it wants, and because the module's
   bytes are covered by the same signature, a declared capability set cannot be
   contradicted by what module-level code actually does.
 - Every file is listed, not a chosen subset. `__pycache__` is excluded because the
@@ -1397,8 +1426,8 @@ written.
 - Example plugins that reach the operating system through `ctypes` on both POSIX
   and Windows: a native writer, reader, socket opener, process spawner, and a
   worker that blocks inside a native sleep where no Python deadline can reach it.
-- `scripts/verify_native_plugins.py` runs them through the whole real path — entry
-  point, manifest review, worker spawn, confinement, guards, deadline — against a
+- `scripts/verify_native_plugins.py` runs them through the whole real path (entry
+  point, manifest review, worker spawn, confinement, guards, deadline) against a
   real kernel in a container. On Linux a hostile native plugin cannot write outside
   its grant, cannot open a socket, and cannot start another program; on every
   platform it cannot outlive its deadline.
@@ -1415,7 +1444,7 @@ written.
 
 - A read-only mount namespace, with the scratch grant and the worker's protocol
   directory re-opened for writing. Native code cannot write outside the grants
-  either — previously only the Python guards stood in the way, and native code
+  either: previously only the Python guards stood in the way, and native code
   goes around those.
 - Read confinement is still not implemented: it needs `pivot_root` into a
   per-invocation tree. That is recorded as a gap in every report.
@@ -1435,13 +1464,13 @@ written.
   syscall rather than returning an error a plugin can retry around. The denied set
   is derived from the grants. `fork` and `vfork` are deliberately absent: glibc
   routes `os.fork()` through `clone`, which threading also uses, so filtering it
-  would break the interpreter — the gap is recorded instead of faked. Syscall
+  would break the interpreter. The gap is recorded instead of faked. Syscall
   numbers are pinned for x86_64 and aarch64 only; other architectures report the
   mechanism unavailable rather than filtering against guessed numbers.
 - **Windows**: `trueai/plugins/windows_token.py` spawns the worker through
   `CreateRestrictedToken` and `CreateProcessAsUserW`, dropping every privilege and
-  making `BUILTIN\Administrators` deny-only. It is not AppContainer — no
-  filesystem or network isolation — and the report says so instead of reporting
+  making `BUILTIN\Administrators` deny-only. It is not AppContainer (no
+  filesystem or network isolation) and the report says so instead of reporting
   "confined".
 - **macOS**: a generated deny-by-default SBPL profile with writes limited to the
   scratch grant. Unverified: there is no macOS machine here, and the backend is
@@ -1483,7 +1512,7 @@ written.
   `trueai:` prefix, so a `prov:`-prefixed term always means what PROV says it
   means. `wasAttributedTo` carries no strength of its own; level, evidence status,
   claim type, and AI autonomy travel beside it as TrueAI properties.
-- Every export carries `unmapped_concepts()` — what its target could not express
+- Every export carries `unmapped_concepts()`: what its target could not express
   and why. An export that silently drops the evidence status turns "alice declared
   she originated this" into "alice originated this".
 - DSSE envelopes are signed fresh over the pre-authentication encoding. A record
@@ -1505,8 +1534,8 @@ written.
   raise it, so the result is actionable rather than a grade. Undisclosed machine
   work blocks PAL-2 and unresolved dissent blocks PAL-3: both are conditions, not
   deductions from a score.
-- Five versioned evaluation profiles — `research`, `software-delivery`,
-  `creative-work`, `education`, `regulated-enterprise` — whose weights and
+- Five versioned evaluation profiles (`research`, `software-delivery`,
+  `creative-work`, `education`, `regulated-enterprise`) whose weights and
   thresholds are model fields rather than constants, because a profile that will
   not show its weights is asking to be trusted rather than checked. The answer is
   `meets_review_requirements`: a policy result about process evidence, never an
@@ -1562,7 +1591,7 @@ written.
   one.
 - Local evidence adapters for Git commits and repository state, reviewed diffs,
   command and test receipts, build outputs, research notes, citations, approvals,
-  external receipts, tool identity, scan reports, and audit certificates — all
+  external receipts, tool identity, scan reports, and audit certificates: all
   recorded by digest. A private commit's summary and a private note's contents
   never enter the record, which is asserted rather than assumed.
 - Salted commitments, so committing to a short guessable statement cannot be
@@ -1573,8 +1602,8 @@ written.
   gets a new identifier and drops signatures, which covered the unredacted bytes.
 - Summaries print the stage table and always repeat the record's own limitations.
 - `attestations verify` reports each property separately and exits 0 only for an
-  authenticated declaration, 1 for an unsigned or self-declared record — an honest
-  state, not a failure — and 2 for a changed artifact or an invalid signature.
+  authenticated declaration, 1 for an unsigned or self-declared record (an honest
+  state, not a failure) and 2 for a changed artifact or an invalid signature.
 
 
 **Human Contribution Records (process attestations)**
@@ -1593,9 +1622,9 @@ written.
 - Evidence is referenced by digest, never copied. Private evidence may not carry a
   locator, committed evidence carries a commitment that later disclosure is checked
   against, and omitted evidence must state why.
-- Verification returns independent results — schema, content ID, artifact binding,
+- Verification returns independent results: schema, content ID, artifact binding,
   each signature role, expiry, profile support, disclosure consistency, dissent,
-  limitations — instead of one badge. The only derived property is named
+  limitations, instead of one badge. The only derived property is named
   `authenticated_declaration`, which is the honest ceiling for a self-signed record.
 - Four standing limitations are mandatory and a record missing any of them is
   invalid.
@@ -1645,7 +1674,7 @@ written.
   `trueai certificates revoke`; strict verification can require a current issuer-authenticated list.
 - Certificates bind package/schema versions, exact report and artifact hashes, policy,
   detector scope, resource boundaries, diagnostics, findings, and explicit limitations.
-- The certificate claim is deliberately “no indicators detected in scope,” never proof
+- The certificate claim is deliberately "no indicators detected in scope," never proof
   of human authorship or proof that AI assistance was absent.
 
 **Signed enterprise policy**
@@ -1769,7 +1798,7 @@ written.
 - `tests/unit/test_attestation_adversarial.py` exercises forged evidence, backdated
   claims, markup injection and oversized input, actor impersonation, omitted AI
   roles, conflicting countersignatures, redaction leaks, changed artifacts, expired
-  claims, revoked issuers, and unsupported evaluation profiles — each paired with a
+  claims, revoked issuers, and unsupported evaluation profiles: each paired with a
   test that the corresponding honest case still passes, so no check is a blanket
   refusal.
 - Every collection on a record is now bounded (`claims`, `evidence`, `activities`,

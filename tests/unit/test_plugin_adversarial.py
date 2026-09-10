@@ -4,7 +4,7 @@ The Python guards replace functions; native code goes around them. These tests
 therefore reach the kernel through ``ctypes``, and they measure two things:
 
 * what the platform actually stops, and
-* what it does not — because a documented gap that quietly closed means the
+* what it does not, because a documented gap that quietly closed means the
   documentation is now wrong in the other direction.
 
 Coverage is split by what a platform can prove:

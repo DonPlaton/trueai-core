@@ -2,14 +2,14 @@
 
 Four checks that answer four different questions, and a release needs all four:
 
-* **licenses** — is anything in the runtime closure under terms this project
+* **licenses**: is anything in the runtime closure under terms this project
   cannot ship under;
-* **advisories** — has anybody looked at the advisory sources recently, and does
+* **advisories**: has anybody looked at the advisory sources recently, and does
   the ledger still describe the build that exists;
-* **SBOM completeness** — does every component carry a version, a license, and a
+* **SBOM completeness**: does every component carry a version, a license, and a
   package URL, or is the document one that passes a "do you have an SBOM" check
   while answering nothing;
-* **packaged manifest** — does the distribution contain what it says it does.
+* **packaged manifest**: does the distribution contain what it says it does.
 
 They run together because they fail together in practice: a dependency added
 without thought fails three of them at once, and seeing one failure at a time

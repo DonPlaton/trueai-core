@@ -2,7 +2,7 @@
 
 `scripts/check_docs.py` asserts that the commands and options named in the
 documentation exist. Existing is not working: an option can be spelled
-correctly, be accepted by the parser, and still fail — and a reader who copies a
+correctly, be accepted by the parser, and still fail, and a reader who copies a
 line out of a README does not care which of the two it was.
 
 Order matters and is the point. The block reads as a session, so a later line may

@@ -2,7 +2,7 @@
 
 A scan of a large repository runs for minutes. It has to be able to say where it
 is and to stop when asked. Both are easy to build in a way that drags a console
-library, a widget toolkit, or an event loop into the middle of the engine — and
+library, a widget toolkit, or an event loop into the middle of the engine, and
 then a headless CI run depends on Rich and an async caller depends on threads.
 
 So both are protocols, each with one member, and a plain implementation attached.
@@ -71,7 +71,7 @@ at the next file is not a cancel.
 It does not return a shorter report. A shorter report is indistinguishable from a
 clean one at the point where it matters: someone opens it and concludes the
 repository is fine. `ScanCancelled` carries how far the scan got and deliberately
-carries **no findings** — a partial result handed back through an exception is a
+carries **no findings**: a partial result handed back through an exception is a
 partial result someone will eventually treat as a report.
 
 A caller that wants partial results collects them from the progress events, where
@@ -80,7 +80,7 @@ they are partial by construction and cannot be mistaken for anything else.
 ## On the command line
 
 `trueai scan` shows a progress bar when standard error is a terminal, and does
-not when output is redirected — progress written into a pipe is noise in a log
+not when output is redirected: progress written into a pipe is noise in a log
 and breaks anything parsing the stream. `--no-progress` turns it off explicitly.
 
 Ctrl-C sets the token rather than raising through the middle of a scan, so an

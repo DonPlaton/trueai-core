@@ -6,7 +6,7 @@ because the interesting failure is not "the SBOM is missing" but "the SBOM is
 missing something".
 
 So the emphasis is on completeness rather than on the format. `--check` fails
-when a component has no version, no license, or no purl — three fields an SBOM is
+when a component has no version, no license, or no purl: three fields an SBOM is
 for, and three that a generator will happily leave blank when a distribution's
 metadata is thin. An SBOM with blanks is worse than none: it passes a consumer's
 "do you have an SBOM" check and answers none of their questions.

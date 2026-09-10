@@ -13,7 +13,7 @@ which entries go first, and what a prune will refuse to touch.
 A hit skips the detectors. It does not skip reading the artifact, and that is
 worth knowing before choosing to turn it on.
 
-Every artifact is opened and hashed to build the key — a cache that trusted a
+Every artifact is opened and hashed to build the key: a cache that trusted a
 path and a timestamp instead would return a stale result for a changed byte,
 which is the one thing it must never do. It is then hashed again after its
 detectors run, because a result derived from bytes that changed underneath the
@@ -25,7 +25,7 @@ could be removed.
 So the saving is exactly the detector work, and how much that is depends
 entirely on what is being scanned. Measured on a seeded 20,000-file corpus of
 small Markdown, Python, text, and HTML files on Windows: a second scan with a
-100% hit rate took 211 seconds against 231 for the first — around 9%, because
+100% hit rate took 211 seconds against 231 for the first: around 9%, because
 reading and hashing four small text files costs about what inspecting them does.
 The same cache is worth far more on PDFs, media containers, and Office packages,
 where parsing dominates and re-reading the bytes is the cheap part.
@@ -36,7 +36,7 @@ to measure, and it will not look like the hit rate.
 ## It has a ceiling
 
 An unbounded cache beside a repository is a disk-space bug waiting for a large
-enough checkout. `ScanCache` takes a `max_bytes` budget — 256 MB by default —
+enough checkout. `ScanCache` takes a `max_bytes` budget (256 MB by default)
 and the engine enforces it at the end of every scan. A budget below one entry is
 refused at construction: it could never hold anything, so it is a configuration
 error rather than a policy.
@@ -55,10 +55,10 @@ destroys.
 
 | Order | Group | Why it is there |
 |---|---|---|
-| 1 | Written under a different package, schema, or cache format version | Those versions are part of the key, so the entry is not merely stale — it is **unreachable**. Evicting anything else first would be strictly worse. |
+| 1 | Written under a different package, schema, or cache format version | Those versions are part of the key, so the entry is not merely stale. It is **unreachable**. Evicting anything else first would be strictly worse. |
 | 2 | Not used in this run, oldest generation first | The ones this scan did not want. |
 | 3 | Used in this run, oldest generation first | Kept longest, because something just needed them. |
-| — | Ties inside a group | Broken by key, so the order is never ambiguous. |
+|: | Ties inside a group | Broken by key, so the order is never ambiguous. |
 
 `ScanCache.eviction_order()` returns that list, and `trueai cache inspect
 --entries N` prints it. Which entries would go is a question an operator should
@@ -88,12 +88,12 @@ trueai cache inspect ./repository
 
 Three categories, kept apart:
 
-- **Entries** — parsed, with size, generation, and the versions they were written
+- **Entries**: parsed, with size, generation, and the versions they were written
   under.
-- **Damaged** — a file at an entry location that will not parse. Counted apart
+- **Damaged**. A file at an entry location that will not parse. Counted apart
   from a miss, because "the cache did not help" and "the cache is unhealthy" are
   different problems and one blended hit rate hides the second.
-- **Unrecognised** — a file under the cache directory that this cache did not
+- **Unrecognised**: a file under the cache directory that this cache did not
   write. Reported and **left in place**. A cache directory is not somewhere to be
   confident about what is safe to delete.
 
@@ -129,7 +129,7 @@ as successes.
 
 ## Where the cache lives
 
-Beside what it describes — `.trueai/cache` under the scanned tree — so deleting a
+Beside what it describes: `.trueai/cache` under the scanned tree, so deleting a
 checkout deletes its cache with it, and a scan never writes outside the tree the
 operator pointed at. Discovery ignores `.trueai/`, so the cache can never become
 its own input.

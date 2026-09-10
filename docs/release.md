@@ -42,7 +42,7 @@ git push origin v0.1.0
 | `adversarial` | Hostile-input and security-boundary suites on Linux and macOS with `TRUEAI_REQUIRE_PRIVILEGED_TESTS=1`, so symlink and permission cases cannot silently skip. |
 | `schema-compatibility` | The published schema contract still holds and the snapshot is current. |
 | `package` | Build, `twine check --strict`, byte-for-byte reproducible rebuild, packaged-manifest check, clean-environment install, `pip check`, and an installed console-script smoke test. |
-| `supply-chain` | `pip-audit` for known vulnerabilities, the dependency license allowlist, the [advisory ledger](supply-chain.md) — which fails when nobody has reviewed recently rather than only when a CVE appears — and a CycloneDX SBOM checked for completeness. |
+| `supply-chain` | `pip-audit` for known vulnerabilities, the dependency license allowlist, the [advisory ledger](supply-chain.md) (which fails when nobody has reviewed recently rather than only when a CVE appears) and a CycloneDX SBOM checked for completeness. |
 
 ## What the release workflow adds
 
@@ -137,7 +137,7 @@ owner exist.
 2. Set the repository's default Actions permission to read-only. The release
    jobs request only their scoped OIDC/attestation permissions.
 3. Run `.github/workflows/ci.yml` from `workflow_dispatch` once. Confirm all
-   Python 3.12–3.14 jobs on Linux, macOS, and Windows, both POSIX adversarial
+   Python 3.12 to 3.14 jobs on Linux, macOS, and Windows, both POSIX adversarial
    jobs, authenticated C2PA verification, plugin confinement, packaging,
    reproducibility, and supply-chain jobs are green.
 4. After the first run creates stable check names, protect `main` and require

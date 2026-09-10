@@ -4,8 +4,8 @@ These guards are defence in depth, not a sandbox. They stop an ordinary Python
 plugin from opening a socket, spawning a process, or writing to disk when the
 host did not grant that capability, and they turn an attempt to do so into a
 visible failure rather than a silent success. Every documented way to write a
-file from Python is covered — ``open``, ``io.open``, ``Path.open``, ``os.open``,
-and the ``os``/``shutil``/``Path`` mutators — because guarding one spelling and
+file from Python is covered: ``open``, ``io.open``, ``Path.open``, ``os.open``,
+and the ``os``/``shutil``/``Path`` mutators, because guarding one spelling and
 leaving the others is not a boundary. They do not stop native code, ctypes, or a
 plugin that deliberately restores the replaced functions.
 

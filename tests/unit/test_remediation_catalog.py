@@ -7,7 +7,7 @@ by a test, which is what stops a removable field shipping without a fixture.
 
 The bug this replaced is worth remembering. Safety used to be a prefix match on
 the identifier, so `odf.remove-metadata-field` was classified as a content change
-for as long as ODF support existed — not because anybody decided ODF metadata was
+for as long as ODF support existed, not because anybody decided ODF metadata was
 content, but because `"odf."` was never added to a tuple. It happened to fail
 safe, which is why nothing noticed.
 """
@@ -95,7 +95,7 @@ def test_odf_metadata_is_metadata_like_every_other_package_format() -> None:
     """The bug the catalogue replaced: a prefix tuple nobody updated.
 
     `meta.xml` is a separate part exactly like `docProps`, so removing a field
-    from it cannot change what a reader sees — the same claim OOXML already made.
+    from it cannot change what a reader sees. The same claim OOXML already made.
     """
 
     for identifier in (

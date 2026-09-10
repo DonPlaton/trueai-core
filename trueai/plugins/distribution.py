@@ -8,19 +8,19 @@ after the module ran is a decision made too late.
 
 A signed distribution moves the manifest out of the module. The capabilities, the
 detector id, and the digest of every file are in a document the publisher signed,
-so the host can decide before anything is imported — and a publisher cannot
+so the host can decide before anything is imported, and a publisher cannot
 declare `read_artifact` in a signed manifest and open a socket from module level,
 because the module's bytes are covered by the same signature.
 
 Four questions, kept apart because collapsing them is how "signed" comes to mean
 "safe":
 
-* **Integrity** — do the files on disk still hash to what was signed?
-* **Identity** — whose key signed it, and does a trust profile say who owns that
+* **Integrity** (do the files on disk still hash to what was signed?
+* **Identity**) whose key signed it, and does a trust profile say who owns that
   key? Possession of a key is possession of a key.
-* **Currency** — has the publisher withdrawn this version, and is the withdrawal
+* **Currency**: has the publisher withdrawn this version, and is the withdrawal
   list the current one rather than a convenient older copy?
-* **Compatibility** — was it built for this core and this report schema?
+* **Compatibility**: was it built for this core and this report schema?
 
 Each is reported separately. A distribution can be perfectly signed by an unknown
 key, or correctly signed by a known publisher and revoked an hour ago, and an
@@ -661,7 +661,7 @@ class DistributionPolicy(FrozenModel):
     ``require_signed`` is the posture that makes the rest matter. Without it a
     signed distribution is checked when present and absent otherwise, which is
     useful during a rollout and is not a control. With it, an unsigned plugin does
-    not run — and, more importantly, is never imported, so the decision happens
+    not run, and, more importantly, is never imported, so the decision happens
     before the module gets to execute anything.
     """
 

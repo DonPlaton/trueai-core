@@ -243,7 +243,7 @@ def apply_confinement(
     its own token.
 
     ``writable_paths`` are directories that must stay writable regardless of the
-    grants — in practice the one the worker writes its protocol response into. A
+    grants, in practice the one the worker writes its protocol response into. A
     worker that cannot answer the host is not confined, it is broken.
     """
 

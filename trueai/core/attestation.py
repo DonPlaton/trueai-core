@@ -3,7 +3,7 @@
 A `TAI1-…` audit certificate says what a scanner observed in exact bytes. This
 module is the other half: a `TAIP1-…` process attestation says who originated,
 framed, decided, executed, validated, integrated, and took responsibility for the
-work that produced those bytes — and how well each of those claims is supported.
+work that produced those bytes, and how well each of those claims is supported.
 
 The two must never be merged. Finding no AI residue cannot populate
 ``execution=human``; finding a provider marker cannot erase a documented human

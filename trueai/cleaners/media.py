@@ -8,8 +8,8 @@ starts. MP4 does: `stco` and `co64` hold absolute file offsets, so shortening
 anything before `mdat` moves every sample while leaving a file that still parses
 and still reports the right duration.
 
-Rather than remove bytes and rewrite every offset — which is where that class of
-bug lives — the ISO-BMFF branch overwrites the selected box in place with a
+Rather than remove bytes and rewrite every offset (which is where that class of
+bug lives) the ISO-BMFF branch overwrites the selected box in place with a
 zero-filled `free` box of exactly the same length. `free` is the format's own
 "ignore this" padding, understood by every demuxer. The metadata is gone, the
 file length is unchanged, and **no offset needs correcting because nothing
@@ -21,7 +21,7 @@ padding rather than disappearing. For a delivery pipeline that cares whether the
 client can read the shooting location, that is the right trade; for one that
 cares about file size it is not, and `FMT-02` does not pretend otherwise.
 
-EBML — WebM and Matroska — has the same problem written in a different notation.
+EBML (WebM and Matroska) has the same problem written in a different notation.
 `SeekHead` and `Cues` store positions relative to the start of segment data, so
 removing bytes from `Tags` shifts every cluster after them and seeking lands
 somewhere else. It also has the same escape hatch: `Void`, the format's own
@@ -30,7 +30,7 @@ padding element. The EBML branch does exactly what the ISO-BMFF branch does, wit
 
 Either way the result is checked against the executable invariants in
 :mod:`trueai.core.iso_bmff` or :mod:`trueai.core.ebml` before it is accepted, so
-a mistake in the substitution — a wrong length, a clobbered neighbour — fails the
+a mistake in the substitution (a wrong length, a clobbered neighbour) fails the
 gate instead of shipping.
 """
 
@@ -238,7 +238,7 @@ class MediaMetadataCleaner:
         """Overwrite the selected boxes with padding, then prove nothing else moved."""
 
         # A C2PA manifest binds byte ranges of the file it lives in, so *any*
-        # change invalidates it — including one that leaves the manifest box
+        # change invalidates it, including one that leaves the manifest box
         # untouched. The substring scan over the raw bytes does not catch this:
         # the box is identified by a binary UUID, and a manifest payload need
         # not contain the letters "c2pa" anywhere. Structural detection is the

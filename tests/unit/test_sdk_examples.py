@@ -3,7 +3,7 @@
 An example that drifts is worse than no example: someone copies it, it works
 locally, and it breaks on the next upgrade with the compatibility gate silent
 because the example was never part of what the gate covers. So the example is
-loaded, run, signed, and — the part that matters — inspected to prove every
+loaded, run, signed, and (the part that matters) inspected to prove every
 import in it comes from a module TrueAI has actually frozen.
 """
 

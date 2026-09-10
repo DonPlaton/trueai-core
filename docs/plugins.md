@@ -92,23 +92,23 @@ class InvoiceDetector(BaseDetector):
 Each grant carries its own scope, and the broker is the single place the scope is
 checked:
 
-- **`ArtifactGrant`** — one path and the digest the host will re-check afterwards.
+- **`ArtifactGrant`**: one path and the digest the host will re-check afterwards.
   Not a directory, not a glob.
-- **`WorkspaceGrant`** — one root. Paths are resolved before the prefix check, so
+- **`WorkspaceGrant`**: one root. Paths are resolved before the prefix check, so
   `../../etc/passwd` and an absolute path are both refused; a per-file size cap
   keeps one read from becoming a memory-exhaustion primitive.
-- **`TemporaryOutputGrant`** — a directory the host creates and removes around a
+- **`TemporaryOutputGrant`**: a directory the host creates and removes around a
   single invocation, with a byte budget charged across *every* write. A per-file
   limit is not a limit when a plugin can open more files, and a budget checked at
   close is a budget an attacker writes past, so a refused write never reaches the
   file.
-- **`NetworkGrant`** — a `(host, port)` allowlist. There is no "network: yes":
-  a forensic tool that can reach an arbitrary host is an exfiltration path with a
+- **`NetworkGrant`**: a `(host, port)` allowlist. There is no "network: yes" setting,
+  because a forensic tool that can reach an arbitrary host is an exfiltration path with a
   scan attached. A grant with no endpoints is a construction error, not an
   implicit "everything".
-- **`SubprocessGrant`** — named executables, resolved before comparison, run with
+- **`SubprocessGrant`**: named executables, resolved before comparison, run with
   `shell=False`.
-- **`NativeLibraryGrant`** — named libraries, and it must set
+- **`NativeLibraryGrant`**: named libraries, and it must set
   `acknowledged_unmediated=True`. The broker cannot mediate native code; this
   grant makes it declared rather than contained, so an operator who denies it
   knows every remaining plugin is one the guards can actually govern.
@@ -178,7 +178,7 @@ trueai plugins verify acme_plugin/trueai-distribution.json \
 
 The capabilities, the detector id, the entry point, and the digest of **every**
 file are in one document the publisher signed. The host reads the manifest from
-the signature, so nothing is imported before the decision — and because the
+the signature, so nothing is imported before the decision, and because the
 module's bytes are covered by the same signature, a publisher cannot declare
 `read_artifact` and open a socket from module level.
 
@@ -272,8 +272,8 @@ distributions, and a container policy can block `seccomp`. The level is how an
 operator says which outcome they want when that happens.
 
 The level governs confinement and nothing else. CPU and memory ceilings are a
-separate mechanism — the Linux confinement report says so in its own
-`not_enforced` list — and their strictness lives on the budget:
+separate mechanism (the Linux confinement report says so in its own
+`not_enforced` list) and their strictness lives on the budget:
 `PluginResourceLimits(required=True)` makes a helper refuse to start when the
 platform declines one of them. It is off by default because macOS declines
 `RLIMIT_AS` outright, and coupling the two turned "confine my plugins" into "do
@@ -281,7 +281,7 @@ not run plugins" on every Mac. What the kernel accepted is reported per plugin
 by `trueai plugins`, and a ceiling that is not in place is printed rather than
 assumed.
 
-### Linux — seccomp and namespaces
+### Linux: seccomp and namespaces
 
 Applied by the worker to itself, before the plugin is imported, because import
 time is when a hostile plugin acts.
@@ -299,7 +299,7 @@ The filter is derived from the grants. Without `network`: `socket`, `connect`,
 `execve`, `execveat`. Always: `ptrace`.
 
 **`fork` and `vfork` are deliberately absent.** glibc has routed `os.fork()`
-through `clone` for years, and `clone` is shared with threading — filtering it
+through `clone` for years, and `clone` is shared with threading: filtering it
 would stop the interpreter rather than the plugin. Denying `fork` by number would
 have looked like a control and been none, so the gap is recorded instead:
 *running a different program is blocked; duplicating this one is not.*
@@ -311,8 +311,8 @@ from guessed numbers denies the wrong calls.
 A **mount namespace** makes the whole filesystem read-only, then re-opens exactly
 the granted paths: the scratch directory, and the one the worker writes its
 protocol response into. A worker that cannot answer the host is not confined, it
-is broken. The user namespace is what makes this possible unprivileged — inside
-it the process holds `CAP_SYS_ADMIN`, which is what mounting requires — and the
+is broken. The user namespace is what makes this possible unprivileged (inside
+it the process holds `CAP_SYS_ADMIN`, which is what mounting requires) and the
 real uid and gid are mapped to themselves so every ownership check answers as it
 did outside.
 
@@ -326,7 +326,7 @@ Supplementary groups are dropped by the user namespace, so a file readable only
 through one of them becomes unreadable to the plugin. That is a real behaviour
 change and it is in the report.
 
-### Windows — a restricted token
+### Windows: a restricted token
 
 Windows has no `seccomp`, and a process cannot narrow its own token once it is
 running. The restriction is therefore chosen when the worker is **spawned**, in
@@ -334,8 +334,8 @@ running. The restriction is therefore chosen when the worker is **spawned**, in
 `CreateProcessAsUserW`:
 
 - every privilege the host token holds is dropped (`DISABLE_MAX_PRIVILEGE`);
-- `BUILTIN\Administrators` becomes deny-only, which is stronger than absent —
-  an absent group can be re-added, a deny-only entry cannot.
+- `BUILTIN\Administrators` becomes deny-only, which is stronger than absent.
+  An absent group can be re-added, a deny-only entry cannot.
 
 `subprocess` cannot pass a token, so the process is created through the Win32 API
 directly. That is affordable only because the protocol is already file-based:
@@ -347,7 +347,7 @@ can read. AppContainer would need a profile, a SID, and ACLs on the artifact and
 the scratch directory, and it is not implemented. The report says all of this
 rather than reporting "confined".
 
-### macOS — sandbox_init
+### macOS: sandbox_init
 
 A generated SBPL profile: deny by default, then re-allow exactly what a grant
 covers. The scratch directory is the only writable location and it is named
@@ -363,7 +363,7 @@ than discovered later.
 
 The Python guards replace functions; native code goes around them. So the
 adversarial tests reach the operating system through `ctypes`, on both POSIX and
-Windows — a "native" plugin that only worked on one would test one platform's
+Windows: a "native" plugin that only worked on one would test one platform's
 confinement and quietly skip the other.
 
 `scripts/verify_native_plugins.py` runs them through the **whole real path**:
@@ -404,7 +404,7 @@ container.
 
 - **Linux**: `scripts/verify_linux_confinement.py` for the mechanism and
   `scripts/verify_native_plugins.py` for the whole path, both run inside a
-  container against a real kernel. A denied syscall must *kill the child* — a
+  container against a real kernel. A denied syscall must *kill the child*. A
   parent that survived is not evidence. Both scripts also assert the documented
   **gaps**: threads still start, a granted executable still runs, forking a copy
   of the worker is still possible, and reads outside the grant still succeed. A
@@ -443,8 +443,8 @@ invariant that must hold when it does not raise.
 | `limits` | validation errors | memory stays above the floor and CPU inside its range |
 | `broker` | `CapabilityDeniedError` | any path returned resolves inside the workspace grant |
 
-Anything outside those — a `TypeError` from an unguarded attribute access, a
-`RecursionError` from an unbounded structure — is a place where untrusted input
+Anything outside those: a `TypeError` from an unguarded attribute access, a
+`RecursionError` from an unbounded structure: is a place where untrusted input
 reached code that assumed it was well formed.
 
 Generation is half random structures and half **mutations of valid documents**.
@@ -458,9 +458,9 @@ it.
 ### Proving the fuzzer can fail
 
 A fuzz harness that has never failed is indistinguishable from one that cannot.
-`tests/unit/test_plugin_fuzz.py` therefore breaks two checks on purpose —
+`tests/unit/test_plugin_fuzz.py` therefore breaks two checks on purpose:
 `finding_id_is_valid` always returning true, and `workspace_path` returning
-whatever it was handed — and requires the fuzzer to report each within a few
+whatever it was handed, and requires the fuzzer to report each within a few
 hundred cases. It also pins the specific corpus inputs that must always be
 refused, so the behaviours the campaign samples cannot regress silently between
 runs.
@@ -530,7 +530,7 @@ System-call filtering and write confinement are implemented on Linux; see
 [operating-system confinement](#operating-system-confinement) for what each platform does and does
 not enforce, and [adversarial tests](#adversarial-tests-hostile-native-plugins) for the evidence.
 **Read** confinement is not implemented anywhere, and on Windows neither reads, writes, sockets,
-nor process creation are confined natively — a restricted token is not AppContainer. Process
+nor process creation are confined natively. A restricted token is not AppContainer. Process
 isolation, kernel quotas, seccomp, the mount namespace, and the Python guards are defense in depth;
 where a platform does not enforce something, that is stated rather than covered by the phrase.
 

@@ -137,7 +137,7 @@ class DesignStyleDetector(BaseDetector):
                 confidence_type=ConfidenceType.HEURISTIC,
                 severity=Severity.INFO,
                 evidence_type=EvidenceType.STATISTICAL,
-                title="DESIGN STYLE SIGNAL — NOT PROVENANCE",
+                title="DESIGN STYLE SIGNAL, NOT PROVENANCE",
                 description=(
                     "Repeated design-system measurements crossed an experimental regularity "
                     "threshold. This does not identify the author or generating tool."

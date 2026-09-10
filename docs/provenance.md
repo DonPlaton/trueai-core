@@ -75,7 +75,7 @@ four answers that stand on their own, because they are four separate findings:
 
 The bold answers mean *this was not determined*. They are collected in
 `UNKNOWN_ANSWERS`, and an interface must not style them the way it styles a
-negative result — `NO_MANIFEST` and `VERIFIER_UNAVAILABLE` were both "not green"
+negative result. `NO_MANIFEST` and `VERIFIER_UNAVAILABLE` were both "not green"
 in a single-status view, which made "this artifact carries no provenance"
 indistinguishable from "we were unable to look". One is a result and the other
 is a hole in the scan.
@@ -88,7 +88,7 @@ Three of the distinctions matter enough to name:
   the scan; rendering it as the second blames an artifact for a missing
   configuration.
 - **`not_established` is not `not_trusted`.** When a signature fails, the signer
-  identity it carries proves nothing — asking whether that identity is trusted
+  identity it carries proves nothing: asking whether that identity is trusted
   invites reading the answer as though the signature had held.
 
 `establishes_provenance` is true only when all three C2PA facets line up. The
@@ -97,7 +97,7 @@ something, it carries no signed chain, and letting it raise that flag would be
 exactly the conflation this exists to prevent.
 
 `caveats()` states the ways a positive-looking facet is weaker than it looks,
-and `headline()` returns the one sentence that is safe to put at the top — it
+and `headline()` returns the one sentence that is safe to put at the top: it
 claims a verified trusted chain if and only if `establishes_provenance` does.
 
 The facets are a projection, not report content. Everything is derived from

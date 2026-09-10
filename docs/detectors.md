@@ -39,8 +39,8 @@
 - `design.style-experimental.v1` consumes measurable spacing, radius, color, gradient, shadow,
   typography, and duplicate-path features.
 
-Enable experimental detectors with `trueai scan PATH --experimental`. Their findings say “not
-provenance” and use `HEURISTIC` confidence.
+Enable experimental detectors with `trueai scan PATH --experimental`. Their findings say "not
+provenance" and use `HEURISTIC` confidence.
 
 ## Office Open XML detectors share one implementation
 

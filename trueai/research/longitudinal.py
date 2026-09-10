@@ -1,4 +1,4 @@
-"""Comparing a writer's style against their own past — as a question, not a verdict.
+"""Comparing a writer's style against their own past, as a question, not a verdict.
 
 Somebody's writing changes.  A document sits further from their previous work
 than their previous work sits from itself.  That is worth asking about, and it
@@ -10,7 +10,7 @@ a new topic, a new genre, a co-author, an editor, a template, a house style, a
 translation, a decade of practice, a deadline, grief, a different keyboard.
 
 So this module produces no verdict.  There is no ``same_author`` field, no
-probability that a document is someone else's, and no score to threshold —
+probability that a document is someone else's, and no score to threshold:
 :meth:`StyleComparison.what_this_is_not` exists to be printed next to whatever
 an interface shows.  A style comparison is a **review aid**: it tells a reader
 where to look, and the looking is done by the reader.
@@ -31,8 +31,8 @@ threshold across writers penalises the consistent ones and excuses the erratic.
 how much" is a recipe for moving it back, and that is the one use this project
 will not make convenient.  It is available behind an explicit flag for debugging
 a detector, and the flag is recorded in the result so a report shows it was
-asked for.  This does not prevent anyone from computing the deltas themselves —
-they have the extractor — and claiming otherwise would be a lie.  What it does
+asked for.  This does not prevent anyone from computing the deltas themselves
+(they have the extractor) and claiming otherwise would be a lie.  What it does
 is decline to ship a ready-made objective function, and leave a record when
 somebody asks for one anyway.
 """
@@ -87,7 +87,7 @@ class ShiftBand(StrEnum):
     WITHIN_VARIATION = "within_variation"
     NOTABLE = "notable"
     MARKED = "marked"
-    #: The baseline could not support a comparison. Not a small shift — no
+    #: The baseline could not support a comparison. Not a small shift: no
     #: measurement at all, and an interface must not render it as one.
     UNDETERMINED = "undetermined"
 
@@ -126,7 +126,7 @@ class StyleBaseline:
         return tuple(statistics.fmean(column) for column in columns)
 
     def deviations(self) -> tuple[float, ...]:
-        """Per-feature standard deviation — this writer's own variability."""
+        """Per-feature standard deviation, this writer's own variability."""
 
         columns = zip(*(item.vector.values for item in self.documents), strict=True)
         return tuple(

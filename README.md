@@ -1,11 +1,11 @@
 # TrueAI Core
 
 TrueAI Core is a local-first forensic scanner and predictable sanitizer for artifacts created or
-modified with AI-assisted tools. It reports individual traces—metadata, explicit attribution,
+modified with AI-assisted tools. It reports individual traces: metadata, explicit attribution,
 invisible Unicode, repository context, document structure, provenance markers, and conservative
-style measurements—with evidence and a confidence class for every finding.
+style measurements, with evidence and a confidence class for every finding.
 
-TrueAI does **not** decide whether content is “AI-generated.” Style is not provenance, a generator
+TrueAI does **not** decide whether content is "AI-generated." Style is not provenance, a generator
 field is not authenticated authorship, and a C2PA marker is not a verified signature. The engine
 keeps those evidence classes separate in its public models, policies, CLI, and reports.
 
@@ -139,7 +139,7 @@ are added under `provenance_verifications`; a marker is never promoted into veri
 ## Audit certificates
 
 `trueai certificates issue` creates a JSON audit certificate with a `TAI1-…` content ID. It binds
-the exact file hash—or an ordered directory inventory—to the scan report hash, package and schema
+the exact file hash (or an ordered directory inventory) to the scan report hash, package and schema
 versions, policy, detector set, resource boundaries, diagnostics, and individual indicator finding
 IDs. The status is one of:
 
@@ -147,8 +147,8 @@ IDs. The status is one of:
 - `indicators_detected`: one or more scoped findings are present;
 - `incomplete`: a parser, resource, plugin, or coverage boundary prevented clearance.
 
-The statement is deliberately narrow: “no indicators detected within the documented detector
-scope.” It is not proof of human authorship or proof that AI was never used. An unsigned certificate
+The statement is deliberately narrow: "no indicators detected within the documented detector
+scope." It is not proof of human authorship or proof that AI was never used. An unsigned certificate
 is content-addressed but does not authenticate its issuer. Install the `attestation` extra and use
 an Ed25519 signing key when issuer identity matters. Certificates can carry a finite validity
 period. Issuers can publish a finite-lifetime, monotonically sequenced signed revocation list;
@@ -160,17 +160,17 @@ verification can require a current authenticated list before returning success. 
 A certificate is about bytes. A **Human Contribution Record** is about process: who framed the
 work, who decided, who executed, who validated, who is accountable. It is a separate contract with
 its own `TAIP1-…` identifier, its own schema, and its own verification result, and it is a
-declaration — signing one proves an identified person said it, not that it is true.
+declaration: signing one proves an identified person said it, not that it is true.
 
 Contribution is a vector over eight dimensions, never a percentage. `no_aggregate_score` is a
 standing limitation on every record.
 
 Two orthogonal questions get answered separately:
 
-- **Process Assurance Level** (`PAL-0`…`PAL-4`) — how strong the evidence and governance are,
+- **Process Assurance Level** (`PAL-0`…`PAL-4`): how strong the evidence and governance are,
   derived from verification rather than from claims. A record asserting the strongest claims with
   nothing behind them stops at `PAL-1`.
-- **Evaluation profile** — whether the record meets one context's stated review requirements.
+- **Evaluation profile**, whether the record meets one context's stated review requirements.
   Five ship: `research`, `software-delivery`, `creative-work`, `education`, `regulated-enterprise`.
   They are versioned, they show their weights, and they are allowed to disagree with each other.
 
@@ -190,7 +190,7 @@ its target vocabulary could not express. See
 [Human Contribution Records](docs/process-attestation.md),
 [evaluation profiles](docs/evaluation-profiles.md),
 [interoperability](docs/interoperability.md), [trust](docs/trust.md), and
-[trust stores](docs/trust-store.md) — signed, sequenced anchor sets that refuse a rollback,
+[trust stores](docs/trust-store.md): signed, sequenced anchor sets that refuse a rollback,
 report rotation gaps, and apply offline updates one sequence at a time.
 
 ## Confidence and provenance semantics
@@ -216,10 +216,10 @@ is real but explicit: default scanning reports markers; `trueai verify` or
 `scan --verify-provenance` validates signatures through the official implementation.
 
 Cleanup is gated on format-specific integrity proofs. MP4/MOV/M4A and WebM/Matroska have an
-executable specification of what an edit must not change — sample bytes reached through the chunk offsets,
-timing, edit lists, indexes, encryption state, rendering geometry, and provenance — in
+executable specification of what an edit must not change: sample bytes reached through the chunk offsets,
+timing, edit lists, indexes, encryption state, rendering geometry, and provenance, in
 [container invariants](docs/container-invariants.md) and, for PDF, the
-[object graph](docs/pdf-object-graph.md) — a PDF 1.5+ cross-reference stream carries metadata a
+[object graph](docs/pdf-object-graph.md). A PDF 1.5+ cross-reference stream carries metadata a
 lexical scan never sees. Cleanup replaces the selected box with
 same-length `free` padding, so nothing moves and no offset needs correcting; the file keeps its
 size, and a container carrying a C2PA manifest is refused outright.
@@ -329,8 +329,8 @@ normal scanning. Future network verification must pass an explicit `NetworkPolic
 live in a separate adapter.
 
 More detail: [architecture](docs/architecture.md), [detectors](docs/detectors.md),
-[benchmarks](docs/benchmarks.md) — measured wall time, memory, cache hit rate, and
-determinism at 10,000 and 100,000 files — [fuzzing](docs/fuzzing.md), which covers every parsing
+[benchmarks](docs/benchmarks.md) (measured wall time, memory, cache hit rate, and
+determinism at 10,000 and 100,000 files), [fuzzing](docs/fuzzing.md), which covers every parsing
 boundary and states what the coverage guidance is measurably worth, and
 [progress and cancellation](docs/progress-and-cancellation.md), which the engine offers as two
 one-member protocols so no interface library reaches the core.
@@ -362,8 +362,9 @@ reading the schema diff.
 Adding an optional property or an enum member is compatible. Removing or renaming either, changing
 a type, or changing whether a property is required requires a new schema version. Consumers must
 ignore unknown keys and tolerate unknown enum members. See
-[schema compatibility](docs/schema-compatibility.md). The HTML output has its own constraints — one file, no script, and a policy the document itself declares: see
-[the HTML report](docs/html-report.md).
+[schema compatibility](docs/schema-compatibility.md). The HTML output has its own constraints, described in
+[the HTML report](docs/html-report.md): one file, no script, and a policy the document
+itself declares.
 
 ## Exit codes
 

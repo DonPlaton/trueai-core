@@ -7,25 +7,25 @@ get wrong, and is this the model I think it is.
 
 So the release gate requires five artifacts and refuses without them:
 
-**A model card** — identifier, feature set, corpus digest, intended use, and at
+**A model card**: identifier, feature set, corpus digest, intended use, and at
 least one known limitation.  Defined in :mod:`trueai.research.features`.
 
-**A dataset statement** — what the corpus is, how it was assembled, and, the
+**A dataset statement**: what the corpus is, how it was assembled, and, the
 field that matters most, **what it does not represent**.  A corpus of published
 English technical writing does not represent a student writing in a second
 language, and the moment to say so is before a model trained on it is used to
 judge one.
 
-**A signed manifest** — content-addressed over the card, the statement, the
+**A signed manifest**: content-addressed over the card, the statement, the
 thresholds, and the digests of the model's own files, so "is this the model that
 was evaluated" has an answer that does not depend on a filename.
 
-**Versioned thresholds** — an operating point belongs to one model version and
+**Versioned thresholds**: an operating point belongs to one model version and
 one feature set version, and it carries the digest of the evaluation that
 justified it.  A threshold copied from a previous model is a number nobody
 measured.
 
-**A regression gate** — and the rule that makes it worth having: a rise in the
+**A regression gate**, and the rule that makes it worth having: a rise in the
 false positive rate blocks a release *even when the overall numbers improved*.
 Averages let a model get better at finding machine text while getting worse at
 accusing people, and only one of those two costs a person something.  The
@@ -72,7 +72,7 @@ class ReleaseError(TrueAIError):
 
 
 class DatasetStatement(FrozenModel):
-    """What a corpus is, and — the part that matters — what it is not.
+    """What a corpus is, and (the part that matters) what it is not.
 
     Every field is required. A dataset statement with the awkward sections left
     blank is the one that gets written, and the awkward sections are the reason
@@ -88,7 +88,7 @@ class DatasetStatement(FrozenModel):
     #: How labels were produced and by whom. A label is a judgement, and whose
     #: judgement it was belongs in the record.
     annotation_process: str = Field(min_length=1, max_length=4000)
-    #: Language varieties present — dialect, register, whether writing by
+    #: Language varieties present: dialect, register, whether writing by
     #: second-language authors is included and in what proportion.
     language_varieties: tuple[str, ...] = Field(min_length=1)
     #: Demographic information *if it was collected*. Empty means it was not
@@ -116,7 +116,7 @@ class OperatingPoint(FrozenModel):
 
     name: str = Field(min_length=1, max_length=120)
     threshold: float = Field(ge=0.0, le=1.0)
-    #: What this operating point is for — screening, review triage, a report
+    #: What this operating point is for: screening, review triage, a report
     #: footnote. A threshold without a use is a number waiting to be misapplied.
     intended_use: str = Field(min_length=1, max_length=1000)
     #: The false positive rate measured at this threshold, so a caller does not
@@ -273,13 +273,13 @@ def verify_manifest(
     public_key: str | Path,
     root: Path | None,
 ) -> tuple[bool, tuple[str, ...]]:
-    """Check a manifest's identity, signature, and — when given a root — its files.
+    """Check a manifest's identity, signature, and (when given a root) its files.
 
     ``root`` has no default. A signature proves the digests in the manifest are
     the ones the signer recorded; only reading the files proves the bytes on
     this disk are those digests. Defaulting to ``None`` made the weaker check
     the one a caller got by writing less, and :func:`may_expose` receives the
-    verdict as a pair it cannot interrogate — a manifest whose files were never
+    verdict as a pair it cannot interrogate. A manifest whose files were never
     opened reached the gate indistinguishable from one whose files matched.
     Passing ``None`` is still allowed and still means "signature only"; it is
     now a decision visible at the call site, which is the same rule this module
@@ -405,7 +405,7 @@ def may_expose(
 ) -> ReleaseDecision:
     """Decide whether a learned score may be shown to anyone.
 
-    ``regression`` is ``None`` for a first release, which is allowed — there is
+    ``regression`` is ``None`` for a first release, which is allowed. There is
     nothing to regress against. It is not a way to skip the check on a later
     one: passing ``None`` for a replacement is a decision someone has to make
     deliberately, and it will be visible in whatever calls this.

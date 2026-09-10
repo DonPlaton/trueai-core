@@ -158,7 +158,7 @@ class StylometryDetector(BaseDetector):
                 confidence_type=ConfidenceType.HEURISTIC,
                 severity=Severity.INFO,
                 evidence_type=EvidenceType.STATISTICAL,
-                title="Experimental repetitive style signal — not provenance",
+                title="Experimental repetitive style signal, not provenance",
                 description=(
                     "Measured regularities crossed an experimental reporting threshold. The score "
                     "is not a probability of AI authorship and must not be used as provenance."

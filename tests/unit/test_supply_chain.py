@@ -266,7 +266,7 @@ def test_the_advisory_review_is_not_overdue() -> None:
 
     A suite that never tells anybody the review lapsed is a suite that lets it
     lapse. When this fails, re-read the sources in `security/advisories.toml` and
-    move the dates — the fix is doing the review, not editing the test.
+    move the dates. The fix is doing the review, not editing the test.
     """
 
     require_release_closure()

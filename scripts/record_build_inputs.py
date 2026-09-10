@@ -1,9 +1,9 @@
 """Record every input a build depended on, so it can be reproduced or disputed.
 
 A reproducible build is only useful if a third party knows what to reproduce.
-This writes the inputs an auditor needs — source commit, build timestamp,
+This writes the inputs an auditor needs: source commit, build timestamp,
 interpreter, build backend, dependency lock digest, base image, and the digests
-of the artifacts produced — as one JSON document that travels with the release.
+of the artifacts produced, as one JSON document that travels with the release.
 
 The document deliberately records digests rather than contents: it is evidence
 about a build, not a copy of it.

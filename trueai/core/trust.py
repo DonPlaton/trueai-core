@@ -390,8 +390,8 @@ class OfflineTimestampProvider(TimestampProvider):
     """Sign a time with a designated local timestamping key.
 
     This is the "or equivalent" in "RFC 3161 or equivalent". It gives a separate
-    key, held by a separate role, attesting when it saw a digest — which is the
-    property that matters — without requiring the scanner to reach a network.
+    key, held by a separate role, attesting when it saw a digest (which is the
+    property that matters) without requiring the scanner to reach a network.
 
     It is weaker than a real TSA in one specific way, and the token says so: the
     authority's clock is the machine's clock. It defends against a signer
@@ -421,7 +421,7 @@ class NetworkTimestampProvider(TimestampProvider):
     """An RFC 3161 authority, reachable only through the shared network gate.
 
     Normal scanning stays offline; asking for a trusted timestamp is a separate,
-    deliberate act. The conditions for that act are not stated here — they live
+    deliberate act. The conditions for that act are not stated here: they live
     in :class:`trueai.core.network.NetworkGate`, so "did this tool contact
     anything" has one answer, one set of rules, and one audit trail rather than a
     copy per caller.
@@ -432,7 +432,7 @@ class NetworkTimestampProvider(TimestampProvider):
 
     A caller that already has a configured gate passes it. A caller that does not
     may pass the endpoint, policy, allowlist, and transport instead, and a gate is
-    built from them — with a consent record naming the constructor arguments as
+    built from them, with a consent record naming the constructor arguments as
     the source, because a synthesised consent must not be mistaken for a person's.
     """
 

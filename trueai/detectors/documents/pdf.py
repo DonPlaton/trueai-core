@@ -2,7 +2,7 @@
 
 Two readers, tried in that order. :mod:`trueai.core.pdf_objects` walks the
 cross-reference table or stream, follows `/Prev` through incremental updates, and
-reads object streams — which is the only way to see inside a PDF written since
+reads object streams, which is the only way to see inside a PDF written since
 1.5, where `/Info` is compressed and the word `trailer` never appears. The
 original lexical scan stays as the fallback for documents the graph cannot model
 within its budget, because a file that defeats the parser should still yield

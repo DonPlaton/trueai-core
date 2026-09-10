@@ -17,7 +17,7 @@ isolated host addresses each of those directly:
 Kernel confinement is applied on top by :mod:`trueai.plugins.confinement`: a
 seccomp filter, a network namespace, and a read-only mount namespace on Linux; a
 restricted token on Windows; an SBPL profile on macOS. What none of them does is
-confine *reads* — that needs pivot_root into a per-invocation tree, and it is not
+confine *reads*. That needs pivot_root into a per-invocation tree, and it is not
 implemented. On Windows nothing native is confined at all beyond the deadline,
 and the confinement report says so rather than saying "confined".
 
@@ -166,7 +166,7 @@ class IsolatedDetector:
         self.search_path = search_path
         self.resource_limits = resource_limits or PluginResourceLimits()
         # Scoped grants an operator configured. Absent means the capability, even
-        # if the policy allowed the name, has nothing to act on — which is the
+        # if the policy allowed the name, has nothing to act on, which is the
         # correct outcome rather than an excuse to widen it.
         self.network_grant = network_grant
         self.subprocess_grant = subprocess_grant

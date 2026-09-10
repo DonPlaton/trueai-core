@@ -199,8 +199,8 @@ def test_removing_bytes_without_correcting_the_offsets_is_caught(original: bytes
     """The dangerous case: still in bounds, still parses, reads the wrong bytes.
 
     The drift is backwards, so every sample range stays inside the file. Nothing
-    about the result looks wrong — the duration is right, the tables are
-    consistent — and it plays garbage. Only following the offsets catches it.
+    about the result looks wrong (the duration is right, the tables are
+    consistent) and it plays garbage. Only following the offsets catches it.
     """
 
     broken = build_mp4(title=None, offset_drift=-8)

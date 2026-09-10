@@ -34,7 +34,7 @@ rule because the list is written down rather than inferred from what happens to 
 importable.
 
 `SDK_CONTRACT` narrows the list to what a third-party *detector author* builds
-against — the classes they subclass, construct, or are handed. It is separate
+against: the classes they subclass, construct, or are handed. It is separate
 because the guarantee differs in kind: those are shapes to build against, not
 names to import and call. See [the SDK guide](sdk.md).
 
@@ -43,7 +43,7 @@ names to import and call. See [the SDK guide](sdk.md).
 Adding an abstract method to `BaseDetector` is an addition for anyone calling the
 class and fatal for everyone who inherited from it: every existing detector stops
 being instantiable. A method-count comparison calls that additive, so
-abstractness is recorded in the surface and a new — or newly — abstract method is
+abstractness is recorded in the surface and a new (or newly) abstract method is
 **breaking**. The same reasoning already covers a formerly optional model field
 becoming required.
 
@@ -80,7 +80,7 @@ Compatible, allowed at any time:
 - adding a public module, name, method, or attribute;
 - adding a keyword parameter that has a default;
 - adding a model field that has a default;
-- adding an enum member — consumers must tolerate unknown members;
+- adding an enum member: consumers must tolerate unknown members;
 - widening a type annotation, since annotations are not part of the recorded
   contract. What a consumer depends on is how a function is *called*.
 

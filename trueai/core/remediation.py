@@ -119,7 +119,7 @@ class RemediationPlanner:
 
         This used to match on the identifier's prefix, which classified
         `odf.remove-metadata-field` as a content change for as long as ODF
-        support existed — not because anybody decided ODF metadata was content,
+        support existed, not because anybody decided ODF metadata was content,
         but because "odf." was never added to a tuple. The catalogue states each
         one with a reason instead.
 

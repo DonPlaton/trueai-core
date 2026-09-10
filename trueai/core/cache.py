@@ -18,7 +18,7 @@ instead of a failed one.
 **Bounded, and evicted in a defined order.** An unbounded cache beside a
 repository is a disk-space bug waiting for a large enough checkout. Eviction is
 deterministic in the sense that matters: given the same inventory, the same
-budget, and the same set of keys used in this run, the same entries are removed —
+budget, and the same set of keys used in this run, the same entries are removed,
 never a filesystem-dependent ordering, never a timestamp whose resolution differs
 between platforms. The order is:
 
@@ -102,7 +102,7 @@ class CacheEntry:
         """Whether a running scan could ever produce this entry's key again.
 
         The versions are part of the key, so an entry written by another build is
-        not merely stale — it is unreachable, and holding it costs space that can
+        not merely stale. It is unreachable, and holding it costs space that can
         never be repaid.
         """
 
@@ -172,7 +172,7 @@ class CacheStatistics:
 
     ``misses`` and ``rejections`` are counted apart on purpose. A miss means the
     bytes were never scanned under this key. A rejection means an entry was
-    there and could not be used — truncated, corrupt, oversized, or written by a
+    there and could not be used: truncated, corrupt, oversized, or written by a
     different version. Both make the scan slower, but only the second says the
     cache directory itself is unhealthy, and a single "hit rate" hides that.
     """

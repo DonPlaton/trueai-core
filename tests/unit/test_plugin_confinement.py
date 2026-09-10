@@ -3,7 +3,7 @@
 Confinement is the one place where a security feature is easiest to fake: an
 "applied" flag with nothing behind it looks identical, in a report, to a kernel
 that actually refused something. These tests check the parts that are true on
-every platform — the levels, the honesty of the reports, the refusal path — and
+every platform (the levels, the honesty of the reports, the refusal path) and
 delegate the platform-specific proof to the checks that need a real kernel:
 
 * Linux: ``scripts/verify_linux_confinement.py``, run in a container, where a

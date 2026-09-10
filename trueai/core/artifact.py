@@ -414,7 +414,7 @@ class ArtifactDiscovery:
         The end-of-scan sweep that asks "did new files appear while detectors
         ran" needs a set of paths and nothing else.  Building it with
         :meth:`discover` meant opening and sniffing every file a second time to
-        produce type information the comparison then threw away — measured at
+        produce type information the comparison then threw away, measured at
         roughly a third of a whole-repository scan.  Traversal, ignore rules,
         symlink containment, and the file cap are the same ones
         :meth:`discover` uses, because a sweep that walked differently would

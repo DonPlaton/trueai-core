@@ -5,7 +5,7 @@ questions it does not answer decide whether a scanner is safe to run on hostile
 files:
 
 **What about the parsers that are not packaged dependencies?** Most artifact
-bytes reach `zipfile`, `xml.etree`, `zlib`, `html.parser`, and `json` — standard
+bytes reach `zipfile`, `xml.etree`, `zlib`, `html.parser`, and `json`: standard
 library code that a dependency audit never mentions. A CPython advisory for any
 of them applies directly and would pass a clean `pip-audit` run without comment.
 

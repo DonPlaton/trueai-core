@@ -56,7 +56,7 @@ Superseded activities stay in the graph, flagged. A record that hides rejected
 attempts describes a process that did not happen.
 
 **Not carried:** contribution level, evidence status, claim type, and the
-standing limitations — PROV has no field for what a record does not establish, so
+standing limitations. PROV has no field for what a record does not establish, so
 a PROV export consumed on its own is missing them. They are attached as
 `trueai:limitations` and `trueai:unmapped`, which a PROV consumer may ignore.
 
@@ -69,7 +69,7 @@ digest, under predicate type `https://trueai.dev/attestation/process/v0.1`.
 The envelope's signatures are **new**. A TrueAI signature covers the record's
 canonical bytes; a DSSE signature covers the pre-authentication encoding
 `DSSEv1 <len> <type> <len> <payload>`. Those are different bytes, so the record's
-signatures are never copied into the envelope — a signature that does not verify
+signatures are never copied into the envelope. A signature that does not verify
 over what it appears to cover is worse than no signature. Pass a
 `SigningProvider` to sign the envelope, or accept an unsigned one, which is a
 legitimate thing to produce and a useless thing to trust.
@@ -84,7 +84,7 @@ it to an in-toto-shaped consumer.
 ## C2PA
 
 `to_c2pa_assertions()` returns assertion data a manifest-signing tool can embed.
-**TrueAI does not sign, embed, or produce C2PA manifests** — that needs a C2PA
+**TrueAI does not sign, embed, or produce C2PA manifests**. That needs a C2PA
 implementation, and inventing one here would produce manifests nothing else
 accepts.
 
@@ -102,8 +102,8 @@ code at all: absence is the honest output, and a wrong code is worse than none.
 
 Superseded attempts produce no action. C2PA assertions describe the delivered
 bytes, and a discarded attempt is not in them. Pseudonymous actors are never
-named in the `stds.schema-org.CreativeWork` assertion, and the field is `creator`
-— participation — not `author`.
+named in the `stds.schema-org.CreativeWork` assertion, and the field is `creator`:
+participation, not `author`.
 
 **Not carried:** every dimension except execution, contribution level, evidence
 status, claim type, and the assurance level. A C2PA manifest's own signature says

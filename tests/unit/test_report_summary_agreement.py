@@ -3,7 +3,7 @@
 Found by `scripts/fuzz_parsers.py --target report`, which mutates a real report
 and reloads it: a document declaring `finding_count: 2` with an empty `findings`
 list validated cleanly, and every reader of the headline then reported a number
-nothing in the document supported — `trueai explain`, the terminal renderer, any
+nothing in the document supported: `trueai explain`, the terminal renderer, any
 consumer of `JSONReporter.load`.
 
 The summary exists so a client does not have to recount. That only works if it
@@ -92,7 +92,7 @@ def test_explain_rebuilds_the_summary_rather_than_editing_it(report_path: Path) 
     """`explain` narrows a report to one finding, and the maps have to follow.
 
     It edited `finding_count` alone, leaving the category, severity, and
-    confidence maps describing the whole report — which the rule above now
+    confidence maps describing the whole report, which the rule above now
     catches, so the command would have started failing on its own output.
     """
 

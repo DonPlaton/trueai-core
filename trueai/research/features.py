@@ -7,7 +7,7 @@ a thing you can add, replace, or delete without touching a detector.
 
 That only works if the boundary between them is versioned.  A feature set is a
 named, ordered list of features, and a model records which version it was
-trained against.  Feed a v2 model a v1 vector and it **refuses** — because the
+trained against.  Feed a v2 model a v1 vector and it **refuses**, because the
 alternative is scoring a vector whose third column used to mean one thing and now
 means another, which produces a confident number with nothing behind it and no
 symptom until someone acts on it.
@@ -18,7 +18,7 @@ Two rules follow from what a model here is allowed to be:
 a clean result.  A scan with no model available reports fewer findings, and
 nothing anywhere may read that as "nothing was found".
 
-**A model output is never provenance.**  It is a `PROBABILISTIC` measurement — a
+**A model output is never provenance.**  It is a `PROBABILISTIC` measurement: a
 number about a text, not a statement about who wrote it.  :class:`ModelScore`
 carries no author, no attribution, and no provenance class, so a caller cannot
 promote one into a claim it was never entitled to make.
@@ -73,7 +73,7 @@ class FeatureSet(FrozenModel):
 
     @property
     def digest(self) -> str:
-        """A digest over version, names, and order — the whole contract."""
+        """A digest over version, names, and order, the whole contract."""
 
         joined = self.version + "\x00" + "\x00".join(self.names)
         return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()

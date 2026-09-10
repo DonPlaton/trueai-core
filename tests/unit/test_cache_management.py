@@ -1,7 +1,7 @@
 """A bounded cache: what it evicts, in what order, and what it refuses to delete.
 
 The property under test is not "the cache gets smaller". It is that the *same*
-inventory, budget, and run produce the *same* victims — never an order that
+inventory, budget, and run produce the *same* victims, never an order that
 depends on how a filesystem happens to enumerate a directory or on a timestamp
 whose resolution differs between platforms.
 """

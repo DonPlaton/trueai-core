@@ -1,7 +1,7 @@
 """Provider watermark verification: what admits an adapter, and what it may reach.
 
 An adapter is added when a provider publishes something a third party can
-actually run — an API with a specification, an open verifier, or a documented
+actually run: an API with a specification, an open verifier, or a documented
 format. It is not added because a provider is known to watermark, or because a
 paper describes an approach, or because a detection heuristic seems to work.
 Those produce a plausible answer with nothing behind it, and a plausible answer

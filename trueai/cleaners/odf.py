@@ -5,7 +5,7 @@ passed the `FMT-06` bar while legacy binary Office did not. In an ODF package th
 document text lives in `content.xml` and the metadata lives in `meta.xml`, as two
 separate archive entries. Proving a metadata-only edit therefore means proving
 that `content.xml` is byte-identical and that every entry except `meta.xml` is
-unchanged — a comparison, not a reconstruction.
+unchanged: a comparison, not a reconstruction.
 
 The `mimetype` entry gets special handling. The specification requires it to be
 first in the archive and stored without compression, and a package that loses

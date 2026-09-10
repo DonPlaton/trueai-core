@@ -20,7 +20,7 @@ class MyDetector(BaseDetector):
 ```
 
 `scan` is the only abstract method, and that is a **promise, not an observation**.
-Adding a second one would stop every existing detector from being instantiable —
+Adding a second one would stop every existing detector from being instantiable:
 an addition to anyone calling the class and a break for everyone who inherited
 from it. A method-count comparison would have called it additive, so
 `trueai/api.py` records abstractness and classifies a new abstract method as
@@ -33,12 +33,12 @@ Only the modules in `trueai.api.PUBLIC_MODULES`. Anything else may change in any
 release and the compatibility gate will not warn you.
 
 `trueai.api.SDK_CONTRACT` narrows that further to what a detector author actually
-touches — the classes you subclass, construct, or are handed:
+touches: the classes you subclass, construct, or are handed:
 
 | From | What you use it for |
 |---|---|
 | `trueai.detectors.base` | `BaseDetector`, and the `Detector` protocol if you would rather not subclass. |
-| `trueai.core.artifact` | `Artifact` — the thing you are given. |
+| `trueai.core.artifact` | `Artifact`. The thing you are given. |
 | `trueai.core.models` | `Finding` and every enum that classifies one; `ScanContext` and `ScanOptions` for the limits you must respect. |
 | `trueai.core.errors` | `TrueAIError`, the base of anything TrueAI raises at you. |
 | `trueai.plugins` | The manifest, the capability enum, the registration, and `ENTRY_POINT_GROUP`. |
@@ -53,8 +53,8 @@ SDK cannot quietly drift out of the frozen surface.
 **1. Never mutate the artifact.** `scan` receives an artifact and returns
 findings, and it is never handed a remediation API. This is enforced, not
 trusted: the engine hashes each file before its detectors run, re-hashes it
-immediately after — which catches a detector that changed the artifact it was
-given — and re-lists the whole corpus at the end, which catches one that changed
+immediately after (which catches a detector that changed the artifact it was
+given) and re-lists the whole corpus at the end, which catches one that changed
 a *different* artifact. Either produces a `detector_mutation` diagnostic at
 CRITICAL severity.
 
@@ -66,14 +66,14 @@ Constructing `Finding` directly works and loses that.
 **3. Say what kind of evidence you have.** `ConfidenceType` and `EvidenceType` are
 separate fields because "how sure" and "sure of *what*" are different questions.
 Neither is provenance. `ProvenanceClass` describes a finding's relationship to a
-signed or attributed origin — a lexical match reported with anything other than
+signed or attributed origin. A lexical match reported with anything other than
 `NONE` presents a string in a file as evidence about who wrote it, which is the
 mistake this project exists to avoid. See [findings](findings.md).
 
 **4. Respect the limits you are given.** `context.options.max_file_size` is the
 caller's boundary, not a suggestion. `artifact.read_text` raises rather than
 truncating, so an oversized file is reported as an error instead of silently
-half-scanned — and a half-scanned file that reports nothing is a clean bill of
+half-scanned, and a half-scanned file that reports nothing is a clean bill of
 health nobody earned.
 
 ## Your bugs stay yours
@@ -106,7 +106,7 @@ capability admits and how the host enforces it.
 
 ## Publishing
 
-Register under `trueai.detectors` — the value of `trueai.plugins.ENTRY_POINT_GROUP`,
+Register under `trueai.detectors`. The value of `trueai.plugins.ENTRY_POINT_GROUP`,
 so a typo is a plugin that silently never loads:
 
 ```toml
@@ -121,7 +121,7 @@ purpose, so a detector pins one version range rather than two independent ones.
 
 For anything an operator installs, ship a signed distribution. The signature
 covers the module bytes as well as the manifest, so a declared capability set
-cannot be contradicted by what module-level code actually does — see
+cannot be contradicted by what module-level code actually does: see
 [plugins](plugins.md).
 
 ## What will change under you, and what will not
@@ -129,5 +129,5 @@ cannot be contradicted by what module-level code actually does — see
 [API compatibility](api-compatibility.md) has the full rules. In short: names,
 modules, enum members, and parameters may be added; nothing you depend on is
 removed or renamed inside an API version; and the two changes that would silently
-break a *subclass* rather than a caller — a new abstract method, a formerly
-optional model field becoming required — are classified as breaking and gated.
+break a *subclass* rather than a caller (a new abstract method, a formerly
+optional model field becoming required) are classified as breaking and gated.

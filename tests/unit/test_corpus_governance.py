@@ -4,7 +4,7 @@ Governance written as prose gets read once and contradicted by whoever is
 actually collecting the data. These tests are about the difference: each one
 takes a sample that violates a rule and checks the sample does not get in.
 
-Three distinctions carry most of the weight — consent is not a license, a
+Three distinctions carry most of the weight: consent is not a license, a
 withdrawal reaches backwards through everything already collected, and
 contamination is a question about content rather than about paths.
 """

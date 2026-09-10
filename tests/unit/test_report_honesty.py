@@ -384,7 +384,7 @@ def test_explain_does_not_say_it_is_scanning(tmp_path: Path) -> None:
     """`explain` reads a saved report. The header said "Scanning:" over it.
 
     The renderer is shared with `scan`, which prints it after the scan has
-    already finished, so the tense was wrong there too — but only `explain` made
+    already finished, so the tense was wrong there too, but only `explain` made
     it a false statement about what the tool had just done.
     """
 

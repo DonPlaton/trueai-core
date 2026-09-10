@@ -7,7 +7,7 @@ becomes something you can add, replace, or delete without touching a detector.
 
 A test enforces the second half of that. It walks every module in the package and
 fails if any imports `torch`, `tensorflow`, `jax`, `sklearn`, `numpy`, `scipy`,
-`pandas`, `transformers`, `onnxruntime`, `xgboost`, or `lightgbm` — and a second
+`pandas`, `transformers`, `onnxruntime`, `xgboost`, or `lightgbm`, and a second
 test proves that check can actually fail, because a guard that cannot fail is not
 a guard.
 
@@ -55,7 +55,7 @@ is kept apart from `absent` for the same reason.
 
 `ModelScore` carries a value, a model identifier, a feature set version, and
 optionally the threshold it was calibrated at. It carries **no author, no
-attribution, and no provenance class** — the fields that would let a caller
+attribution, and no provenance class**. The fields that would let a caller
 promote it into a claim about who wrote something are not there, and a test
 asserts they are not.
 
@@ -71,7 +71,7 @@ to a provenance class. See [findings](findings.md).
 digest it was trained on, the intended use, and **at least one known
 limitation**. Every model has some, and a card without them is a card nobody
 looked hard at. `evaluated_subgroups` records which cohorts were measured, so a
-reader can tell which were not — see
+reader can tell which were not: see
 [the evaluation protocol](evaluation-protocol.md).
 
 The corpus digest is the order-independent one from
@@ -97,7 +97,7 @@ language, and the moment to say so is before a model trained on it is used to
 judge one.
 
 `author_demographics` empty with `demographics_collected` false means they were
-not collected — a fact about the corpus, not about the population. Listing
+not collected: a fact about the corpus, not about the population. Listing
 demographics while claiming none were collected is refused, because one of the
 two is wrong and a reader cannot tell which.
 
@@ -113,7 +113,7 @@ thresholds from another model version or feature set: a threshold copied forward
 is a number nobody measured on the model it is being applied to.
 
 `may_expose()` also refuses when the evaluation was run at a threshold no
-operating point in the manifest uses — an operating point nobody evaluated is a
+operating point in the manifest uses. An operating point nobody evaluated is a
 number waiting to be quoted.
 
 ### A signed manifest
@@ -144,14 +144,14 @@ Three more gates, each closing a way to look better without being better:
 Calibration getting worse by more than 5 points blocks too.
 
 A first release passes `regression=None`: there is nothing to regress against.
-That is not a way to skip the check on a later one — passing `None` for a
+That is not a way to skip the check on a later one, passing `None` for a
 replacement is a decision somebody makes deliberately, in code that shows it.
 
 ## Longitudinal style comparison
 
 `trueai.research.longitudinal` compares a document against a writer's own past.
 It produces **no verdict**. There is no `same_author` field, no probability that
-a document is someone else's, and no score to threshold — a test parses the
+a document is someone else's, and no score to threshold: a test parses the
 module and asserts that vocabulary is not in it.
 
 The list of things that move a writer's style is long, and almost none of the
@@ -167,7 +167,7 @@ does not travel with the number.
 
 Three documents from one week describe a mood, not a style. Below eight documents
 or thirty days, the band is `UNDETERMINED` and **no distance is reported at
-all** — a number attached to an insufficient baseline gets quoted without the
+all**. A number attached to an insufficient baseline gets quoted without the
 word "insufficient". `describe()` says it is an absence of measurement, not a
 finding of no change.
 
@@ -177,7 +177,7 @@ Distance is in units of this writer's standard deviation, not an absolute
 threshold. A fixed threshold across writers penalises the consistent ones and
 excuses the erratic.
 
-Three coarse bands — `within_variation`, `notable`, `marked` — because a
+Three coarse bands (`within_variation`, `notable`, `marked`) because a
 continuous score invites a threshold and a threshold invites the verdict this
 module refuses to produce.
 
@@ -194,8 +194,8 @@ is the one use this project will not make convenient. `include_feature_deltas`
 is available for debugging a detector, and the request is recorded in the result
 so a report can show it was asked for.
 
-This does not prevent anyone from computing the deltas themselves — they have the
-extractor — and claiming otherwise would be a lie. What it does is decline to
+This does not prevent anyone from computing the deltas themselves (they have the
+extractor) and claiming otherwise would be a lie. What it does is decline to
 ship a ready-made objective function, and leave a record when somebody asks for
 one anyway. See [safety](safety.md), where optimising an artifact to evade a
 third-party detector is a standing non-goal.
@@ -203,6 +203,6 @@ third-party detector is a standing non-goal.
 ## Where the heavy dependencies live
 
 Outside this package. A model implementation satisfies the `ScoreModel`
-protocol — an identifier, a feature set version, and a `score()` method — and
+protocol (an identifier, a feature set version, and a `score()` method) and
 brings whatever runtime it needs with it. Nothing in `trueai` imports it, and
 nothing in `trueai` knows it exists until a caller passes one in.

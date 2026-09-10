@@ -1,7 +1,7 @@
 """The network gate, and the admission standard for provider adapters.
 
 Two things a forensic tool has to be able to prove. First, that it did not
-contact anything — which needs the refusals recorded, not just the successes.
+contact anything, which needs the refusals recorded, not just the successes.
 Second, that a provider reported as unverifiable is unverifiable for a stated
 reason rather than because nobody got round to it.
 """

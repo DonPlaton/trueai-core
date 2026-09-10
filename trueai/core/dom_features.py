@@ -3,7 +3,7 @@
 Everything here is a **count**, and that is a deliberate limit on what the module
 is allowed to be. A histogram of nesting depth is a fact about a document. "This
 nesting depth means a machine wrote it" is not a fact about anything, and no
-function here draws that conclusion — the numbers are reported, and a reader who
+function here draws that conclusion. The numbers are reported, and a reader who
 wants to interpret them does so with their own judgement and their own context.
 
 That distinction is why these are measurements rather than a detector. A
@@ -325,7 +325,7 @@ def extract_dom_topology(text: str, budget: FeatureBudget | None = None) -> DomT
     A budget exhaustion returns partial measurements with ``truncated_by`` set,
     rather than raising. The caller's next question is "what does this document
     look like?", and "as far as N elements, it looks like this" is a better
-    answer than an exception — as long as the partiality is impossible to miss,
+    answer than an exception, as long as the partiality is impossible to miss,
     which is what ``complete`` is for.
     """
 
@@ -450,8 +450,8 @@ def extract_stylesheet_features(
 ) -> StylesheetFeatures:
     """Measure a stylesheet's shape within a budget.
 
-    The parser is deliberately shallow — brace matching and splitting, not a full
-    CSS grammar — because the measurements are counts and a full grammar would
+    The parser is deliberately shallow (brace matching and splitting, not a full
+    CSS grammar) because the measurements are counts and a full grammar would
     buy precision the counts do not need while adding surface a hostile file
     could attack.
     """

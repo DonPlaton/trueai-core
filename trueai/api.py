@@ -8,7 +8,7 @@ those move, the schema being stable does not help.
 This module describes the surface the way :mod:`trueai.schema` describes the
 report: it enumerates what is public, serializes it deterministically, and
 classifies every difference between two versions as additive or breaking. The
-enumeration is deliberately explicit — :data:`PUBLIC_MODULES` is the contract,
+enumeration is deliberately explicit: :data:`PUBLIC_MODULES` is the contract,
 not a heuristic over whatever happens to be importable.
 
 The rules for a single API version are:
@@ -20,8 +20,8 @@ The rules for a single API version are:
   field required, or removing an enum member is breaking.
 
 One rule exists because of the *SDK* rather than the API. A third party does not
-only call this package, it subclasses :class:`~trueai.detectors.base.BaseDetector`
-— and adding an abstract method to a class is additive for a caller and fatal for
+only call this package, it subclasses :class:`~trueai.detectors.base.BaseDetector`,
+and adding an abstract method to a class is additive for a caller and fatal for
 a subclass, because every existing detector stops being instantiable. So
 abstractness is recorded and a newly abstract method is breaking, which a
 method-count comparison would have called an addition. :data:`SDK_CONTRACT` names
@@ -252,7 +252,7 @@ def _class_members(value: type) -> tuple[dict[str, Any], list[str]]:
 
     Classmethods and staticmethods are unwrapped first. A bare ``classmethod``
     object is not callable on modern Python, so treating it as an attribute would
-    hide exactly the signatures consumers call — ``PolicyStore.get`` and
+    hide exactly the signatures consumers call: ``PolicyStore.get`` and
     ``TrueAIEngine.default`` among them.
     """
 
@@ -421,7 +421,7 @@ def _compare_class(
     )
     # A surface published before abstractness was recorded says nothing about it.
     # Treating "absent" as "none were abstract" would report every already-abstract
-    # method as newly added and turn a descriptive addition into a fake break — the
+    # method as newly added and turn a descriptive addition into a fake break, the
     # standing hazard whenever a frozen contract gains a field.
     known = "abstract_methods" in baseline
     before_abstract = set(baseline.get("abstract_methods", []))

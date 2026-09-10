@@ -23,8 +23,8 @@ provider = ExternalSigningProvider(
 ```
 
 The private key never enters a TrueAI process. The provider decides what
-authorisation signing requires — a hardware token, an approval workflow, an
-audit log — and TrueAI only hands over canonical bytes.
+authorisation signing requires (a hardware token, an approval workflow, an
+audit log) and TrueAI only hands over canonical bytes.
 
 A provider that returns a signature its own public key does not verify fails
 immediately, at signing time. Discovering that at verification time means an
@@ -71,8 +71,8 @@ policy decision belonging to whoever runs the scan.
 
 Verification keeps these apart deliberately:
 
-- `authenticated_declaration` — an identified claimant signed these bytes;
-- `organizationally_attributed` — a trust profile names the organization.
+- `authenticated_declaration`: an identified claimant signed these bytes;
+- `organizationally_attributed`. A trust profile names the organization.
 
 Collapsing them is how "someone signed this" becomes "a company vouched for
 this".
@@ -85,13 +85,13 @@ statement over the digest, which is what makes the time evidence.
 
 Two providers:
 
-**`OfflineTimestampProvider`** — a designated timestamping key, held by a separate
+**`OfflineTimestampProvider`**: a designated timestamping key, held by a separate
 role, signs the digest with the time it saw it. This is the "or equivalent" in
 "RFC 3161 or equivalent". It defends against a signer backdating their own record.
 It does not defend against the timestamping role itself lying, and its clock is
 the machine's clock.
 
-**`NetworkTimestampProvider`** — a real RFC 3161 authority. It requires
+**`NetworkTimestampProvider`**: a real RFC 3161 authority. It requires
 `NetworkPolicy.EXPLICIT_ONLY` *and* an endpoint the operator allowlisted, and the
 HTTP transport is supplied by the caller. TrueAI embeds no network client: a
 forensic tool that can reach the network by default is a different product with a
@@ -130,7 +130,7 @@ The chain is what makes an edit or a removal detectable. It is not what binds th
 log to anybody: it carries no secret, so a chain over invented history is as
 consistent as a chain over real history. The maintainer signature is the only
 thing that ties a log to its maintainer, so `TransparencyVerification.usable` is
-false when a signature is present and does not verify — and true when there is no
+false when a signature is present and does not verify, and true when there is no
 signature, or when nobody supplied a key to check one with, because neither of
 those is the check coming back no. `signature_status` reports which of the four
 it was.
@@ -156,8 +156,8 @@ documents, credentials, or personal identifiers. Any feature that would upload
 those requires separate, explicit, revocable consent and must be refusable
 without losing the rest of the product.
 
-**Export.** Everything a customer put in comes back out in the published schemas —
-reports, certificates, attestations, policy bundles, transparency logs — with no
+**Export.** Everything a customer put in comes back out in the published schemas
+(reports, certificates, attestations, policy bundles, transparency logs) with no
 proprietary re-encoding. A customer who leaves takes verifiable records, not
 screenshots.
 

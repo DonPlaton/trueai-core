@@ -16,10 +16,10 @@ operator.
 The distinction the whole module turns on: the person who hands over a document
 is frequently not the person who owns it.
 
-- **`ConsentRecord`** — a person agreeing that their work may be used. Scoped to
+- **`ConsentRecord`**. A person agreeing that their work may be used. Scoped to
   named purposes, with a grant time, an optional expiry, and a
   `withdrawal_contact`, because consent nobody can revoke is not consent.
-- **`LicenseTerms`** — the rights holder permitting the use, with `permits` and
+- **`LicenseTerms`**: the rights holder permitting the use, with `permits` and
   the `obligations` that travel with the sample so share-alike is not discovered
   at publication time.
 
@@ -45,7 +45,7 @@ record was.
 
 ## Domain balance
 
-`DomainBalance.targets` must be written down in advance and sum to 1 — a target
+`DomainBalance.targets` must be written down in advance and sum to 1. A target
 chosen after the data arrives is a description of whatever arrived. A sample in a
 domain the plan does not name is refused rather than absorbed.
 
@@ -77,7 +77,7 @@ is handled, or records that it is not.
 
 ## Retention
 
-`RetentionRule` sets `retain_days` and a `deletion_method` — a rule with no
+`RetentionRule` sets `retain_days` and a `deletion_method`. A rule with no
 mechanism is a sentence in a policy document. Indefinite retention is expressed
 as `retain_days=None`, which has to be written rather than arrived at by nobody
 choosing.
@@ -92,7 +92,7 @@ Both are defensible; leaving it unstated is not.
 ## What blocks, and what only reports
 
 `CorpusAudit.usable` is false when there is a deletion obligation, contamination,
-a leaked held-out source, or an overdue sample — each makes a number meaningless
+a leaked held-out source, or an overdue sample. Each makes a number meaningless
 or makes holding the data unlawful. Imbalance reports alongside a result rather
 than blocking it.
 

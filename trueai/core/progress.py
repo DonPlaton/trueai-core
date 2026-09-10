@@ -12,14 +12,14 @@ So both are protocols with a plain implementation attached:
   multi-method observer, because every method is one more thing a caller must
   implement and one more place a UI can break a scan.  Events arrive on the
   thread that assembles the report, in artifact order, one at a time, even when
-  detectors run in parallel — a caller never needs a lock.
+  detectors run in parallel. A caller never needs a lock.
 * **Cancellation** is one predicate.  :class:`CancellationToken` implements it
   with :class:`threading.Event`, which is safe to set from any thread; an
   asyncio or trio caller supplies its own object instead.
 
 A cancelled scan **raises**.  It does not return a shorter report, because a
 shorter report is indistinguishable from a clean one at the point where it
-matters — someone reads it and concludes the repository is fine.  A caller that
+matters. Someone reads it and concludes the repository is fine.  A caller that
 wants partial results collects them from the progress events, where they are
 partial by construction and cannot be mistaken for anything else.
 """
@@ -51,7 +51,7 @@ class ProgressEvent:
 
     phase: ScanPhase
     completed: int
-    #: ``None`` while the size of the work is not yet known — during discovery,
+    #: ``None`` while the size of the work is not yet known, during discovery,
     #: nothing can honestly report a percentage, and inventing one is worse than
     #: showing an indeterminate bar.
     total: int | None = None
@@ -142,7 +142,7 @@ class ProgressChannel:
     A progress callback belongs to the caller's interface, and interfaces have
     bugs.  One raising inside a scan would abort a forensic run over a
     formatting error, so the first failure is captured, the observer is dropped,
-    and the scan records that its progress reporting stopped — visible, and not
+    and the scan records that its progress reporting stopped: visible, and not
     fatal.
     """
 

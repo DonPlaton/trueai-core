@@ -389,8 +389,8 @@ class ScanSummary(FrozenModel):
 
         The derived fields have one correct value each, so they are computed in
         one place rather than assembled by every caller that needs a report.
-        ``review_count`` and ``violation_count`` are not derivable — they depend
-        on a policy — and stay arguments.
+        ``review_count`` and ``violation_count`` are not derivable (they depend
+        on a policy) and stay arguments.
         """
 
         return cls(
@@ -449,8 +449,8 @@ class ScanReport(FrozenModel):
 
         The summary exists so a client does not have to recount, and that only
         works if it cannot disagree. A document declaring two findings and
-        carrying none loaded happily and made every reader of the headline —
-        `trueai explain`, the terminal, any consumer of `JSONReporter.load` —
+        carrying none loaded happily and made every reader of the headline:
+        `trueai explain`, the terminal, any consumer of `JSONReporter.load`:
         report a number nothing in the document supports.
 
         Only the derivable fields are checked. ``artifact_count`` counts files
@@ -466,7 +466,7 @@ class ScanReport(FrozenModel):
             if getattr(self.summary, name) != getattr(expected, name)
         ]
         if mismatches:
-            raise ValueError("The summary disagrees with the findings — " + "; ".join(mismatches))
+            raise ValueError("The summary disagrees with the findings, " + "; ".join(mismatches))
         return self
 
 

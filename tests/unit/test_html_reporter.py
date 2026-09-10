@@ -6,8 +6,8 @@ sentence: put script in a document, have it run in the analyst's browser when
 they read about it.
 
 So most of what follows is adversarial. A finding whose title is a script tag, a
-path that tries to close an attribute, a detector id carrying an event handler —
-each is put through the reporter and the output is parsed to check that nothing
+path that tries to close an attribute, a detector id carrying an event handler.
+Each is put through the reporter and the output is parsed to check that nothing
 became markup.
 """
 
@@ -120,7 +120,7 @@ def rendered(**extra: Any) -> str:
 class Collector(HTMLParser):
     """Records what a browser would actually build from the document.
 
-    Substring checks read escaped text as markup — ``onmouseover=&quot;`` looks
+    Substring checks read escaped text as markup: ``onmouseover=&quot;`` looks
     like an event handler to ``in`` and is inert to a parser. Asking the parser
     what elements and attributes exist is the question that matters.
     """
@@ -482,7 +482,7 @@ def test_the_cli_writes_html_to_a_file(tmp_path: Path) -> None:
 def test_a_hostile_filename_survives_the_whole_pipeline(tmp_path: Path) -> None:
     """End to end: a file whose name is markup, scanned and rendered.
 
-    The characters are the ones a filesystem actually permits — Windows refuses
+    The characters are the ones a filesystem actually permits. Windows refuses
     ``<`` and ``>`` in a name, so a test using those would prove nothing on the
     platform where it ran.
     """

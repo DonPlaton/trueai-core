@@ -1,9 +1,9 @@
 """Four provenance questions that no interface may merge into one badge.
 
 `ProvenanceVerificationStatus` is a single enum, and a single enum is what a UI
-turns into a single badge.  ``TRUSTED`` bundles three separate findings — a
+turns into a single badge.  ``TRUSTED`` bundles three separate findings (a
 marker exists, its signature checks out, and its signer is one you hold an anchor
-for — and a reader who sees one green tick cannot tell which of the three the
+for) and a reader who sees one green tick cannot tell which of the three the
 tool actually established.
 
 Worse is the other end.  ``NO_MANIFEST`` and ``VERIFIER_UNAVAILABLE`` are both
@@ -104,7 +104,7 @@ UNKNOWN_ANSWERS: Final[frozenset[str]] = frozenset(
 
 
 class FacetRow(FrozenModel):
-    """One question, its answer, and why — in whatever an interface renders."""
+    """One question, its answer, and why, in whatever an interface renders."""
 
     key: str
     question: str
@@ -199,8 +199,8 @@ class ProvenanceFacets(FrozenModel):
             )
         if self.marker is MarkerPresence.NOT_EXAMINED:
             notes.append(
-                "Provenance was not examined for this artifact, so no conclusion — including "
-                "'no provenance' — follows from this scan."
+                "Provenance was not examined for this artifact, so no conclusion (including "
+                "'no provenance') follows from this scan."
             )
         if self.provider is ProviderVerification.UNAVAILABLE:
             notes.append(
@@ -228,7 +228,9 @@ class ProvenanceFacets(FrozenModel):
         if self.signature is SignatureState.UNCHECKED:
             return "A provenance manifest is present; its signature was not checked."
         if self.signer_trust is SignerTrust.NO_ANCHORS_CONFIGURED:
-            return "Signature verified; signer trust not evaluated — no anchors configured."
+            return (
+                "Signature verified; signer trust not evaluated because no anchors are configured."
+            )
         return "Signature verified; the signer is not covered by a configured anchor."
 
 

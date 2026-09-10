@@ -482,8 +482,8 @@ def clean(
                     f"Remaining indicator findings: {len(delivery.indicator_finding_ids)}"
                 )
             # CLEAR is scoped to machine, generator, watermark, and style
-            # indicators. The same rescan can hold findings outside that scope —
-            # personal metadata a delivery policy left in place, most often — and
+            # indicators. The same rescan can hold findings outside that scope
+            # (personal metadata a delivery policy left in place, most often), and
             # printing a green verdict while silently holding them is the shape
             # of overstatement this tool exists to refuse. The status does not
             # change; what was not in its scope is named beside it.
@@ -711,7 +711,7 @@ def plugins_sign(
     """Sign every file of a plugin along with the capabilities it declares.
 
     The manifest travels inside the signature, so a host can decide what the
-    plugin may do without importing it — and the module's bytes are covered by
+    plugin may do without importing it, and the module's bytes are covered by
     the same signature, so a declared capability set cannot be contradicted by
     what module-level code actually does.
     """
@@ -1799,7 +1799,7 @@ def cache_inspect(
     )
     if inventory.generations():
         generations = inventory.generations()
-        console.print(f"Generations present: {generations[0]}–{generations[-1]}")
+        console.print(f"Generations present: {generations[0]} to {generations[-1]}")
     for name in inventory.damaged:
         console.print(f"[yellow]damaged[/yellow] {escape(name)}")
     for name in inventory.foreign:

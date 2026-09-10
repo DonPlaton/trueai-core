@@ -1,6 +1,6 @@
 # Building on TrueAI: desktop, CI, and editor
 
-Three surfaces need the same five views — what a finding claims, what cleanup
+Three surfaces need the same five views: what a finding claims, what cleanup
 would do, what integrity evidence exists, what provenance was established, and
 whether an audit certificate holds. Left to derive those separately from the
 schema, they drift: one shows "AI-generated", another shows "attribution string
@@ -17,7 +17,7 @@ second thing to be wrong.
 It is derivable from the confidence class and the provenance class, and it is the
 first thing an interface drops when it runs short of space. Deriving it centrally
 means an interface has to *actively discard* it rather than simply never having
-had it — and every adapter here carries it into its output, including the two
+had it, and every adapter here carries it into its output, including the two
 formats that only have one line.
 
 | Confidence | Claims | Does not claim |
@@ -27,7 +27,7 @@ formats that only have one line.
 | `probabilistic` | A calibrated estimate placed it in this range. | It is a measurement, not provenance, and identifies no author. |
 | `heuristic` | A rule of thumb matched. | It is a prompt for review, never evidence of authorship. |
 
-Provenance class adds a second sentence — an attribution string is text anyone
+Provenance class adds a second sentence. An attribution string is text anyone
 can write, metadata is editable by anyone who can open the file, an observed
 provider marker is not a verified one.
 
@@ -58,7 +58,7 @@ nobody runs finds nothing.
 trueai scan ./repository -f ide
 ```
 
-LSP-shaped diagnostics keyed by file, as plain dictionaries — no LSP dependency,
+LSP-shaped diagnostics keyed by file, as plain dictionaries. No LSP dependency,
 because a scanner should not pull one into a CI image that will never open an
 editor. `publish_payloads()` returns `textDocument/publishDiagnostics` bodies;
 the transport is the extension's.
@@ -103,8 +103,8 @@ unverifiable artifact as a damaged one.
 
 ## Certificates
 
-`certificate_view()` returns every check separately — identity, signature
-presence, signature validity, artifact binding, validity period, revocation —
+`certificate_view()` returns every check separately (identity, signature
+presence, signature validity, artifact binding, validity period, revocation)
 because one green tick over all six lets four unknowns hide behind one answer.
 
 `CertificateView.attests_only` restates what a TrueAI certificate never asserts,

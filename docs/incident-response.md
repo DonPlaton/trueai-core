@@ -63,7 +63,7 @@ capabilities, or shipped a signed distribution containing something else.
    "discard your reports" when only one detector was affected teaches people to
    ignore the next one.
 5. **Check the capability grant.** A plugin that exceeded its manifest exceeded
-   the broker too, and that is a TrueAI bug as well as a plugin incident — it
+   the broker too, and that is a TrueAI bug as well as a plugin incident: it
    belongs in process 1 in parallel.
 
 See [plugins](plugins.md) for the host side.
@@ -106,7 +106,7 @@ that signed certificates is compromised.
    artifact bytes at a recorded time. It never certified human authorship and
    never certified that AI was not used. A misissuance advisory that lets people
    believe otherwise makes the original overclaim on the project's behalf.
-4. **For key compromise, revoke every certificate that key signed** — not only
+4. **For key compromise, revoke every certificate that key signed**, not only
    the ones known to be wrong. A compromised key means an attacker could have
    signed anything, and a partial revocation invites relying parties to trust the
    remainder.
@@ -119,7 +119,7 @@ that signed certificates is compromised.
    immediately" without a version range means everybody upgrades, including
    people on an unaffected version who now carry a fresh regression risk for
    nothing.
-3. **Re-run the release gates on the replacement** —
+3. **Re-run the release gates on the replacement**:
    [supply chain](supply-chain.md), the schema and API snapshots, the reproducible
    build, and the manifest. A hurried replacement is exactly when a second
    problem ships.
@@ -146,6 +146,6 @@ wrong, teaches people to discount the next advisory. Precision is not a courtesy
 here; it is what keeps the channel usable.
 
 **Name versions, sequences, and identifiers.** Every artifact this project issues
-is content-addressed and versioned — certificates, attestations, plugin
-distributions, trust stores, model manifests — specifically so an advisory can
+is content-addressed and versioned (certificates, attestations, plugin
+distributions, trust stores, model manifests) specifically so an advisory can
 name exactly what is affected instead of a date range.

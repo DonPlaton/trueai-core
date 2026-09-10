@@ -7,7 +7,7 @@ per test, each asking the verifier the same question it is asked in production.
 The one that used to pass is `signature removed`. Stripping the signature from a
 signed certificate leaves the claims and the content identifier intact, so
 everything else still matched, and `signature_ok` was written as
-`certificate.signature is None or signature_verified is True` — which reads the
+`certificate.signature is None or signature_verified is True`, which reads the
 absence of a signature as nothing to check rather than as the check failing. A
 caller who supplied a public key had said they expected one.
 """

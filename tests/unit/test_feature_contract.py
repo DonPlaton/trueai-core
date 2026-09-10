@@ -1,7 +1,7 @@
 """A versioned feature contract, and the heavy dependency that must not appear.
 
 Two claims are under test. That a model and the code feeding it disagree loudly
-rather than quietly — a v2 model handed a v1 vector produces a confident number
+rather than quietly. A v2 model handed a v1 vector produces a confident number
 over columns that changed meaning, with no symptom until somebody acts on it.
 And that the core package imports nothing that needs a GPU, which is the whole
 reason a model can be optional at all.

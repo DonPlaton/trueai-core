@@ -45,7 +45,7 @@ downstream policy that thresholds it inherits the lie. An expected error above
 
 One aggregate over a mixed corpus hides that a detector works on one domain and
 not another. Per-domain rates are reported, and `domain_spread()` gives the gap
-between best and worst — which is what a new deployment will actually meet. A
+between best and worst, which is what a new deployment will actually meet. A
 spread above 10 points is reported as a problem.
 
 ### Subgroups
@@ -54,7 +54,7 @@ A detector with a 3% overall false positive rate and 15% on writing in a second
 language is not a 3% detector; it is a tool that penalises non-native speakers.
 
 `worst_subgroup()` returns the worst rate among subgroups **large enough to
-score** — otherwise a five-sample group with one mistake becomes the headline —
+score** (otherwise a five-sample group with one mistake becomes the headline)
 and a gap of more than 5 points above the overall rate is reported as a problem.
 The subgroup axis is named by the evaluator, because only they know which one
 matters for their deployment.
@@ -89,7 +89,7 @@ assembling the same corpus can compare numbers.
 - the false positive rate varies more than 10 points between domains.
 
 Each appears in `summary()` as a `Caveat:` sentence. A clean evaluation produces
-none, and a test pins that too — a checker that always complains is one people
+none, and a test pins that too. A checker that always complains is one people
 learn to ignore.
 
 ## What this does not do

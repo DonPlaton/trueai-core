@@ -9,7 +9,7 @@ a **prefix match on its identifier**:
 
 That works right up until somebody adds a format and does not add its prefix.
 `odf.remove-metadata-field` was classified `predictable_content` for exactly that
-reason — not because anybody decided ODF metadata was content, but because "odf."
+reason, not because anybody decided ODF metadata was content, but because "odf."
 was never added to a tuple. It happened to fail safe, which is why nothing
 noticed, and the next such accident might not.
 
@@ -19,7 +19,7 @@ planned at all: an operation nobody wrote down is an operation nobody reviewed.
 
 The catalogue is also the answer to a question an operator is entitled to ask
 before running a cleaner over their documents, and to the question a regression
-suite has to ask — every entry here must be exercised by a test, which is what
+suite has to ask. Every entry here must be exercised by a test, which is what
 stops a new removable field shipping without a fixture.
 """
 

@@ -11,7 +11,7 @@ Use both `confidence_type` and `provenance_class`.
 | `VERIFIED` + `PROVIDER_WATERMARK` | An official provider mechanism verified its signal. |
 | `HEURISTIC` + `HEURISTIC` | Measured style/structure only; never proof of origin. |
 
-Never turn a count or heuristic score into a binary “AI-generated” conclusion. Quote the finding
+Never turn a count or heuristic score into a binary "AI-generated" conclusion. Quote the finding
 title, evidence field/code point/location, confidence class, and remediation status. Mention false-
 positive context for typography, ZWJ/ZWNJ, hidden SVG/HTML elements, and tracked tool settings.
 

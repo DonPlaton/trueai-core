@@ -17,7 +17,7 @@ decide whether TrueAI is usable on a real repository.
 **Peak memory**, because a scanner that is fast and then dies at 80,000 files is
 not fast. Two figures are reported and they answer different questions:
 
-- *Process peak RSS* is what the machine feels — but every OS exposes it as a
+- *Process peak RSS* is what the machine feels, but every OS exposes it as a
   process-lifetime high-water mark. It never falls, so **only the first phase's
   figure is that phase's own peak**; a later phase showing a similar number means
   it stayed under the earlier high, not that it used nothing. Subtracting two
@@ -32,7 +32,7 @@ hides the second.
 
 **Determinism**, because a report that varies between identical runs cannot back
 an audit certificate. Two scans are compared with only `scan_id` and
-`generated_at` removed — a comparison that ignored everything unstable would
+`generated_at` removed. A comparison that ignored everything unstable would
 always pass. A third check compares the parallel scan against the serial one,
 because a speedup that changes the answer is not a speedup.
 
@@ -40,10 +40,10 @@ because a speedup that changes the answer is not a speedup.
 
 Environment: Windows 11 (10.0.26200), AMD Ryzen 7 7700 (8C/16T), Python 3.14.4,
 NVMe storage. Corpus: seeded mix of Markdown, Python, text, HTML, CSS, SVG, and
-JSON, spread three directories deep — a flat tree would not exercise traversal
+JSON, spread three directories deep. A flat tree would not exercise traversal
 and would flatter the numbers.
 
-### 10,000 files — 3,422 findings
+### 10,000 files: 3,422 findings
 
 | Phase | Seconds | Files/s | Process peak RSS | Python alloc peak | Cache |
 |---|---:|---:|---:|---:|---:|
@@ -53,7 +53,7 @@ and would flatter the numbers.
 
 Determinism: two scans byte-identical. Parallel and serial agree.
 
-### 100,000 files — stopped by the default finding budget
+### 100,000 files: stopped by the default finding budget
 
 | Phase | Seconds | Files/s | Process peak RSS | Python alloc peak | Cache |
 |---|---:|---:|---:|---:|---:|
@@ -66,7 +66,7 @@ Determinism: two scans byte-identical. Parallel and serial agree.
 **Read this row with the cap in mind.** The default finding budget is
 `max_findings = 10_000`, and 100,000 files of this corpus produce more than
 that. The scan recorded 10,000 findings, emitted a `finding_limit_exceeded`
-diagnostic at HIGH severity, and stopped — after detector-scanning 29,127 of the
+diagnostic at HIGH severity, and stopped, after detector-scanning 29,127 of the
 100,001 artifacts it had discovered. So:
 
 - **The findings count is a floor, not a total.** The harness now marks a phase
@@ -87,12 +87,12 @@ speedup would be attributing someone else's work.
 
 **Memory scales roughly linearly and stays modest.** 727 MB peak RSS for 100,000
 files against 124 MB for 10,000. The scan holds one artifact at a time; what
-grows is the report — one descriptor per discovered artifact.
+grows is the report: one descriptor per discovered artifact.
 
 ## What the numbers say
 
 **Parallelism is the lever; the cache is not.** Eight workers give a 4.9×
-speedup. A *fully* warm cache — every one of 10,000 lookups a hit — saves 5.5%.
+speedup. A *fully* warm cache (every one of 10,000 lookups a hit) saves 5.5%.
 That is worth stating plainly, because "incremental scanning" sounds like the
 answer to repository scale and here it is not: the cache eliminates detector
 work, and detector work is not where the time goes.
@@ -116,7 +116,7 @@ one it failed to notice.
 
 **One of those passes was not deliberate.** The end-of-scan sweep asks "did new
 files appear while detectors ran", which needs a set of paths. It was built by
-running full discovery a second time — opening and sniffing every file to
+running full discovery a second time: opening and sniffing every file to
 produce type information the comparison then discarded.
 `ArtifactDiscovery.inventory()` now walks for paths only, using the same
 traversal, ignore rules, symlink containment, and file cap, so a sweep cannot
@@ -124,13 +124,13 @@ report differences that are its own. Measured on a warm 2,000-file corpus: 3.45 
 → 2.96 s, **14% of wall time removed**, with no check weakened.
 
 That change also fixed a latent false positive. A file that the first pass could
-not identify — a permission error, or a file deleted between the walk and the
-open — was absent from the first pass's inventory and present in the second, and
+not identify (a permission error, or a file deleted between the walk and the
+open) was absent from the first pass's inventory and present in the second, and
 was announced as `detector_mutation` at CRITICAL severity: a plugin rewriting
 your repository. Paths the first pass already reported as problems are now
 excluded.
 
-**Memory is not the constraint — but the harness nearly was.** 124 MB peak RSS
+**Memory is not the constraint, but the harness nearly was.** 124 MB peak RSS
 for 10,000 files, 727 MB for 100,000, with the scan holding one artifact at a
 time. The first attempt at 100,000 files died without printing anything: the
 harness was holding three whole reports at once to compare them. It now compares
@@ -147,7 +147,7 @@ harness can complete on its own. The harness runs against any directory:
 python scripts/benchmark_scale.py --corpus /path/to/repository
 ```
 
-`--corpus` writes nothing into the directory it measures — not one file, not a
+`--corpus` writes nothing into the directory it measures, not one file, not a
 cache entry. The cache lives in a temporary workspace that is removed
 afterwards. A benchmark that modified the repository it measured would be worse
 than useless.

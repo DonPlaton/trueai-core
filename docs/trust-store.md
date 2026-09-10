@@ -5,7 +5,7 @@ what an organization actually deploys: the C2PA roots, the issuer keys, and the
 plugin publisher keys a fleet of machines should honour, distributed as one
 signed document with a sequence number and a lifetime.
 
-`trueai/core/trust_store.py` fetches nothing. A store arrives as bytes — from a
+`trueai/core/trust_store.py` fetches nothing. A store arrives as bytes, from a
 file, a share, or a USB stick. If it arrives over a network it does so through
 [the network gate](network-and-providers.md) like everything else.
 
@@ -23,7 +23,7 @@ result = install_trust_store(store, public_key=root_pub, known_sequence=7)
 A store arriving at sequence 3 when 7 is installed is a rollback, and a rollback
 reinstates every key the intervening sequences revoked. A verifier with no
 memory cannot detect that, so the API asks for the memory rather than pretending
-it is unnecessary — pass `known_sequence=None` and you get no rollback check and
+it is unnecessary: pass `known_sequence=None` and you get no rollback check and
 know that you do not.
 
 An expired store stops being authoritative rather than quietly continuing:
@@ -55,7 +55,7 @@ TrustAnchor(anchor_id="issuer-2026", replaces="issuer-2025", not_before=…, …
 
 The interesting failure is not the replacement. It is the **gap**: if the
 successor's `not_before` falls after the predecessor's `not_after`, there is a
-window in which nothing verifies. Every signature made in it fails — months
+window in which nothing verifies. Every signature made in it fails: months
 later, to someone who will not connect it to a key rotation.
 
 `rotation_problems()` reports exactly that window. `install_trust_store` surfaces
@@ -77,7 +77,7 @@ installed, result = apply_update(installed, update, public_key=root_pub)
 
 Updates advance **exactly one sequence**. Jumping from 4 to 6 would skip whatever
 5 revoked, and a revocation you skipped is a key you are still trusting. The
-constraint is enforced twice — the update model refuses to describe a jump, and
+constraint is enforced twice. The update model refuses to describe a jump, and
 `apply_update` refuses to apply one whose `from_sequence` is not what is
 installed.
 
@@ -87,7 +87,7 @@ computation. The store is small enough that clarity wins.
 
 An update whose store belongs to a different organization is refused: a trust
 store quietly changing hands is not an update. A refused update leaves the
-installed store in place — never a partially applied one.
+installed store in place, never a partially applied one.
 
 ## What an anchor is trusted for
 
@@ -96,8 +96,8 @@ installed store in place — never a partially applied one.
 is not trusting it to publish plugins, and a store that conflated them would
 silently widen every anchor it holds.
 
-The material's shape is validated at authoring time, not where it is consumed —
-an `issuer_key` holds a `sha256:…` key id, a `c2pa_root` holds a PEM. The
+The material's shape is validated at authoring time, not where it is consumed.
+An `issuer_key` holds a `sha256:…` key id, a `c2pa_root` holds a PEM. The
 consumer is `to_trust_profile()` or `c2pa_anchor_pems()`, running long after the
 store was authored, on a machine that cannot fix it.
 
@@ -117,4 +117,4 @@ returning anything.
 
 It does not fetch, does not phone home, and does not ship a default. Deciding
 which organizations to trust is a policy decision belonging to whoever runs the
-scan — the same reason TrueAI ships no default `TrustProfile`.
+scan: the same reason TrueAI ships no default `TrustProfile`.

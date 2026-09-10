@@ -1,9 +1,9 @@
 """Coverage-guided fuzzing of every parsing boundary TrueAI has.
 
 A scanner's whole job is reading files somebody else made.  Ten formats reach a
-parser here — ZIP/OPC packages, XML parts, PDF object graphs, ISO-BMFF and EBML
+parser here: ZIP/OPC packages, XML parts, PDF object graphs, ISO-BMFF and EBML
 containers, Git object directories, cache entries, policy bundles, certificates,
-and reports — and each one is a place where hostile bytes meet code that has to
+and reports, and each one is a place where hostile bytes meet code that has to
 assume nothing.
 
 Two things make this more than a crash finder.
@@ -13,7 +13,7 @@ allowed to *refuse*: a `ValueError`, a `TrueAIError`, a validation error.  It is
 not allowed to raise a `TypeError` from an unguarded attribute access, a
 `RecursionError` from an unbounded structure, a `MemoryError` from a length field
 nobody checked, or to hang.  And when it does not refuse, an invariant has to
-hold — a returned model stays inside its budget, a rejected cache entry yields
+hold. A returned model stays inside its budget, a rejected cache entry yields
 nothing at all, an edited certificate never verifies.  A fuzzer that only asks
 "did it crash" would pass a parser that cheerfully accepts a forged signature.
 
@@ -32,15 +32,15 @@ late.  Measured on the PDF, ISO-BMFF, and EBML targets with `--seed 11`:
 Early on, mutating a pristine seed beats mutating whatever the corpus has
 accumulated; later the corpus is worth more than the seed.  `--no-coverage` is
 kept for that reason rather than as a curiosity, and half of all mutations start
-from a seed even in guided mode — mutating a mutation of a mutation drifts away
+from a seed even in guided mode: mutating a mutation of a mutation drifts away
 from anything structurally valid, which for a length-prefixed format means never
 getting past the header again.
 
 The line count counts lines inside `trueai/` only.  That is the right denominator
 for "did our code get exercised" and a misleading one for a target whose parser
 is a thin wrapper over pydantic or ElementTree: a low number there means the work
-happens in a library, not that less was tested.  Seeds are real artifacts — a
-genuinely signed bundle, an issued certificate, a rendered report — because a
+happens in a library, not that less was tested.  Seeds are real artifacts (a
+genuinely signed bundle, an issued certificate, a rendered report) because a
 seed that fails on its first field never reaches the code worth reaching.
 
     python scripts/fuzz_parsers.py --iterations 20000
@@ -258,8 +258,8 @@ def _valid_zip() -> bytes:
 def _valid_pdfs() -> tuple[bytes, ...]:
     """Two seeds: a classic trailer PDF and a modern one built on streams.
 
-    Both, because they exercise different halves of the object graph — the
-    lexical trailer path and the cross-reference-stream path — and a fuzzer given
+    Both, because they exercise different halves of the object graph (the
+    lexical trailer path and the cross-reference-stream path) and a fuzzer given
     only the first never reaches the second.
     """
 
@@ -316,8 +316,8 @@ def _valid_bundle() -> bytes:
     """A genuinely signed bundle, so mutations start from something that validates.
 
     A seed that fails on its first field never reaches the interesting code, and
-    the near-miss inputs — a bundle that parses and whose signature does not
-    match — are the ones worth generating.
+    the near-miss inputs (a bundle that parses and whose signature does not
+    match) are the ones worth generating.
     """
 
     try:

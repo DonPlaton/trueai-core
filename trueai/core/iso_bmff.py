@@ -1,7 +1,7 @@
 """Executable invariants for ISO base media files: MP4, MOV, and M4A.
 
 This module is a specification written as code. It does not remove anything. It
-answers one question — *would this edit still play the same file?* — so that the
+answers one question (*would this edit still play the same file?*) so that the
 cleanup in `FMT-02` can be gated on the answer instead of on hope.
 
 MP4 deserves that gate more than the formats already supported, for a reason
@@ -15,23 +15,23 @@ because the change is that the offsets did *not* change when they should have.
 
 So the invariants are structural, not lexical. Seven of them:
 
-* **Samples** — the bytes each sample table points at must hash the same before
+* **Samples**: the bytes each sample table points at must hash the same before
   and after. Not "the mdat box is unchanged": a correct edit is allowed to move
   `mdat`, and an incorrect one is caught by following the offsets.
-* **Timing** — timescales, durations, and the `stts`/`ctts` tables that map
+* **Timing**: timescales, durations, and the `stts`/`ctts` tables that map
   samples to time.
-* **Edit lists** — `elst` decides what is actually presented. Dropping it turns
+* **Edit lists**, `elst` decides what is actually presented. Dropping it turns
   a trimmed clip back into the untrimmed take.
-* **Indexes** — `stsc`, `stsz`, `stss`, and the fragment index `sidx` must stay
+* **Indexes**: `stsc`, `stsz`, `stss`, and the fragment index `sidx` must stay
   internally consistent with the samples they describe.
-* **Encryption state** — `sinf`, `senc`, `saiz`, `saio`, `pssh`. A cleaner that
+* **Encryption state**: `sinf`, `senc`, `saiz`, `saio`, `pssh`. A cleaner that
   breaks these produces a file nothing can decrypt, and the failure surfaces at
   playback rather than at cleaning time.
-* **Rendering-critical metadata** — `stsd` sample entries, and the parts of
+* **Rendering-critical metadata**: `stsd` sample entries, and the parts of
   `tkhd`/`mvhd` that decide geometry: matrix, width, height, volume. The title
   in `udta` is metadata; the display matrix is not, even though both live in the
   header region.
-* **Protected provenance** — a C2PA manifest box must survive, because removing
+* **Protected provenance**. A C2PA manifest box must survive, because removing
   provenance is the one thing this project will not do silently.
 
 Everything here is parsed defensively: every offset is bounds-checked against the
@@ -448,7 +448,7 @@ def _descendants(boxes: list[Box], parent: Box) -> list[Box]:
 
     Filtering was quadratic in the box count, and modelling calls this once per
     `trak`. An empty `trak` is eight bytes, so 100,000 of them fit in 800 KB and
-    cost 10^10 list steps — the same defect as in the EBML model, in the other
+    cost 10^10 list steps: the same defect as in the EBML model, in the other
     container format.
     """
 

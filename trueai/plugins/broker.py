@@ -1,7 +1,7 @@
 """The capability broker: one contract for everything a plugin needs from outside.
 
 A boolean capability answers "may this plugin write files?" The honest question is
-"may this plugin write *this* file, *here*, for the duration of *this* scan?" —
+"may this plugin write *this* file, *here*, for the duration of *this* scan?",
 and a grant that cannot express the scope has to be granted at its widest, which
 is how ``write_filesystem`` ends up meaning "anywhere the user can write".
 
@@ -87,7 +87,7 @@ class ArtifactGrant(FrozenModel):
 class WorkspaceGrant(FrozenModel):
     """Read-only access confined to one directory subtree.
 
-    Sibling parts of a package are a legitimate need — an OOXML part referencing
+    Sibling parts of a package are a legitimate need: an OOXML part referencing
     another part, a source file referencing its header. A whole-filesystem read
     grant to satisfy that is not proportionate.
     """
@@ -375,7 +375,7 @@ class CapabilityBroker:
     def iter_workspace(self, pattern: str = "*") -> Iterator[Path]:
         """Yield workspace files matching a glob, confined to the grant.
 
-        Entries that resolve outside the root — a symlink pointing away — are
+        Entries that resolve outside the root (a symlink pointing away) are
         skipped rather than raising, because one hostile link in a directory
         should not make the whole listing unusable.
         """
@@ -521,7 +521,7 @@ class CapabilityBroker:
     def native_library_granted(self, name: str) -> bool:
         """Return whether a named native library was declared and granted.
 
-        The broker cannot enforce this — ``ctypes`` does not ask permission — so
+        The broker cannot enforce this (``ctypes`` does not ask permission) so
         the honest contract is that a plugin checks before loading, and a plugin
         that does not is one the manifest already failed to describe.
         """
@@ -552,7 +552,7 @@ class _BudgetedWriter:
             self.write(line)
 
     def __getattr__(self, name: str) -> Any:
-        """Delegate everything else — flush, seek, name — to the real handle."""
+        """Delegate everything else (flush, seek, name) to the real handle."""
 
         return getattr(self._handle, name)
 

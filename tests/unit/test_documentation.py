@@ -2,7 +2,7 @@
 
 Prose has no compiler, so it drifts in one direction: a flag is renamed, a module
 moves, and the sentence keeps saying the old thing confidently. The reader who is
-hurt is the one who trusts it — they run the documented command, it fails, and
+hurt is the one who trusts it: they run the documented command, it fails, and
 they conclude the tool is broken rather than the sentence.
 
 The gate checks whether the nouns exist. It cannot check whether the prose is
@@ -208,7 +208,7 @@ def test_the_invocation_pattern_needs_a_word_boundary() -> None:
     """It was a literal backspace for one commit, so it matched nothing at all.
 
     A pattern that can never match makes the check skip every line while still
-    reporting success — the same shape of failure the license gate's fallback
+    reporting success: the same shape of failure the license gate's fallback
     exists to avoid.
     """
 

@@ -1,7 +1,7 @@
 """Fail when the documentation describes a tool that does not exist.
 
 Documentation drifts in one direction. A flag gets renamed, a module moves, a
-command is added — and the prose keeps describing the old shape, confidently,
+command is added, and the prose keeps describing the old shape, confidently,
 because prose has no compiler. The reader who is hurt is the one who trusts it:
 they run the documented command, it fails, and they conclude the tool is broken
 rather than the sentence.
@@ -196,7 +196,7 @@ def check_document(
 
     # Only lines that are about `trueai` are checked. A first attempt looked at
     # every long option in the file and reported `--all-extras`, `--build-arg`,
-    # and `--outdir` — pip, docker, and build flags this project documents and
+    # and `--outdir`: pip, docker, and build flags this project documents and
     # does not own. Maintaining an allowlist of other tools' flags would rot;
     # scoping to the line removes the whole class.
     for line in text.splitlines():

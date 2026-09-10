@@ -45,7 +45,7 @@ entity expansion, decompression bombs, malformed lengths, and unexpected encodin
 or a file that does not exist, and when a page under `docs/` is linked from
 nowhere.
 
-It cannot check whether the prose is *true* — that needs a reader. It checks
+It cannot check whether the prose is *true*. That needs a reader. It checks
 whether the nouns exist, which is the part that rots first: a flag gets renamed
 and the sentence keeps describing the old one, confidently, because prose has no
 compiler. The reader who is hurt is the one who trusts it.
@@ -58,7 +58,7 @@ Two scoping decisions worth knowing before you add a code sample:
   an allowlist of other tools' flags would rot faster than the documentation it
   guards. `docker build -t trueai-core:audit .` is not an invocation.
 - A command is resolved against the tree rather than by longest prefix. A group
-  takes no positional arguments, so the word after one has to be a subcommand —
+  takes no positional arguments, so the word after one has to be a subcommand,
   otherwise a misspelt subcommand falls back to bare `trueai` and the typo
   becomes invisible.
 

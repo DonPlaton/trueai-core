@@ -4,7 +4,7 @@ A desktop client, a CI job, and an editor extension all need the same five
 things: what a finding claims, what cleanup would do, what integrity evidence
 exists, what provenance was established, and whether an audit certificate holds.
 Left to themselves each surface derives those from the schema separately, and
-they drift — one shows "AI-generated", another shows "attribution string
+they drift: one shows "AI-generated", another shows "attribution string
 found", and they are describing the same finding.
 
 The part worth centralising is not the formatting. It is
@@ -133,7 +133,7 @@ class RemediationPreview:
     steps: tuple[RemediationStep, ...] = ()
     #: Findings a person must decide about. Not a failure; a handoff.
     needs_review: tuple[str, ...] = ()
-    #: Findings preserved on purpose — provenance evidence is not litter.
+    #: Findings preserved on purpose, provenance evidence is not litter.
     preserved: tuple[str, ...] = ()
     #: Findings automatic cleanup refused to touch.
     blocked: tuple[str, ...] = ()

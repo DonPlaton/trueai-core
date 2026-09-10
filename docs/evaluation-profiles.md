@@ -3,9 +3,9 @@
 Two questions get asked about a Human Contribution Record, and they are not the
 same question:
 
-1. **How strong is the evidence and governance behind this record?** — the
+1. **How strong is the evidence and governance behind this record?**. The
    Process Assurance Level, PAL-0 to PAL-4.
-2. **Does this record meet the expectations of *my* context?** — an evaluation
+2. **Does this record meet the expectations of *my* context?**: an evaluation
    profile.
 
 Neither answers "how human is this work". Nothing in TrueAI answers that,
@@ -100,8 +100,8 @@ different rules, they say which rule was applied, and they name their version so
 a result can be re-derived later.
 
 A profile refusing an AI autonomy level for a dimension produces an unmet
-requirement worded as a rule — "this profile does not permit delegated_execution
-for this dimension" — not as an accusation. TrueAI has no way to know whether a
+requirement worded as a rule ("this profile does not permit delegated_execution
+for this dimension") not as an accusation. TrueAI has no way to know whether a
 learner was dishonest, and outputs that imply otherwise would be inventing
 evidence.
 
@@ -115,13 +115,13 @@ missing. Nothing is inferred from silence in either direction.
 
 Every surface renders the same three things and never merges them:
 
-- **Stage summary** — `stage_summary()` produces phrases like
+- **Stage summary**: `stage_summary()` produces phrases like
   "human-originated, AI-executed, human-validated". Each part names a stage and
   who carried it. No combination of stage claims establishes authorship, and the
   word never appears in the output.
-- **Assurance level** — the PAL, with its meaning spelled out in the same
+- **Assurance level**: the PAL, with its meaning spelled out in the same
   breath, so a bare "PAL-3" cannot travel alone.
-- **Profile result** — the profile id, version, weights, and unmet requirements.
+- **Profile result**: the profile id, version, weights, and unmet requirements.
 
 ```console
 $ trueai attestations evaluate record.process.json --artifact deliverable.pdf \
@@ -150,11 +150,11 @@ is required. Exit code 1 is not a failing grade and not an allegation.
 verified facts into the SARIF run's property bag. Detection results are
 untouched: an attestation never becomes a finding, a severity, or a rule.
 
-The property keys name what was established rather than what it means —
+The property keys name what was established rather than what it means:
 `trueaiAttestationAuthenticatedDeclaration`,
 `trueaiAttestationOrganizationallyAttributed`,
 `trueaiProcessAssuranceLevel`, `trueaiProcessStageSummary`,
-`trueaiAttestationLimitations` — so a dashboard has nothing to render as an
+`trueaiAttestationLimitations`, so a dashboard has nothing to render as an
 authorship badge. A scan supplies no public keys, because deciding whom to trust
 is not a scanner's decision; the property bag reports the signature as
 unverified rather than implying it passed.

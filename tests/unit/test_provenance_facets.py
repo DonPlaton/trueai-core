@@ -2,7 +2,7 @@
 
 The failure this guards is not exaggeration, it is erasure. `NO_MANIFEST` and
 `VERIFIER_UNAVAILABLE` are both "not green", so a single status column renders
-them identically — and "this artifact carries no provenance" then looks exactly
+them identically, and "this artifact carries no provenance" then looks exactly
 like "we were unable to look". One is a result; the other is a hole in the scan.
 """
 

@@ -21,8 +21,8 @@ reported as `.`.
 That is a deliberate trade and it costs something, so it is written down here
 rather than discovered. Relative paths make two scans of the same corpus compare
 byte for byte, which is what the determinism check and the reproducibility of an
-audit record depend on, and they keep the operator's directory layout — often the
-client's name — out of a document that gets sent to somebody else. What they cost
+audit record depend on, and they keep the operator's directory layout (often the
+client's name) out of a document that gets sent to somebody else. What they cost
 is that a report read on its own does not say which directory produced it. A
 consumer that needs to record the target should record it alongside the report,
 where it is their decision to disclose rather than the scanner's.
@@ -42,7 +42,7 @@ by SHA-256, which identifies the bytes without identifying the machine.
 
 `generator_metadata`, `explicit_ai_attribution`, `c2pa_provenance`, `provider_watermark`,
 `stylistic_signal`, and `design_style_signal` are separate categories by design. Consumers must not
-collapse them into a single “AI detected” result.
+collapse them into a single "AI detected" result.
 
 Authenticated C2PA verification is serialized separately in
 `ScanReport.provenance_verifications`. A marker finding remains
@@ -85,7 +85,7 @@ if remediation_id.startswith(("docx.", "pptx.", "xlsx.", "pdf.", "image.", "medi
 
 That works right up until somebody adds a format and does not add its prefix.
 `odf.remove-metadata-field` was classified `predictable_content` for as long as
-ODF support existed — not because anybody decided ODF metadata was content, but
+ODF support existed, not because anybody decided ODF metadata was content, but
 because `"odf."` was never added to a tuple. `meta.xml` is a separate part
 exactly like `docProps`, so removing a field from it cannot change what a reader
 sees, and it is now `safe_metadata` with that sentence attached. It happened to
@@ -104,7 +104,7 @@ Two gates in `tests/unit/test_remediation_catalog.py`:
 - every catalogued operation must be named by a test, which is what stops a
   removable field shipping without a regression fixture.
 
-The second gate found six operations the suite exercised without naming —
+The second gate found six operations the suite exercised without naming:
 `docx.remove-custom-property`, `xlsx.remove-metadata-field`,
 `xlsx.remove-custom-property`, `pptx.remove-metadata-field`,
 `svg.remove-generator-comment`, `html.remove-attribution-comment`. A privacy-run
@@ -114,5 +114,5 @@ missing was the ability to *answer the question*.
 is planned, that it is applied, and that the integrity gate agrees.
 
 An identifier the catalogue does not know falls back to the strictest class in
-the planner — a planner is not the place to fail a scan — while `safety_for()`
+the planner (a planner is not the place to fail a scan) while `safety_for()`
 raises, because a caller that can handle the error should not be handed a guess.

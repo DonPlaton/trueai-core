@@ -22,7 +22,7 @@ that.
 **Offline updates.**  A machine that never touches the network still needs new
 roots.  A :class:`TrustStoreUpdate` carries one step and is applied from a file.
 Updates apply **strictly one sequence at a time**, because jumping from 4 to 6
-would skip whatever 5 revoked — and a revocation you skipped is a key you are
+would skip whatever 5 revoked, and a revocation you skipped is a key you are
 still trusting.
 
 Nothing here fetches anything.  A store or an update arrives as bytes, from a
@@ -114,7 +114,7 @@ class TrustAnchor(FrozenModel):
         if self.replaces == self.anchor_id:
             raise ValueError("An anchor cannot replace itself")
         # Checked here rather than where the material is consumed, because the
-        # consumer is `to_trust_profile` or `c2pa_anchor_pems` — running long
+        # consumer is `to_trust_profile` or `c2pa_anchor_pems`, running long
         # after the store was authored, on a machine that cannot fix it.
         if self.kind is AnchorKind.ISSUER_KEY and not _KEY_ID.fullmatch(self.material):
             raise ValueError(

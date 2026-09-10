@@ -1,7 +1,7 @@
 # Examples
 
 Minimal, runnable third-party integrations. They exist to be copied, and they are
-checked by the test suite — `tests/unit/test_sdk_examples.py` scans with the
+checked by the test suite: `tests/unit/test_sdk_examples.py` scans with the
 detector below, verifies a signed distribution built from it, and asserts that
 every import in it comes from a module named in `trueai.api.PUBLIC_MODULES`. An
 example that drifts out of the public surface fails the build.
@@ -55,7 +55,7 @@ to reason about what ran.
 
 ## Publishing
 
-Register under the `trueai.detectors` entry-point group —
+Register under the `trueai.detectors` entry-point group:
 `trueai.plugins.ENTRY_POINT_GROUP`, so a typo is a plugin that silently never
 loads. For anything an operator will install, sign a distribution:
 

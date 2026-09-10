@@ -1,7 +1,7 @@
 """DOM topology and stylesheet features: measurements, bounded, and not verdicts.
 
 Two things are under test and the second matters as much as the first. The
-measurements have to be right, and they have to stay measurements — a count that
+measurements have to be right, and they have to stay measurements. A count that
 acquires a threshold becomes a claim about authorship, which is the error this
 project exists to avoid making.
 """

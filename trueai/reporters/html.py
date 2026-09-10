@@ -1,7 +1,7 @@
 """A single-file HTML report that a hostile artifact cannot turn into a page.
 
 Every string in a report comes from somewhere untrusted.  A file name, a metadata
-value, a manifest field, an exception message — all of it originates in the
+value, a manifest field, an exception message: all of it originates in the
 artifact under examination, and the report is then opened in a browser by the
 person examining it.  That is the whole attack: put script in a document, get it
 executed in the analyst's browser when they read about it.
@@ -104,7 +104,7 @@ dl.summary dd { margin: 0; font-variant-numeric: tabular-nums; }
 }
 .sev-critical, .sev-high { font-weight: 700; }
 .unknown { font-style: italic; }
-.unknown::after { content: " — not determined"; opacity: .7; font-style: normal; }
+.unknown::after { content: ", not determined"; opacity: .7; font-style: normal; }
 ul.notes { margin: .25rem 0 1rem; padding-left: 1.1rem; }
 ul.notes li { margin: .2rem 0; }
 footer { margin-top: 3rem; font-size: .8rem; opacity: .7; }

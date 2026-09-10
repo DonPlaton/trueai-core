@@ -3,10 +3,10 @@
 Every byte crossing into the host from a plugin arrives from code the host does
 not trust, and four places parse it:
 
-* the **worker protocol** — requests and responses exchanged through files;
-* the **manifest and distribution parsers** — what a plugin says it is;
-* **finding validation** — what a plugin claims it observed;
-* **resource limits** — the numbers a host hands the kernel.
+* the **worker protocol**: requests and responses exchanged through files;
+* the **manifest and distribution parsers**: what a plugin says it is;
+* **finding validation**: what a plugin claims it observed;
+* **resource limits**: the numbers a host hands the kernel.
 
 A fuzzer that only asks "did it crash?" proves very little about any of them,
 because a parser that accepts a forged finding without crashing is the failure
@@ -44,8 +44,8 @@ from pydantic import ValidationError  # noqa: E402
 from trueai.core.errors import DetectorRegistrationError  # noqa: E402
 
 #: What a parser at this boundary is allowed to do with hostile input: refuse it.
-#: Anything else — a TypeError from an unguarded attribute access, a RecursionError
-#: from an unbounded structure, a UnicodeDecodeError escaping a text read — is a
+#: Anything else: a TypeError from an unguarded attribute access, a RecursionError
+#: from an unbounded structure, a UnicodeDecodeError escaping a text read, is a
 #: place where untrusted input reached code that assumed it was well formed.
 EXPECTED_REFUSALS: tuple[type[BaseException], ...] = (
     ValidationError,

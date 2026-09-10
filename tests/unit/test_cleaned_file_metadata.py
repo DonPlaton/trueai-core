@@ -6,7 +6,7 @@ time saying its content had not changed.
 
 Permission bits describe the file's place in the filesystem and should survive.
 The modification time is a claim about when the content last changed, and it just
-did — resetting it hides the edit from rsync, from build systems, and from
+did: resetting it hides the edit from rsync, from build systems, and from
 anybody reading timestamps as evidence. In a forensic tool that is the behaviour
 being complained about rather than performed.
 """

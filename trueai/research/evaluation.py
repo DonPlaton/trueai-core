@@ -64,7 +64,7 @@ DEFAULT_MIN_GROUP_SIZE: Final = 30
 #: populated on a corpus of realistic size.
 DEFAULT_CALIBRATION_BINS: Final = 10
 
-#: 1.96 — the two-sided 95% normal quantile the Wilson interval uses.
+#: 1.96, the two-sided 95% normal quantile the Wilson interval uses.
 _Z: Final = 1.959963984540054
 
 
@@ -83,7 +83,7 @@ class Prediction:
     score: float | None
     #: The domain the sample came from, for domain-shift analysis.
     domain: str = "unspecified"
-    #: The subgroup this sample belongs to — writing in a second language, a
+    #: The subgroup this sample belongs to: writing in a second language, a
     #: particular register, an author cohort. Named by the evaluator, because
     #: only they know which axis matters for their deployment.
     subgroup: str = "unspecified"
@@ -138,8 +138,8 @@ class RateEstimate:
             return "not measured"
         interval = self.interval
         assert interval is not None
-        text = f"{self.successes}/{self.total} = {self.rate:.1%} (95% CI {interval[0]:.1%}–{interval[1]:.1%})"
-        return text if self.sufficient else f"{text} — too few samples to rely on"
+        text = f"{self.successes}/{self.total} = {self.rate:.1%} (95% CI {interval[0]:.1%} to {interval[1]:.1%})"
+        return text if self.sufficient else f"{text}, too few samples to rely on"
 
 
 @dataclass(frozen=True, slots=True)

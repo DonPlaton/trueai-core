@@ -1,7 +1,7 @@
 """One projection, three surfaces, and the sentence none of them may drop.
 
 Two things are being tested. First, that every adapter carries what a finding
-does *not* establish — the sentence a short format loses first and the one the
+does *not* establish: the sentence a short format loses first and the one the
 whole project turns on. Second, that each output format's own metacharacters are
 escaped: a workflow annotation is a control stream, a Markdown table is
 structure, and both are built from strings that came out of the artifact.
@@ -166,7 +166,7 @@ def test_an_annotation_carries_the_limit_next_to_the_claim() -> None:
 def test_a_newline_in_a_description_cannot_forge_a_second_command() -> None:
     """The injection that matters: a message is one line of a control stream.
 
-    ``::error::`` surviving as *text* is harmless — a runner splits commands on
+    ``::error::`` surviving as *text* is harmless: a runner splits commands on
     real newlines, so the property is that no newline remains, not that the
     characters are gone.
     """

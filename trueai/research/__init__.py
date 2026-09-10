@@ -1,7 +1,7 @@
 """Research-side governance: the rules a corpus must satisfy before it exists.
 
 Kept out of the scanning path entirely. Nothing here is imported by a detector,
-a cleaner, or the engine, and nothing here changes what a scan reports — it
+a cleaner, or the engine, and nothing here changes what a scan reports. It
 governs data collection, which is a separate activity with separate obligations.
 """
 

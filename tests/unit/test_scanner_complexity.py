@@ -5,7 +5,7 @@ the artifact. Every one of them is reachable from `trueai scan <file>`, in a too
 whose entire purpose is reading files somebody else wrote, and every one of them
 was inside the default 25 MB size limit at the point where it stopped finishing:
 
-* `<!--` repeated with no `-->`, in the fallback comment reader — 800 kB did not
+* `<!--` repeated with no `-->`, in the fallback comment reader: 800 kB did not
   finish in a minute;
 * `Co-Authored-By: Claude` followed by a line of spaces, where `[^<\\r\\n]*` and a
   following `\\s*` both accept a space and the engine tries every division of the
@@ -13,7 +13,7 @@ was inside the default 25 MB size limit at the point where it stopped finishing:
 * `:a(` and `[a` repeated, in the CSS selector features, where the contents of a
   bracket could contain the bracket that opens it;
 * a stylesheet with no braces at all, in the hidden-rule scan, where `([^{}]+)\\{`
-  reads to the end of the file once per starting position — 60 kB took
+  reads to the end of the file once per starting position, 60 kB took
   seventeen seconds;
 * `/Info <<` repeated in a PDF trailer that runs to the end of the file because
   `startxref` is missing;

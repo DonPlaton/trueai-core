@@ -6,7 +6,7 @@ is caught in an ordinary test run, it pins the specific inputs that must always
 be refused, and it deliberately breaks a check to prove the fuzzer reports it.
 
 The long campaigns live in ``scripts/fuzz_plugins.py`` and are meant to be run
-continuously — a nightly ``--seconds 3600`` or a targeted ``--iterations 200000``
+continuously: a nightly ``--seconds 3600`` or a targeted ``--iterations 200000``
 after a change to the trust boundary.
 """
 

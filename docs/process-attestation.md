@@ -3,7 +3,7 @@
 A TrueAI audit certificate (`TAI1-…`) says what a scanner observed in exact bytes.
 A TrueAI process attestation (`TAIP1-…`) says who originated, framed, decided,
 executed, validated, integrated, and took responsibility for the work that
-produced those bytes — and how strongly each of those claims is supported.
+produced those bytes, and how strongly each of those claims is supported.
 
 They are separate contracts with separate schemas, separate identifier prefixes,
 and separate verification results, because they answer different questions and
@@ -150,11 +150,11 @@ digest, never copied into the record. Raw prompts, proprietary source documents,
 credentials, personal identifiers, and confidential feedback stay private by
 default:
 
-- `public` — the reference and its locator travel with the record;
-- `private` — the digest travels, the material does not;
-- `committed` — a commitment travels so the material can be revealed and checked
+- `public`: the reference and its locator travel with the record;
+- `private`. The digest travels, the material does not;
+- `committed`. A commitment travels so the material can be revealed and checked
   against it later;
-- `omitted` — deliberately left out, with a stated reason and no digest.
+- `omitted`: deliberately left out, with a stated reason and no digest.
 
 A locator on private or committed evidence is refused at construction, because it
 would disclose exactly what the status says is withheld.

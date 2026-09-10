@@ -2,7 +2,7 @@
 
 Two formats, both text, both with a hostile-input problem of their own.
 
-A GitHub workflow annotation is a single line — `::warning file=x,line=1::msg` —
+A GitHub workflow annotation is a single line (`::warning file=x,line=1::msg`)
 and a message containing a newline does not produce a malformed annotation, it
 produces *a second command*.  A finding description comes from the artifact under
 examination, so that is an injection into the CI runner's control stream, and it

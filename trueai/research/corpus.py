@@ -8,7 +8,7 @@ record cannot be admitted, and a corpus without a policy cannot be built.
 Five rules, and the reason each is separate:
 
 **Consent** is a person agreeing that their work may be used.  It is scoped, it
-expires, and it can be **withdrawn** — and withdrawal has to reach backwards
+expires, and it can be **withdrawn**, and withdrawal has to reach backwards
 through everything already collected under it, which is the requirement most
 easily written down and least often implemented.
 
@@ -142,7 +142,7 @@ class LicenseTerms(FrozenModel):
     #: The rights holder, who is often not the person who handed the file over.
     holder: str = Field(min_length=1, max_length=300)
     permits: frozenset[LicenseUse] = frozenset()
-    #: Obligations that travel with the sample — attribution, share-alike, a
+    #: Obligations that travel with the sample: attribution, share-alike, a
     #: notice file. Recorded so they are not discovered at publication time.
     obligations: tuple[str, ...] = ()
 
@@ -265,7 +265,7 @@ class AdmissionDecision(FrozenModel):
     def explain(self) -> str:
         if self.admitted:
             return f"{self.sample_id}: admitted."
-        return f"{self.sample_id}: refused — " + "; ".join(self.refusals)
+        return f"{self.sample_id}: refused, " + "; ".join(self.refusals)
 
 
 class CorpusAudit(FrozenModel):

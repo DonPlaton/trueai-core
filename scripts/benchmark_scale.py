@@ -87,7 +87,7 @@ def main() -> int:
                 f"  {phase.name}: {phase.resources.seconds:.1f}s, "
                 f"{phase.files_per_second:.0f} files/s, {phase.findings} findings"
             )
-            print(line + (f" — INCOMPLETE: {caveat}" if caveat else ""), flush=True)
+            print(line + (f", INCOMPLETE: {caveat}" if caveat else ""), flush=True)
 
         limits: dict[str, int] = {}
         if arguments.max_findings is not None:

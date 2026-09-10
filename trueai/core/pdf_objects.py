@@ -3,7 +3,7 @@
 The lexical scanner this replaces finds `trailer`, reads `/Info`, and follows a
 textual search for `N G obj`. That works on PDFs written the way they were
 written in 2003. Since PDF 1.5 a producer may put the cross-reference table in a
-*stream* — no `trailer` keyword appears anywhere — and put `/Info` and the
+*stream* (no `trailer` keyword appears anywhere) and put `/Info` and the
 catalog inside a compressed *object stream*. Against those files the lexical
 scanner reports nothing at all, and reporting nothing looks exactly like finding
 nothing.
@@ -17,7 +17,7 @@ module is mostly limits. A PDF is a container format that can ask a parser to
 allocate as much memory as the parser is willing to allocate, and the classic
 attack is a few kilobytes of Flate that expand to gigabytes. Every decompression
 here runs through :func:`inflate_bounded`, which decompresses *into a cap* rather
-than decompressing and then checking the size — the difference between refusing a
+than decompressing and then checking the size: the difference between refusing a
 bomb and detonating it and then complaining.
 
 Nothing here writes, and nothing here decides. It reports what the document
@@ -644,8 +644,8 @@ class PdfDocument:
                 payload = bytes.fromhex(digits.decode("ascii"))
                 self.budget.charge_inflated(len(payload))
             else:
-                # Every other filter — LZW, RunLength, DCT, JBIG2, CCITT, and any
-                # crypt filter — is left encoded rather than decoded by guesswork.
+                # Every other filter (LZW, RunLength, DCT, JBIG2, CCITT, and any
+                # crypt filter) is left encoded rather than decoded by guesswork.
                 # An inspector that pretends to have read a stream it could not
                 # decode reports absence as evidence.
                 raise PdfStructureError(f"Filter {name} is not decoded by this inspector")

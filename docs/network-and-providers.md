@@ -1,7 +1,7 @@
 # The network boundary, and what admits a provider adapter
 
 TrueAI runs offline. The few operations that could benefit from a remote
-service — a timestamp authority, a provider's verification API — go through one
+service (a timestamp authority, a provider's verification API) go through one
 gate or do not happen.
 
 ## Six conditions, all of them
@@ -12,7 +12,7 @@ gate or do not happen.
 |---|---|
 | **Policy** is `NetworkPolicy.EXPLICIT_ONLY` | The default is `OFFLINE`. A caller that did not think about the network does not get it. |
 | **Consent** is recorded | A policy flag says the software *may*; consent says a person *decided*. Collapsing them lets a configuration default stand in for a human. |
-| **Endpoint** is allowlisted | An exact URL the operator wrote down — not a host pattern, not a scheme. |
+| **Endpoint** is allowlisted | An exact URL the operator wrote down, not a host pattern, not a scheme. |
 | **Limits** are set | A timeout and a response-size cap, so a hostile or broken endpoint cannot hold a scan open or fill memory. |
 | **Credentials** are per-request | Produced by a caller-supplied callable, given the endpoint being contacted. The gate holds none. |
 | **Metadata** is recorded | Every attempt, allowed or refused. |
@@ -39,14 +39,14 @@ that only records successes cannot do that.
 What a record carries: endpoint, purpose, who granted consent, whether it was
 allowed, how long it took, how many bytes came back, and the **names** of the
 headers sent. What it never carries: the request body, the response body, or a
-header value — because a header value can be a credential.
+header value, because a header value can be a credential.
 
 ## Everything goes through it
 
 `NetworkTimestampProvider` used to carry its own copy of the policy and
 allowlist checks. It now builds or accepts a `NetworkGate` and calls through it,
 so "did this tool contact anything" has one answer, one set of rules, and one
-audit trail. Its original two-argument transport shape still works — it is
+audit trail. Its original two-argument transport shape still works. It is
 adapted to the gate's protocol rather than replaced, because changing it would
 break every caller who wrote one.
 

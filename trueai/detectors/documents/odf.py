@@ -4,8 +4,8 @@ ODF passed the `FMT-06` bar and legacy binary Office did not, for reasons worth
 stating where the code is rather than only in a document.
 
 ODF is a ZIP package. Every hostile-input control this project already built for
-Office Open XML — path traversal, encrypted entries, entry counts, compression
-ratios, uncompressed-size caps, defused XML — applies unchanged, because it is
+Office Open XML: path traversal, encrypted entries, entry counts, compression
+ratios, uncompressed-size caps, defused XML: applies unchanged, because it is
 the same container with different part names. The parser is `zipfile` plus
 `defusedxml`, both maintained, both already in the dependency set. And the
 integrity proof has an obvious shape: `content.xml` carries the document text,
@@ -17,7 +17,7 @@ container: a FAT-chained pseudo-filesystem holding property-set streams. Reading
 it needs a new dependency, writing it needs one that does not exist, and an
 integrity proof would have to reason about sector chains rather than about
 independent entries. It is identified here and reported as not inspected, which
-is the honest outcome — a file silently skipped looks exactly like a file that
+is the honest outcome. A file silently skipped looks exactly like a file that
 was clean.
 """
 

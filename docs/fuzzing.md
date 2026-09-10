@@ -28,7 +28,7 @@ a `TrueAIError`, a validation error. It is *not* allowed to raise a `TypeError`
 from an unguarded attribute access, an `IndexError` from an unchecked slice, a
 `RecursionError` from an unbounded structure, or a `MemoryError` from a length
 field nobody read twice. Those are reported as findings, and so is any exception
-the target did not declare — a parser may refuse, it may not surprise.
+the target did not declare. A parser may refuse, it may not surprise.
 
 **What must hold when it does not refuse.** A validated OPC package names no
 member that would escape the tree. An XML part never resolves an external entity.
@@ -60,7 +60,7 @@ and for a length-prefixed format that means never getting past the header again.
 
 The line count counts lines inside `trueai/` only. That is the right denominator
 for "did our code get exercised" and a misleading one for a target whose parser
-is a thin wrapper over pydantic or ElementTree — a low number there means the
+is a thin wrapper over pydantic or ElementTree. A low number there means the
 work happens in a library, not that less was tested.
 
 ## Seeds are real artifacts
@@ -71,7 +71,7 @@ a track and a resolved sample table, a WebM with tracks and clusters, both a
 classic and a cross-reference-stream PDF, a signed policy bundle, an issued
 certificate, a rendered report.
 
-That is worth roughly double the coverage on the formats where it matters — the
+That is worth roughly double the coverage on the formats where it matters. The
 PDF target went from 153 lines to 348 when it stopped starting from a stub.
 
 ## The harness is checked for teeth
@@ -80,6 +80,6 @@ PDF target went from 153 lines to 348 when it stopped starting from a stub.
 unguarded `TypeError`, and does *not* report a clean target.
 `tests/unit/test_parser_fuzzing.py` runs a short pass of every boundary on every
 test run, so a regression that makes a parser raise on a truncated header fails
-the build rather than waiting for somebody to remember a nightly job — and it
+the build rather than waiting for somebody to remember a nightly job, and it
 asserts the harness can fail, because a fuzzer that cannot report a failure
 passes everything, which is indistinguishable from working.

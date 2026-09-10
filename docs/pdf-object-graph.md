@@ -7,8 +7,8 @@ for `N G obj`.
 ## The coverage hole
 
 That approach works on PDFs written the way they were written in 2003. Since
-PDF 1.5 a producer may put the cross-reference table in a **stream** — so the
-word `trailer` appears nowhere in the file — and put `/Info` and the catalog
+PDF 1.5 a producer may put the cross-reference table in a **stream** (so the
+word `trailer` appears nowhere in the file) and put `/Info` and the catalog
 inside a compressed **object stream**, so `/Author` never appears as plain text
 either.
 
@@ -71,7 +71,7 @@ report "no metadata" for a document whose metadata simply exceeded the budget.
 ## Two readers, and which one spoke
 
 The detector tries the graph first and falls back to the lexical scan when the
-graph cannot model the document within its budget — a file that defeats the
+graph cannot model the document within its budget. A file that defeats the
 parser should still yield whatever a regular expression can honestly find.
 
 Every finding records which reader produced it, in `evidence["reader"]`.

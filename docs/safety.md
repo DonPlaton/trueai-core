@@ -23,7 +23,7 @@ findings and reject removal rules for those categories.
 - Generic watermark: no provider can be selected; the adapter returns `NOT_SUPPORTED`.
 
 Marker presence is deterministic evidence of bytes, not authenticated provenance. A `valid`
-verification result — correct signature, unknown signer — is not authenticated provenance either.
+verification result (correct signature, unknown signer) is not authenticated provenance either.
 Only `trusted` establishes it. See [provenance](provenance.md).
 
 Verification never runs implicitly during a scan, and it never fetches a remote manifest unless

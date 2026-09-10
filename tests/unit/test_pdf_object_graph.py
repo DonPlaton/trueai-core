@@ -3,9 +3,9 @@
 Two fixture builders, because the point of this module is that they are different
 documents to a parser and identical documents to a reader:
 
-* ``classic_pdf`` — a `trailer` keyword and uncompressed objects, which the old
+* ``classic_pdf``: a `trailer` keyword and uncompressed objects, which the old
   lexical scanner handles.
-* ``modern_pdf`` — a cross-reference *stream* and an object *stream*, which is
+* ``modern_pdf``: a cross-reference *stream* and an object *stream*, which is
   what every current producer emits and against which the lexical scanner
   reports nothing at all.
 
@@ -114,7 +114,7 @@ def modern_pdf(
     highest = 8 if with_signature else (6 if with_xmp else 5)
     entries = bytearray()
 
-    #: type, field two, field three — widths 1, 4, 2.
+    #: type, field two, field three: widths 1, 4, 2.
     def row(kind: int, second: int, third: int) -> bytes:
         return bytes([kind]) + second.to_bytes(4, "big") + third.to_bytes(2, "big")
 

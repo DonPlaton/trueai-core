@@ -16,7 +16,7 @@ Three others decide whether TrueAI is usable on a real repository:
 * **Determinism**, because a report that varies between identical runs cannot be
   the basis of an audit certificate.  It is checked by running the scan twice
   and comparing the reports with only the fields that are *expected* to vary
-  removed — a comparison that ignored everything unstable would always pass.
+  removed. A comparison that ignored everything unstable would always pass.
   The comparison is done on a per-field digest rather than on the reports
   themselves, because at 100,000 files holding three whole reports in memory to
   compare them makes the harness the thing that runs out of memory.
@@ -82,7 +82,7 @@ class ResourceUse:
     seconds: float
     #: The process-lifetime peak resident set in bytes as of the end of this
     #: phase, or ``None`` where the platform does not expose it. Monotonic across
-    #: phases by construction — an OS high-water mark does not fall — so only the
+    #: phases by construction (an OS high-water mark does not fall) so only the
     #: first phase's figure is that phase's own peak, and a later one being equal
     #: means it stayed under the earlier high, not that it used nothing.
     process_peak_rss_bytes: int | None

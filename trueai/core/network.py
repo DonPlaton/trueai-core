@@ -2,8 +2,8 @@
 
 A forensic tool that can reach the network by default is a different product with
 a different threat model. Everything in this project runs offline, and the few
-operations that could benefit from a remote service — a timestamp authority, a
-provider's verification API — go through this gate or do not happen.
+operations that could benefit from a remote service (a timestamp authority, a
+provider's verification API) go through this gate or do not happen.
 
 Six conditions, all of them, before a single byte leaves the machine:
 
@@ -12,13 +12,13 @@ Six conditions, all of them, before a single byte leaves the machine:
 * **Consent.** A recorded decision naming who allowed it and for what. A policy
   flag says the software may; consent says a person did.
 * **Allowlist.** An exact endpoint the operator wrote down. Not a host pattern,
-  not a scheme — the URL that will be contacted.
+  not a scheme. The URL that will be contacted.
 * **Limits.** A timeout and a response-size cap, so a hostile or broken endpoint
   cannot hold the scan open or fill memory.
 * **Credential isolation.** Credentials are fetched per request through a
   caller-supplied callable, never stored on the gate, never logged, and never
   attached to a request for an endpoint other than the one they were scoped to.
-* **Auditable metadata.** Every attempt — allowed or refused — produces a record
+* **Auditable metadata.** Every attempt (allowed or refused) produces a record
   of what was contacted, how long it took, how much came back, and whether it
   succeeded. Never the request body, never the response body, never the
   credential.
@@ -88,7 +88,7 @@ class NetworkConsent:
 class RequestRecord(FrozenModel):
     """What happened, in a form that can be published without leaking anything.
 
-    Carries no request body, no response body, and no credential — only the
+    Carries no request body, no response body, and no credential, only the
     facts an auditor needs to answer "what did this tool contact, and when".
     """
 

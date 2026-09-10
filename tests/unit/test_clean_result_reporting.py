@@ -1,7 +1,7 @@
 """What `clean` tells an operator it did.
 
-It said "Changed fields: 1". The result carries the names — `changed_fields` is a
-tuple of them — and the terminal printed the length. Somebody sanitizing a client
+It said "Changed fields: 1". The result carries the names (`changed_fields` is a
+tuple of them) and the terminal printed the length. Somebody sanitizing a client
 deliverable needs to know that `Software` went and `Author` stayed, and a count
 cannot tell them that.
 
@@ -9,8 +9,8 @@ cannot tell them that.
 every result and rendered by nothing.
 
 And a dry run filled `changed_fields` with the operations it *would* run, giving
-one field two vocabularies — field names after a real clean, operation
-identifiers after a preview — in a record a JSON consumer reads.
+one field two vocabularies (field names after a real clean, operation
+identifiers after a preview) in a record a JSON consumer reads.
 """
 
 from __future__ import annotations

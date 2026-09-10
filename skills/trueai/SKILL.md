@@ -1,11 +1,11 @@
 ---
 name: trueai
-description: Audit local repositories and artifacts with TrueAI Core for AI-tooling residue, metadata, invisible Unicode, Git attribution, document/image properties, provenance markers, and conservative style signals. Use for requests such as “scan this deliverable,” “inspect metadata/provenance,” “check this repo before publishing,” “audit this document,” or “perform a clean-delivery audit.”
+description: Audit local repositories and artifacts with TrueAI Core for AI-tooling residue, metadata, invisible Unicode, Git attribution, document/image properties, provenance markers, and conservative style signals. Use for requests such as "scan this deliverable," "inspect metadata/provenance," "check this repo before publishing," "audit this document," or "perform a clean-delivery audit."
 ---
 
 # TrueAI artifact audit
 
-Use TrueAI as an evidence-first local scanner. Never summarize all findings as “AI-generated.”
+Use TrueAI as an evidence-first local scanner. Never summarize all findings as "AI-generated."
 
 ## Workflow
 
@@ -60,7 +60,7 @@ Use TrueAI as an evidence-first local scanner. Never summarize all findings as �
     A `clear` certificate means only that TrueAI found no scoped indicator in a complete scan. It is
    not proof of human authorship. Use an Ed25519 signing key and finite validity when issuer
    authentication is required. If verification policy requires revocation status, supply a current
-   issuer-signed list; never treat a missing or expired list as “not revoked.”
+   issuer-signed list; never treat a missing or expired list as "not revoked."
 
 Read [cli.md](references/cli.md) for policies, exit codes, and format-specific limitations. Use
 `scripts/audit.py` when a deterministic JSON-only wrapper is more convenient than terminal output.

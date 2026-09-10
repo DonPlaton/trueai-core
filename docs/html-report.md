@@ -10,8 +10,8 @@ most often gets read.
 
 ## The threat is the report itself
 
-Every string in a report came from the file under examination — a name, a
-metadata value, a manifest field, an exception message — and the report is then
+Every string in a report came from the file under examination (a name, a
+metadata value, a manifest field, an exception message) and the report is then
 opened in a browser by the person examining it. That is the attack in one
 sentence: put script in a document, have it run in the analyst's browser when
 they read about it.
@@ -38,8 +38,8 @@ everything" from a claim into something the browser enforces.
 ### How that is tested
 
 `tests/unit/test_html_reporter.py` **parses** the output rather than grepping it.
-Substring checks read escaped text as markup — `onmouseover=&quot;` looks like an
-event handler to `in` and is inert to a parser — so the tests ask
+Substring checks read escaped text as markup: `onmouseover=&quot;` looks like an
+event handler to `in` and is inert to a parser, so the tests ask
 `html.parser.HTMLParser` what elements and attributes the document actually
 contains and assert that every tag is one the reporter writes and that no
 attribute name starts with `on` or can fetch anything.
@@ -48,7 +48,7 @@ The suite is checked for teeth: with escaping deliberately removed, 13 of its
 tests fail.
 
 Hostile values go through the whole pipeline, including a filename containing
-characters a filesystem actually permits — `<` and `>` are illegal in a Windows
+characters a filesystem actually permits, `<` and `>` are illegal in a Windows
 filename, so a test using those would prove nothing on the platform it ran on.
 
 ## What the page shows, and what it refuses to blur
@@ -59,8 +59,8 @@ between deterministic and heuristic is exactly the reader who will treat a
 heuristic as a fact, so the page says it next to the heading rather than in a
 legend somewhere else.
 
-**Provenance is four columns, not one badge** — marker, signature, signer trust,
-provider — from the same projection the terminal uses, and a question that was
+**Provenance is four columns, not one badge** (marker, signature, signer trust,
+provider) from the same projection the terminal uses, and a question that was
 never answered is styled as unanswered rather than as a negative result. See
 [provenance](provenance.md).
 

@@ -2,7 +2,7 @@
 
 `FMT-06` was an evaluation with a condition attached: proceed only with a
 maintained parser, hostile-input tests, and a format-specific integrity proof.
-ODF meets all three on machinery that already exists — it is a ZIP package, so
+ODF meets all three on machinery that already exists. It is a ZIP package, so
 every control built for Office Open XML applies unchanged. Legacy binary Office
 does not, and the tests here pin the refusal so it stays a decision rather than
 an omission.

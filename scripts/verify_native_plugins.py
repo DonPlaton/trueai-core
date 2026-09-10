@@ -2,7 +2,7 @@
 
 ``scripts/verify_linux_confinement.py`` checks the confinement function. This
 checks the whole path: entry point, manifest review, worker spawn, confinement,
-guards, and the host's deadline — against plugins that reach the kernel through
+guards, and the host's deadline, against plugins that reach the kernel through
 ``ctypes`` and therefore ignore every Python-level guard.
 
 Run inside a container, where the kernel is real:
@@ -12,7 +12,7 @@ Run inside a container, where the kernel is real:
         && python scripts/verify_native_plugins.py"
 
 ``seccomp=unconfined`` is needed because Docker's own filter blocks the
-``unshare`` this confinement depends on — the host it protects is a developer
+``unshare`` this confinement depends on. The host it protects is a developer
 machine, not a container.
 
 Checks that assert a **gap** matter as much as the ones asserting a control. A
@@ -244,7 +244,7 @@ def main() -> int:
     check(
         "the documented read gap behaves as documented",
         "NATIVE-READ-SUCCEEDED" in messages(report),
-        "reads outside the grant were refused — docs now understate the confinement: "
+        "reads outside the grant were refused, so the docs now understate the confinement: "
         + messages(report),
     )
 

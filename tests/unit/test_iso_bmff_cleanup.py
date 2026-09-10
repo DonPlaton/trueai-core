@@ -5,7 +5,7 @@ different reasons: positive, refusal, malformed, signed-provenance, and large
 container.
 
 The design under test is deliberately narrow. Instead of removing bytes and
-rewriting every `stco` entry — where the interesting bugs live — the selected box
+rewriting every `stco` entry (where the interesting bugs live) the selected box
 is overwritten in place with a same-length zero-filled `free` box. Nothing moves,
 so no offset needs correcting, and the invariants from `FMT-01` verify that
 claim rather than assuming it.
@@ -233,8 +233,8 @@ def test_a_container_with_a_provenance_marker_is_refused(tmp_path: Path, support
 def test_metadata_whose_value_is_provenance_is_never_offered(tmp_path: Path) -> None:
     """The refusal happens at detection, one layer before the cleaner sees it.
 
-    A field whose value names a provenance system is still reported — hiding it
-    would be worse — but it carries no remediation id, so nothing downstream can
+    A field whose value names a provenance system is still reported (hiding it
+    would be worse) but it carries no remediation id, so nothing downstream can
     select it for removal.
     """
 

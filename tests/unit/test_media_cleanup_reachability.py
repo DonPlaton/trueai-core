@@ -1,7 +1,7 @@
 """What the README's capability table says about containers, checked against the code.
 
 The table's cleanup column said `Inspection only` for M4A, MP4, MOV, and WebM
-while the paragraph a hundred lines below it described the mechanism in detail —
+while the paragraph a hundred lines below it described the mechanism in detail:
 same-length `free` padding, so nothing moves and no offset needs correcting. Both
 could not be right.
 

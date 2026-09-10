@@ -3,7 +3,7 @@
 The fixture builds a self-consistent WebM: a `SeekHead` whose positions really
 point at `Info`, `Tracks`, and `Cues`, and a `Cues` index whose
 `CueClusterPosition` really points at the start of a cluster. That matters for
-the same reason the MP4 fixture had to resolve its chunk offsets — the failure
+the same reason the MP4 fixture had to resolve its chunk offsets: the failure
 worth catching is one where the document still parses, the blocks are still
 byte-identical, and only the stored positions are now wrong.
 """

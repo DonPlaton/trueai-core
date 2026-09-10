@@ -3,7 +3,7 @@
 The property that matters most is an ordering one. Reading a plugin's manifest
 used to mean importing the plugin, and import time is when hostile code acts. A
 signed distribution moves the manifest out of the module, so the host decides
-before anything runs — and the module's bytes are covered by the same signature,
+before anything runs, and the module's bytes are covered by the same signature,
 so a declared capability set cannot be contradicted by what module-level code
 actually does.
 """

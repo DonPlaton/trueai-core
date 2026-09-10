@@ -10,19 +10,19 @@ the blocks are still byte-identical. Seeking lands somewhere else.
 So the invariants are structural rather than lexical, and they follow the stored
 positions to whatever is actually there now:
 
-* **Tracks** — `TrackNumber`, `TrackUID`, `CodecID`, `CodecPrivate`, and the
+* **Tracks**: `TrackNumber`, `TrackUID`, `CodecID`, `CodecPrivate`, and the
   video and audio settings. `CodecPrivate` is initialisation data; losing it
   produces a track nothing can decode.
-* **Clusters** — the block payloads, hashed in order. Not "the Cluster elements
+* **Clusters**: the block payloads, hashed in order. Not "the Cluster elements
   are unchanged": an edit is allowed to move a cluster, and one that leaves a
   stale position behind is caught by following the position.
-* **Cues** — the cue points themselves, and that every `CueClusterPosition`
+* **Cues**: the cue points themselves, and that every `CueClusterPosition`
   still resolves to a cluster with the same timestamp. A cue that points at the
   middle of an element is worse than no cue at all.
-* **Timing** — `TimestampScale`, `Duration`, and each cluster's `Timestamp`.
-* **Seek positions** — every `SeekHead` entry still resolves to an element with
+* **Timing**: `TimestampScale`, `Duration`, and each cluster's `Timestamp`.
+* **Seek positions**: every `SeekHead` entry still resolves to an element with
   the `SeekID` it names.
-* **Provenance** — a C2PA or XMP attachment, or an element carrying one, must
+* **Provenance**: a C2PA or XMP attachment, or an element carrying one, must
   survive byte-identical.
 
 Parsing assumes hostility: every variable-length integer is bounds-checked, an
@@ -302,7 +302,7 @@ def read_elements(
             # RFC 8794 allows an unknown size on Master Elements only, and the
             # restriction is load-bearing here. A leaf is not walked into, so an
             # unknown-size leaf ran to the end of its parent and every element
-            # after it — Clusters, Cues, an attachment carrying provenance — was
+            # after it (Clusters, Cues, an attachment carrying provenance) was
             # never seen. The model came back complete, and every invariant
             # computed over the half of the document that remained visible held.
             raise EbmlError(
@@ -378,8 +378,8 @@ def _descendants(elements: list[Element], parent: Element) -> list[Element]:
     is larger than the last. That makes a parent's descendants the run that
     begins after it and ends at its boundary, findable by bisection.
 
-    The obvious implementation — filter the whole list on
-    ``parent.start < item.start < parent.end`` — is what this replaces, and it
+    The obvious implementation: filter the whole list on
+    ``parent.start < item.start < parent.end``: is what this replaces, and it
     was quadratic in the element count. Modelling calls it once per TrackEntry,
     Cluster, CuePoint, Seek, and AttachedFile, and an empty Cluster costs five
     bytes to write: a half-megabyte document of 100,000 of them cost 10^10 list

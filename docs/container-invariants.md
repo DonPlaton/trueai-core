@@ -2,7 +2,7 @@
 
 This is a specification, and it is written as code in
 [`trueai/core/iso_bmff.py`](../trueai/core/iso_bmff.py). Nothing here removes
-anything. It answers one question — *would this edit still play the same file?* —
+anything. It answers one question (*would this edit still play the same file?*)
 so the cleanup in `FMT-02` can be gated on the answer rather than on hope.
 
 ## Why ISO-BMFF needs its own gate
@@ -66,8 +66,8 @@ if not report.safe_to_apply():
 Each invariant reports `held`, `violated`, or `indeterminate`.
 **Indeterminate counts as unsafe.** An edit whose effect cannot be checked is an
 edit that must not be applied, and treating "could not tell" as "fine" is how a
-gate becomes decoration. A file the model cannot fully resolve — sample tables
-that disagree with each other, a truncated `stsz` — produces indeterminate
+gate becomes decoration. A file the model cannot fully resolve (sample tables
+that disagree with each other, a truncated `stsz`) produces indeterminate
 results rather than a pass.
 
 There is no single `valid` field. "The samples moved" and "the provenance box was
@@ -78,7 +78,7 @@ computed from the parts rather than replacing them.
 ## Parsing hostile input
 
 Every offset is bounds-checked against the buffer. A box header claiming more
-bytes than remain is a parse refusal, not a short slice — a truncated slice would
+bytes than remain is a parse refusal, not a short slice. A truncated slice would
 model a file that does not exist, and every invariant computed on it would be
 about that fiction.
 
@@ -108,7 +108,7 @@ after:   ... [free 0000000000000000000000] [mdat ...]
 ```
 
 `free` is the format's own "ignore this" padding, understood by every demuxer.
-The metadata is gone — the payload is zeroed, not merely relabelled — the file
+The metadata is gone (the payload is zeroed, not merely relabelled) the file
 length is unchanged, and **no offset needs correcting because nothing moved**. A
 whole category of corruption is avoided by not creating the situation that
 causes it.
@@ -127,7 +127,7 @@ rather than shipping.
 
 | Refusal | Why |
 |---|---|
-| A container carrying a C2PA or XMP provenance box | A manifest binds byte ranges of the file it lives in, so *any* edit invalidates it — including one that leaves the manifest box untouched |
+| A container carrying a C2PA or XMP provenance box | A manifest binds byte ranges of the file it lives in, so *any* edit invalidates it, including one that leaves the manifest box untouched |
 | A metadata value that names a provenance system | Refused a layer earlier: the detector reports the field but assigns it no remediation id |
 | An `ftyp` brand outside the known set | An unrecognised brand may put something other than padding where a `free` box is expected |
 | Overlapping selections | The second would overwrite padding the first wrote, which is not the edit either described |
@@ -165,7 +165,7 @@ Remove bytes from `Tags` and every cluster after them shifts, while:
 
 Seeking lands somewhere else. `tests/unit/test_ebml_invariants.py` builds a WebM
 whose `SeekHead` and `Cues` positions genuinely resolve, drifts the cue positions
-by three bytes, and asserts that the block digests were identical in that case —
+by three bytes, and asserts that the block digests were identical in that case:
 the same demonstration the MP4 tests make about `mdat`.
 
 ## The six invariants
@@ -193,7 +193,7 @@ every `SeekHead` and `Cues` position stays correct without being rewritten.
 `void_element(length)` is exact by construction and tested at 2, 3, 8, 129,
 1000, 20,000, and 5,000,000 bytes, because the whole substitution depends on
 the replacement being the same size as what it replaced. The minimum is two
-bytes — one identifier, one size — which every real element exceeds.
+bytes (one identifier, one size) which every real element exceeds.
 
 A document carrying a provenance attachment is refused outright, for the same
 reason an MP4 with a C2PA box is: a manifest binds byte ranges of the file it

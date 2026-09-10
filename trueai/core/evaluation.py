@@ -13,8 +13,8 @@ A profile's output is called ``meets_review_requirements``. It is never renamed 
 anything about human authorship, because "this satisfies our review policy" and
 "a human wrote this" are different statements and only the first is knowable.
 
-**Process Assurance Level** measures how well supported a record is — evidence
-strength and governance — and says nothing about creativity, originality, or
+**Process Assurance Level** measures how well supported a record is (evidence
+strength and governance) and says nothing about creativity, originality, or
 token share. A two-sentence insight that reshaped a project can be `PAL-1` if it
 is merely self-declared. A routine implementation can be `PAL-4` because its
 process was independently audited. A higher PAL means better supported, not more
@@ -810,7 +810,7 @@ def portable_summary(
             + (f" / ai={claim.ai_autonomy.value}" if claim.ai_autonomy != AiAutonomy.NONE else "")
         )
 
-    lines.append(f"Process Assurance Level: {assurance.level.value} — {assurance.meaning}")
+    lines.append(f"Process Assurance Level: {assurance.level.value}, {assurance.meaning}")
     if result is not None:
         lines.append(result.statement)
     identity = verification.claimant_identity

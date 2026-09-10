@@ -1,6 +1,6 @@
 """One fixture per removable field, naming the operation it pins.
 
-The suite already exercised most of these — a privacy-policy run over a workbook
+The suite already exercised most of these: a privacy-policy run over a workbook
 removes metadata whether or not any test says `xlsx.remove-metadata-field`. What
 it did not do is make the coverage auditable: nothing could answer "which
 removable fields have a regression fixture", so nothing could notice a new one

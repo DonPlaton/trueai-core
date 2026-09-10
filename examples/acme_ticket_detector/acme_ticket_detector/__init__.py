@@ -21,7 +21,7 @@ separate on purpose: how sure you are, and what you are sure *of*. A ticket
 reference is ``DETERMINISTIC`` (the string is either there or it is not) and
 ``TEXT`` (found by reading the document, not by parsing its structure). Neither
 says anything about who wrote it, so ``ProvenanceClass.NONE`` is the honest
-value — anything else would present a lexical hit as provenance.
+value: anything else would present a lexical hit as provenance.
 
 **Build findings through ``self.finding``.** It derives the finding identifier
 from the artifact path, category, detector id, evidence, and location, so the
@@ -112,7 +112,7 @@ class AcmeTicketDetector(BaseDetector):
 #:
 #: `READ_ARTIFACT` alone: this detector reads the file it was given and does
 #: nothing else. Asking for more than is used is the same mistake as an
-#: over-broad permission on a phone app — it costs the operator their ability to
+#: over-broad permission on a phone app. It costs the operator their ability to
 #: reason about what ran.
 MANIFEST = PluginManifest(
     detector_id="acme.ticket.v1",

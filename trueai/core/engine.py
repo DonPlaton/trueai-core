@@ -147,7 +147,7 @@ class TrueAIEngine:
 
         ``cache`` overrides the instance the engine would build from
         ``options.cache_directory``. A caller supplies one when it needs to read
-        the cache back afterwards — hit and rejection counts, for instance,
+        the cache back afterwards: hit and rejection counts, for instance,
         which are otherwise invisible because the instance would be created and
         discarded inside this call.
 
@@ -268,8 +268,8 @@ class TrueAIEngine:
                 final_discovery = ArtifactDiscovery(discovery.options)
                 final_paths = final_discovery.inventory(root_artifact.path)
                 initial_paths = {artifact.display_path for artifact in artifacts}
-                # A path the first pass could not identify — unreadable, or
-                # deleted between the walk and the open — is absent from
+                # A path the first pass could not identify (unreadable, or
+                # deleted between the walk and the open) is absent from
                 # `initial_paths` but present in a path-only sweep. Excluding
                 # what the first pass already reported keeps a permission error
                 # from being announced as a detector mutating the repository.

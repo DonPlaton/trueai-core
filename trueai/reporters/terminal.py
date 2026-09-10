@@ -208,14 +208,14 @@ class TerminalReporter:
         }[report.integrity.status]
         self.console.print("\n[bold]Integrity[/bold]")
         self.console.print(
-            f"[{integrity_style}]{report.integrity.status.value.replace('_', ' ').title()}[/] — "
+            f"[{integrity_style}]{report.integrity.status.value.replace('_', ' ').title()}[/], "
             f"{_safe(report.integrity.explanation)}"
         )
 
     def render_plan(self, plan: RemediationPlan) -> None:
         """Print a remediation preview."""
 
-        table = Table(title=f"Remediation preview — {plan.policy}", show_lines=False)
+        table = Table(title=f"Remediation preview: {plan.policy}", show_lines=False)
         table.add_column("Safety")
         table.add_column("Artifact")
         table.add_column("Operation")
@@ -273,7 +273,7 @@ class TerminalReporter:
         for facets, rows in undetermined:
             for row in rows:
                 self.console.print(
-                    f"[yellow]{_safe(facets.artifact_path)}[/] — "
+                    f"[yellow]{_safe(facets.artifact_path)}[/]: "
                     f"{_safe(row.question)} {_safe(row.detail)}"
                 )
 
@@ -285,7 +285,7 @@ class TerminalReporter:
         for row in facets.rows():
             answer = row.answer.replace("_", " ").upper()
             lines.append(
-                f"{_safe(row.question)} [{_facet_style(row)}]{answer}[/] — {_safe(row.detail)}"
+                f"{_safe(row.question)} [{_facet_style(row)}]{answer}[/]: {_safe(row.detail)}"
             )
         lines += [
             "",
@@ -402,7 +402,7 @@ class TerminalReporter:
             # The wording is the point. An identified person signed this; that is
             # not the same as anyone having checked whether it is true.
             self.console.print(
-                "\n[bold green]Authenticated declaration[/bold green] — an identified claimant "
+                "\n[bold green]Authenticated declaration[/bold green]: an identified claimant "
                 "signed this record over these exact bytes."
             )
             self.console.print(
@@ -411,7 +411,7 @@ class TerminalReporter:
             )
         else:
             self.console.print(
-                "\n[yellow]Not an authenticated declaration[/yellow] — see the properties above "
+                "\n[yellow]Not an authenticated declaration[/yellow]. See the properties above "
                 "for which check did not pass."
             )
 
@@ -475,7 +475,7 @@ class TerminalReporter:
 
         assurance = result.assurance
         self.console.print(
-            f"\n[bold]Process Assurance Level[/bold] {_safe(assurance.level.value)} — "
+            f"\n[bold]Process Assurance Level[/bold] {_safe(assurance.level.value)}: "
             f"{_safe(assurance.meaning)}"
         )
         for reason in assurance.reasons:
@@ -547,19 +547,19 @@ class TerminalReporter:
 
         if result.may_load():
             self.console.print(
-                "\n[green]This plugin may be loaded[/green] — every check the host requires "
+                "\n[green]This plugin may be loaded[/green]. Every check the host requires "
                 "before import came back clean."
             )
         else:
             self.console.print(
-                "\n[yellow]This plugin will not be loaded[/yellow] — see the properties above."
+                "\n[yellow]This plugin will not be loaded[/yellow]. See the properties above."
             )
 
     def _finding(self, finding: Finding, *, verbose: bool) -> None:
         style = _SEVERITY_STYLE[finding.severity]
         # The path is printed whether or not there is a line to go with it. Most
-        # findings are about a whole file — a container box, a document
-        # property, an editor namespace — and printing the path only when a line
+        # findings are about a whole file (a container box, a document
+        # property, an editor namespace) and printing the path only when a line
         # existed meant a directory scan reported "SVG generator comment" with no
         # way to tell which of the files it came from.
         location = f" · {_safe(finding.artifact_path)}"

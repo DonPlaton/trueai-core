@@ -1,7 +1,7 @@
 """Adapters for the surfaces built on top of the public schema.
 
-Three interfaces need the same five views — finding explanation, remediation
-preview, integrity evidence, provenance, and certificate — and if each derives
+Three interfaces need the same five views (finding explanation, remediation
+preview, integrity evidence, provenance, and certificate) and if each derives
 them from the schema separately they drift. :mod:`trueai.adapters.views` derives
 them once; :mod:`~trueai.adapters.ci`, :mod:`~trueai.adapters.ide`, and
 :mod:`~trueai.adapters.desktop` format them.
