@@ -2106,6 +2106,14 @@ def doctor() -> None:
     checks.add_row("Network policy", "PASS", "offline; no telemetry or scan-time requests")
     console.print(checks)
 
+    # The face reads the table it is standing under rather than being told what
+    # to show, so it cannot end up smiling over a failed check.
+    from trueai.cli import motion
+
+    if motion.motion_wanted(console):
+        failed = any(str(cell) == "FAIL" for cell in checks.columns[1].cells)
+        console.print(motion.mascot("review" if failed else "clear", motion.glyphs_for(console)))
+
 
 @contextmanager
 def _scan_progress(
@@ -2132,7 +2140,9 @@ def _scan_progress(
         # Not the main thread: the scan simply cannot be cancelled that way.
         previous = None
 
-    if not (enabled and error_console.is_terminal):
+    from trueai.cli import motion
+
+    if not motion.motion_wanted(error_console, requested=enabled):
         try:
             yield None, token
         finally:
@@ -2140,15 +2150,18 @@ def _scan_progress(
                 signal.signal(signal.SIGINT, previous)
         return
 
-    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+    from rich.progress import Progress, TextColumn, TimeElapsedColumn
 
+    glyphs = motion.glyphs_for(error_console)
     bar = Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("{task.completed}/{task.total}"),
+        motion.ScanHeadColumn(glyphs),
+        TextColumn(f"[{motion.BRAND}]{{task.description}}"),
+        motion.ScanBarColumn(glyphs),
+        TextColumn(f"[{motion.MUTED}]{{task.completed}}/{{task.total}}"),
         TimeElapsedColumn(),
         console=error_console,
         transient=True,
+        refresh_per_second=12,
     )
     task = bar.add_task("scanning", total=None)
 
@@ -2484,6 +2497,15 @@ def _print_policies() -> None:
 def main() -> None:
     """Console-script entry point."""
 
+    # Bare `trueai` is somebody looking around rather than a script collecting
+    # output, so it gets the banner ahead of the help text. Anything with an
+    # argument, and anything whose output is redirected, gets what it always
+    # got: `motion_wanted` is false for a pipe, and the banner never reaches one.
+    if len(sys.argv) == 1:
+        from trueai.cli import motion
+
+        if motion.motion_wanted(console):
+            console.print(motion.banner(__version__, motion.glyphs_for(console)))
     app()
 
 

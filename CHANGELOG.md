@@ -10,6 +10,47 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Added
+
+**A terminal surface with a palette, a mascot, and motion that is a function of time**
+
+`trueai/cli/motion.py` holds the program's visual identity: five brand stops,
+three easing curves, a scanning head with a tail, a determinate bar, and a lens
+with four poses. [docs/terminal.md](docs/terminal.md) describes all of it,
+including how to turn it off.
+
+The palette was chosen under three constraints and the test file asserts all
+three, so a later edit that picks a prettier colour finds out immediately if it
+broke one. Every stop keeps at least 3:1 contrast against white, black,
+`#1E1E1E`, `#FDF6E3`, and `#0C0C0C`, which is what makes the identity survive a
+light terminal as well as a dark one. The five map to five different indices
+after a 256-colour terminal quantises them. And all of them sit between 220 and
+320 degrees of hue, clear of the green, yellow, red, and cyan this program
+already spends on verdicts, because a decoration in a verdict colour reads as a
+verdict.
+
+Phase comes from elapsed time rather than from a frame counter, so the animation
+runs at the same speed on a directory of small files and on one large PDF, and
+so every curve is a pure function a test can evaluate with no terminal attached.
+The head sweeps on a raised cosine, which holds the end column for four frames
+where the cubic ease it replaced held it for six.
+
+Two rules the display is held to. It never claims progress it does not have:
+before discovery reports a total the bar draws an empty track rather than Rich's
+pulse, which looks like movement toward an end that is not yet known, and once
+there is a total the fill rounds down. And it never reaches a pipe: a redirected
+run, a CI log, and the documentation gate see exactly the bytes they saw before
+this module existed. `--no-progress` covers one run, `TRUEAI_NO_MOTION=1` covers
+every run, and `TERM=dumb` is honoured. `NO_COLOR` is not a motion switch,
+because it is a statement about colour.
+
+The mascot is one lens in four poses that differ only in the iris. `doctor`
+picks between the clear and review poses by reading the table it just printed,
+so the face cannot smile over a failed check. Every glyph has an ASCII twin with
+identical line lengths, selected by asking the output encoding whether it can
+represent the drawn one, because a Windows console under code page 1251 raises
+rather than degrades.
+
 ### Changed
 
 **Punctuation that read as machine output**

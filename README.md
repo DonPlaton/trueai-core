@@ -335,6 +335,11 @@ boundary and states what the coverage guidance is measurably worth, and
 [progress and cancellation](docs/progress-and-cancellation.md), which the engine offers as two
 one-member protocols so no interface library reaches the core.
 
+The [terminal surface](docs/terminal.md) covers what the program draws on a terminal and how to
+stop it drawing anything: `--no-progress` for one run, `TRUEAI_NO_MOTION=1` for every run, and
+automatically whenever output is redirected. None of it reaches a pipe, so a script sees the same
+bytes either way.
+
 The current implementation status, differentiators, limitations, and development roadmap are
 maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
