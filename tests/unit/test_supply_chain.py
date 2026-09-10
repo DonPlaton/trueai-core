@@ -589,3 +589,94 @@ def test_the_release_workflow_runs_the_manifest_gate_only_where_a_build_exists()
     assert "check_manifest.py" not in verify
     assert "check_supply_chain.py" in build
     assert build.index("Build reproducible distributions") < build.index("check_manifest.py")
+
+
+# -- the SBOM's own identity -----------------------------------------------------------
+
+
+def test_the_sbom_carries_a_serial_number() -> None:
+    """`actions/attest` refuses a CycloneDX document without one.
+
+    The first release dry run reached the attestation step and failed on
+    "Unsupported SBOM format", because the action's CycloneDX check requires
+    `bomFormat`, `specVersion`, and `serialNumber` together, and this document
+    had the first two.
+    """
+
+    from scripts.generate_sbom import build_document
+
+    document = build_document(
+        [Component(name="example", version="1.0", license_id="MIT", purl="pkg:pypi/example@1.0")]
+    )
+
+    assert document["bomFormat"] == "CycloneDX"
+    assert document["specVersion"]
+    assert document["serialNumber"].startswith("urn:uuid:")
+
+
+def test_the_serial_number_is_a_real_uuid() -> None:
+    import uuid as uuid_module
+
+    from scripts.generate_sbom import build_document
+
+    document = build_document(
+        [Component(name="example", version="1.0", license_id="MIT", purl="pkg:pypi/example@1.0")]
+    )
+    parsed = uuid_module.UUID(document["serialNumber"].removeprefix("urn:uuid:"))
+
+    assert parsed.version == 5
+
+
+def test_the_same_closure_gets_the_same_serial_number() -> None:
+    """A random serial would make every build of one source a different document.
+
+    Reproducibility is the whole point of this SBOM, so the identifier is
+    derived from the contents rather than drawn fresh.
+    """
+
+    from datetime import UTC, datetime
+
+    from scripts.generate_sbom import build_document
+
+    moment = datetime(2026, 1, 1, tzinfo=UTC)
+    components = [
+        Component(name="example", version="1.0", license_id="MIT", purl="pkg:pypi/example@1.0")
+    ]
+
+    first = build_document(list(components), timestamp=moment)
+    second = build_document(list(components), timestamp=moment)
+
+    assert first["serialNumber"] == second["serialNumber"]
+    assert first == second
+
+
+def test_a_different_closure_gets_a_different_serial_number() -> None:
+    """Stable is not the same as constant: the field has to identify something."""
+
+    from datetime import UTC, datetime
+
+    from scripts.generate_sbom import build_document
+
+    moment = datetime(2026, 1, 1, tzinfo=UTC)
+    one = build_document(
+        [Component(name="example", version="1.0", license_id="MIT", purl="pkg:pypi/example@1.0")],
+        timestamp=moment,
+    )
+    other = build_document(
+        [Component(name="example", version="1.1", license_id="MIT", purl="pkg:pypi/example@1.1")],
+        timestamp=moment,
+    )
+
+    assert one["serialNumber"] != other["serialNumber"]
+
+
+def test_the_real_runtime_sbom_would_be_accepted_by_the_attestation_action() -> None:
+    """The check the action actually performs, against the document we actually ship."""
+
+    from scripts.generate_sbom import build_document, runtime_components
+
+    document = build_document(runtime_components())
+
+    assert (
+        document.get("bomFormat") and document.get("serialNumber") and document.get("specVersion")
+    )

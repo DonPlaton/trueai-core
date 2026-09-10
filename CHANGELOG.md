@@ -12,6 +12,21 @@ change is called out explicitly and governed by
 
 ### Fixed
 
+**The SBOM had no serial number, so the attestation step refused it**
+
+The second release dry run got past verification, built, signed, and then failed
+on `Unsupported SBOM format. Must be valid SPDX or CycloneDX JSON.` The check in
+`actions/attest` requires `bomFormat`, `specVersion`, and `serialNumber`
+together, and this document had the first two.
+
+The obvious fix is `uuid4`, and it would make every build of the same source
+produce a different document, which is the one thing this project's SBOM must
+not do. The serial number is instead a version 5 UUID over the document's own
+canonical form, so it is stable when the contents are and different when they
+are not. That is what the field is for, and what a random one only approximates.
+Two consecutive generations are byte-identical, and a test asserts both halves:
+same closure, same serial; changed closure, changed serial.
+
 **The release workflow could never have completed, and a test said it could**
 
 The first dry run of `.github/workflows/release.yml` failed, which is what a dry

@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, distribution
@@ -36,6 +37,10 @@ if str(REPOSITORY) not in sys.path:
 from packaging.utils import canonicalize_name  # noqa: E402
 
 CYCLONEDX_VERSION = "1.5"
+
+#: The namespace the document's serial number is derived under. A fixed URL
+#: rather than a fresh UUID, so the derivation is reproducible on any machine.
+_SERIAL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/DonPlaton/trueai-core")
 
 #: A license field a generator fills in when it has nothing. Treated as absent,
 #: because "UNKNOWN" in an SBOM answers a consumer's question with a shrug.
@@ -121,7 +126,7 @@ def build_document(
     from trueai._version import PACKAGE_VERSION
 
     moment = timestamp or datetime.now(UTC)
-    return {
+    document = {
         "bomFormat": "CycloneDX",
         "specVersion": CYCLONEDX_VERSION,
         "version": 1,
@@ -138,6 +143,27 @@ def build_document(
         },
         "components": [item.to_dict() for item in components],
     }
+    document["serialNumber"] = serial_number(document)
+    return document
+
+
+def serial_number(document: dict[str, Any]) -> str:
+    """Derive this document's identifier from what is in it.
+
+    CycloneDX asks for a serial number that identifies one BOM instance, and a
+    consumer needs it: `actions/attest` refuses a document without one, and
+    without it two BOMs cannot be told apart by reference.
+
+    The obvious implementation is `uuid4`, and it would make every build of the
+    same source produce a different document, which is the one thing this
+    project's SBOM must not do. A version 5 UUID over the document's canonical
+    form gives an identifier that is stable when the contents are and different
+    when they are not, which is what the field is for and what a random one
+    only approximates.
+    """
+
+    canonical = json.dumps(document, sort_keys=True, separators=(",", ":"))
+    return f"urn:uuid:{uuid.uuid5(_SERIAL_NAMESPACE, canonical)}"
 
 
 def incompleteness(components: list[Component]) -> list[str]:
