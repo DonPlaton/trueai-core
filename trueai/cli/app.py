@@ -2107,13 +2107,21 @@ def doctor() -> None:
     checks.add_row("Network policy", "PASS", "offline; no telemetry or scan-time requests")
     console.print(checks)
 
-    # The face reads the table it is standing under rather than being told what
-    # to show, so it cannot end up smiling over a failed check.
+    # The spectrum reads the table it is standing under rather than being told
+    # what to show, so the picture cannot disagree with the rows above it: one
+    # ray per quarter of the checks that passed, and no rays at all when none
+    # did. The checks have already run, so the reveal costs the command nothing.
     from trueai.cli import motion
 
     if motion.motion_wanted(console):
-        failed = any(str(cell) == "FAIL" for cell in checks.columns[1].cells)
-        console.print(motion.mascot("review" if failed else "clear", motion.glyphs_for(console)))
+        statuses = [str(cell) for cell in checks.columns[1].cells]
+        passed = sum(1 for status in statuses if status == "PASS")
+        glyphs = motion.glyphs_for(console)
+        motion.play(
+            console,
+            lambda phase: motion.spectrum(passed, len(statuses), glyphs, phase=phase),
+            seconds=motion.ENTRANCE_SECONDS,
+        )
 
 
 @contextmanager
@@ -2507,7 +2515,12 @@ def main() -> None:
         from trueai.cli import motion
 
         if motion.motion_wanted(console):
-            console.print(motion.banner(__version__, motion.glyphs_for(console)))
+            glyphs = motion.glyphs_for(console)
+            motion.play(
+                console,
+                lambda phase: motion.banner(__version__, glyphs, phase=phase),
+                seconds=motion.ENTRANCE_SECONDS,
+            )
     app()
 
 

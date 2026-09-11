@@ -10,7 +10,62 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+**The terminal identity, after the first one was reviewed and did not hold up**
+
+The lens was four rows of box-drawing outline, and outlines made of thin lines
+read as several loose parts rather than one object. It is now a prism: a solid
+body of filled quadrant blocks, a beam arriving, and a spectrum leaving it. Each
+ray leaves from the row of the body it belongs to, so the fan comes from the
+geometry instead of from chosen indentation.
+
+The shape is also the argument. One thing goes in and what comes out is
+separated into parts that are not interchangeable, which is what the engine does
+to an artifact and why the report keeps its evidence classes apart rather than
+averaging them into a score.
+
+`trueai doctor` now draws one ray per quarter of its checks that passed, counted
+from the table it prints rather than handed in. The count rounds down, so the
+full spectrum appears only when everything passed and a single failure is
+visible. A run where nothing passed draws the beam arriving and nothing leaving.
+
+**A palette that was legible and generic**
+
+The first ramp was correct and neon: mean HSL saturation 0.84, which is most of
+what makes a colour read as a default rather than a choice. The new one is
+matte at 0.49 and lighter, with the cool end moved from hue 243 to 212.
+
+Two constraints are unchanged, at least 3:1 against five backgrounds and five
+distinct indices after 256-colour quantisation. Two are new. Saturation is held
+under a ceiling, so a later edit cannot reach for a more vivid version of the
+same hue. And every stop stays at least 30 CIE76 units from every colour this
+program spends on a verdict.
+
+That last one replaced a rule naming an allowed range of hues. The range was a
+proxy for the thing that actually matters and was wrong at the edges: it
+admitted colours far away in hue and close in appearance. It is also what
+decides where the cool end stops. A true turquoise lands within 15 units of the
+cyan that means "marker present" and a muted sea-green within 28 of the green
+that means "passed", so neither can be used however well it would look.
+
+### Added
+
+**Entrances, a stagger, and a leading edge that breathes**
+
+`ease_out_expo` drives anything arriving, `stagger` offsets the parts of a group
+so their movements overlap, and the progress bar's leading cell now follows the
+existing `pulse`. The bar's fill is unchanged, so the cell moves without the
+reported number moving, which is what separates a scan working slowly from one
+that has stopped.
+
+Two rules keep the motion out of the way, both tested. Nothing loops forever in
+a still terminal: every animation is either a one-time entrance that settles or
+tied to work actually happening. And only the entrance costs a command any time,
+capped at 450ms, measured at 451ms, never sleeping past its own budget, and only
+where the command has nothing else to do. Everything during a scan rides the
+engine's existing progress callbacks and adds nothing to its duration.
+
 
 ## [0.1.0] - 2026-09-10
 
