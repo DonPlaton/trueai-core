@@ -34,7 +34,19 @@ def test_license_gate_targets_runtime_closure_not_release_tooling() -> None:
     assert "cyclonedx-bom" not in names
 
 
-WORKFLOWS = (Path(".github/workflows/ci.yml"), Path(".github/workflows/release.yml"))
+#: Read off the directory rather than listed by hand. A workflow added to the
+#: repository and not to a tuple here would run unpinned actions with nothing
+#: objecting, which is how the pin gate quietly stops covering the thing it was
+#: written for.
+WORKFLOWS = tuple(sorted(Path(".github/workflows").glob("*.yml")))
+
+
+def test_the_workflow_directory_is_where_this_thinks_it_is() -> None:
+    """Guards every parametrised test below: they pass trivially on an empty list."""
+
+    assert len(WORKFLOWS) >= 3, [str(path) for path in WORKFLOWS]
+    assert Path(".github/workflows/ci.yml") in WORKFLOWS
+    assert Path(".github/workflows/release.yml") in WORKFLOWS
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
@@ -235,7 +247,22 @@ def test_the_runtime_prefix_is_installed_independently_of_the_builder() -> None:
     assert "--require-hashes" in stanza
 
 
-@pytest.mark.parametrize("workflow", WORKFLOWS)
+#: The workflows that run mypy. Not every workflow does, and asserting the flag
+#: against one that does not would be asserting something untrue about it.
+TYPE_CHECKING_WORKFLOWS = (
+    Path(".github/workflows/ci.yml"),
+    Path(".github/workflows/release.yml"),
+)
+
+
+def test_every_type_checking_workflow_still_exists() -> None:
+    """This list is by hand, so it has to be checked against the directory."""
+
+    missing = [str(path) for path in TYPE_CHECKING_WORKFLOWS if path not in WORKFLOWS]
+    assert not missing, missing
+
+
+@pytest.mark.parametrize("workflow", TYPE_CHECKING_WORKFLOWS)
 def test_types_are_checked_for_both_platforms(workflow: Path) -> None:
     """One mypy run answers for one operating system and is blind to the other.
 

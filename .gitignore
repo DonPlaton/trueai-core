@@ -33,3 +33,26 @@ graph.json
 
 dist-verify/
 .cmp/
+
+# Key material, because this project's own documentation tells a reader to
+# create some. `trueai certificates keygen --private-key issuer.pem` writes a
+# private key into whatever directory they ran it in, and the README runs it
+# from the repository root. Nothing here is a substitute for push protection;
+# it is the line that stops the mistake being made in the first place.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ppk
+.env
+.env.*
+
+# Public halves and trust anchors are meant to be shared, so they are allowed
+# back. A private key named like a public one is a mistake this cannot catch,
+# and push protection is the layer for that.
+!*.pub.pem
+!*-public.pem
+!*roots.pem
+!*.crl.json

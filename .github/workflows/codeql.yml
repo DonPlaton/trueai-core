@@ -1,0 +1,48 @@
+# Static security analysis, published where somebody looking for it will look.
+#
+# The Security tab on this repository was empty, and empty reads as "clean" when
+# it actually meant "nothing has ever run here". That is the same confusion the
+# product exists to prevent, so leaving it was not an option.
+#
+# The weekly run is not redundant with the push run. CodeQL's queries change,
+# and a query added next month applies to code that has not been touched since,
+# which nothing triggered by a push would ever re-examine.
+name: CodeQL
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # Tuesday morning, so a finding lands on a working day rather than ageing
+    # over a weekend.
+    - cron: "17 6 * * 2"
+
+permissions: {}
+
+jobs:
+  analyze:
+    name: Analyse Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The only two this needs: read the tree, write the results.
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          languages: python
+          # Security-focused rather than `security-and-quality`: this tab is for
+          # things that could hurt somebody, and the style queries would bury
+          # them under findings that ruff and mypy already gate on.
+          queries: security-extended
+      - name: Analyse
+        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          category: "/language:python"

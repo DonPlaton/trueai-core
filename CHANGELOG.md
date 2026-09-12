@@ -10,6 +10,55 @@ change is called out explicitly and governed by
 
 ## [Unreleased]
 
+### Added
+
+**Static analysis, and a Security tab that says something**
+
+The repository's code scanning section was empty, and an empty security tab
+reads as "clean" when it means "nothing has ever run here". That is the same
+confusion this product exists to prevent, so `.github/workflows/codeql.yml` now
+runs CodeQL's `security-extended` queries over the Python source on every push
+and pull request, and weekly. The weekly run is not redundant: CodeQL's queries
+change, and a query added next month applies to code nobody has touched since.
+
+`SECURITY.md` lists what runs against this repository and where each result
+lands, so the answer to "what analysis do you do" is a table rather than a
+conversation.
+
+### Fixed
+
+**The repository made it easy to commit a key it told you to create**
+
+`trueai certificates keygen --private-key issuer.pem` writes a private key into
+whatever directory it was run from, and the README runs it from the repository
+root. Nothing in `.gitignore` covered `.pem`, `.key`, `.p12`, `.pfx`, `.jks`,
+`.keystore`, `.ppk`, or `.env`. Ten key filenames appear across the
+documentation and not one of them was ignored.
+
+They are now, with the public halves and trust anchors allowed back, because
+ignoring those would silently drop a file somebody meant to publish.
+`tests/unit/test_repository_secrets.py` reads the documentation to work out
+which filenames the rules have to cover, so a name added to the docs and not to
+the ignore list fails the build. It also asserts that nothing key-shaped is
+tracked now or has ever been committed, because deleting a key does not remove
+it from a clone.
+
+GitHub's push protection is enabled and would probably have caught a committed
+private key. Relying on the platform to catch what the project's own
+instructions invite is the wrong way round.
+
+**A gate that had stopped covering what it was written for**
+
+`test_every_external_action_is_pinned_to_an_immutable_sha` was parametrised over
+a hand-written tuple of two workflow paths. A third workflow would have run
+unpinned actions with nothing objecting. The list is now read off the directory,
+with a test asserting the directory is where it thinks it is, because a
+parametrised test over an empty list passes.
+
+One test that was parametrised over the same tuple genuinely is about only two
+of the workflows, since not every workflow runs mypy. It now names them, and a
+separate test checks that the two it names still exist.
+
 ### Changed
 
 **The terminal identity, after the first one was reviewed and did not hold up**

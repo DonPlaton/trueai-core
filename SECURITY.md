@@ -32,6 +32,29 @@ They also share a discipline about *not* overstating: "discard all reports" when
 one detector was affected, or "provenance verification was broken" when only
 signer trust was wrong, teaches people to discount the next advisory.
 
+## What runs against this repository
+
+| Analysis | Where the result goes | Cadence |
+| --- | --- | --- |
+| CodeQL, `security-extended` | The repository's code scanning alerts | Every push and pull request, plus weekly |
+| Secret scanning with push protection | The repository's secret scanning alerts | Continuous, and on every push |
+| `pip-audit` over the hash-locked runtime closure | The `supply-chain` CI job | Every push and pull request |
+| The advisory ledger | The same job | Every push, and it fails on age rather than only on a CVE |
+| Coverage-guided fuzzers on every parser boundary | The nightly workflow | Nightly |
+
+The weekly CodeQL run is not redundant with the one on push. CodeQL's queries
+change, and a query added next month applies to code nobody has touched since,
+which nothing triggered by a push would re-examine.
+
+Key material is ignored by `.gitignore`, and
+[`tests/unit/test_repository_secrets.py`](tests/unit/test_repository_secrets.py)
+reads the documentation to work out which filenames that has to cover. The
+project's own instructions tell a reader to run `trueai certificates keygen
+--private-key issuer.pem`, which writes a private key into whatever directory
+they ran it in; a documented instruction to put key material beside a git index
+has to be matched by a rule that stops it being committed. Push protection is
+the second line, not the first.
+
 ## Security model
 
 TrueAI treats every artifact as hostile:
