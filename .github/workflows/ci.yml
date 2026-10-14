@@ -86,7 +86,7 @@ jobs:
         run: python -m pytest --cov=trueai --cov-report=term-missing --cov-report=xml -rs
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-xml
           path: coverage.xml
@@ -297,7 +297,7 @@ jobs:
           export PATH="/tmp/clean-env/bin:$PATH"
           bash scripts/smoke_test.sh /tmp/clean-env/bin/trueai
       - name: Upload distributions
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: distributions
           path: dist/*
@@ -376,7 +376,7 @@ jobs:
       - name: Run the supply-chain suite against the complete closure
         run: python -m uv run python -m pytest tests/unit/test_supply_chain.py -rs
       - name: Upload the SBOM
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom
           path: sbom.cdx.json
